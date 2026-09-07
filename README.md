@@ -27,6 +27,8 @@ git config filter.strip-ephemeral-state.clean 'jq "del(.feedbackSurveyState, .la
 git config filter.strip-ephemeral-state.smudge cat
 ```
 
+The filter is per-clone, so a checkout that skips those two commands will commit whatever the host wrote at runtime, including the `autoMode` environment inventory. `scripts/config-integrity.sh` fails the build when that reaches a commit, and prints the two commands to fix it.
+
 `--check` is read-only and exits nonzero when drift exists. `--apply` never replaces a real path or wrong symlink. `--adopt` is the only replacement mode, and it moves every conflict to an adjacent `<path>.bak.<timestamp>` backup instead of deleting it. The existing `scripts/setup-symlinks.sh` command remains a Claude-only compatibility wrapper.
 
 ### Machine host scope
@@ -82,4 +84,5 @@ The pi resources themselves live in `pi/` (`settings.json`, `extensions/`) and a
 ## More
 
 - **Security boundaries** - deny list, Bash restrictions, and lock-file protection live in [`settings.json`](settings.json).
-- **CI** - markdown linting on push/PR (`.github/workflows/`).
+- **CI** - `.github/workflows/pull-request.yml` runs six jobs. They cover markdown linting, the rule budget, the prose gate, the pi extension tests, the shell test suites, and config integrity. A single `Gate` check aggregates them.
+- **Local gate** - `scripts/config-budget.sh`, `scripts/config-integrity.sh`, and `scripts/shellcheck-all.sh` each run standalone and are what CI invokes.

@@ -11,6 +11,7 @@ jobs:
   lint:
     name: Lint Markdown
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
@@ -23,6 +24,7 @@ jobs:
   budget:
     name: Config Budget
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
@@ -33,6 +35,7 @@ jobs:
   prose:
     name: Prose Gate
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
@@ -55,6 +58,20 @@ jobs:
 
       - name: Run pi extension tests
         run: npm test
+
+  config:
+    name: Config Integrity
+    runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: domengabrovsek/github-actions/.github/actions/checkout@main
+
+      - name: Check tracked configuration
+        run: ./scripts/config-integrity.sh
+
+      - name: Lint shell scripts
+        run: ./scripts/shellcheck-all.sh
 
   shell-tests:
     name: Shell Tests
@@ -84,6 +101,7 @@ jobs:
       - prose
       - tests
       - shell-tests
+      - config
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 1
     steps:
@@ -95,6 +113,7 @@ jobs:
             "${{ needs.prose.result }}"
             "${{ needs.tests.result }}"
             "${{ needs.shell-tests.result }}"
+            "${{ needs.config.result }}"
           )
           for r in "${results[@]}"; do
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
