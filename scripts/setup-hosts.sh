@@ -515,8 +515,24 @@ if host_enabled pi; then
   done
 fi
 
-if host_enabled shared || [ "$HOST" = "codex" ] || [ "$HOST" = "pi" ]; then
-  manage_link "shared/skills" "$SHARED_DIR/skills" "$REPO/skills"
+# ~/.agents is the host-neutral root. Shared skills, rules-adjacent resources
+# and personas resolve there on every host, so a shared skill can name one
+# path instead of a Claude-specific one that Codex and Pi never see. An
+# explicit --host always gets these, including --host claude; only the
+# argument-free --host all defers to the machine scope file.
+if host_enabled shared || [ "$HOST" != "all" ]; then
+  while IFS='|' read -r NAME RELATIVE; do
+    [ -n "$NAME" ] || continue
+    manage_link "shared/$NAME" "$SHARED_DIR/$NAME" "$REPO/$RELATIVE"
+  done <<'EOF'
+skills|skills
+rules|rules
+scripts|scripts
+templates|templates
+references|references
+agents|agents
+pull_request_template.md|.github/pull_request_template.md
+EOF
 fi
 
 echo ""

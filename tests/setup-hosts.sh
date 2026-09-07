@@ -162,7 +162,17 @@ EOF
 assert_true "Codex AGENTS.md is shared" assert_link "$TEST_HOME/.codex/AGENTS.md" "$TEST_REPO/AGENTS.md"
 assert_true "Pi base dir receives instructions and resources" assert_link "$TEST_HOME/.pi/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" && assert_link "$TEST_HOME/.pi/agent/extensions" "$TEST_REPO/pi/extensions" && assert_link "$TEST_HOME/.pi/agent/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$TEST_HOME/.pi/agent/models.json" "$TEST_REPO/pi/models.json" && assert_link "$TEST_HOME/.pi/agent/agents" "$TEST_REPO/agents"
 assert_true "Pi personal dir receives instructions and resources" assert_link "$TEST_HOME/.pi-personal/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" && assert_link "$TEST_HOME/.pi-personal/agent/extensions" "$TEST_REPO/pi/extensions" && assert_link "$TEST_HOME/.pi-personal/agent/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$TEST_HOME/.pi-personal/agent/models.json" "$TEST_REPO/pi/models.json" && assert_link "$TEST_HOME/.pi-personal/agent/agents" "$TEST_REPO/agents"
-assert_true "shared skills are repo-owned" assert_link "$TEST_HOME/.agents/skills" "$TEST_REPO/skills"
+while IFS='|' read -r NAME RELATIVE; do
+  assert_true "shared root exposes $NAME" assert_link "$TEST_HOME/.agents/$NAME" "$TEST_REPO/$RELATIVE"
+done <<'EOF'
+skills|skills
+rules|rules
+scripts|scripts
+templates|templates
+references|references
+agents|agents
+pull_request_template.md|.github/pull_request_template.md
+EOF
 assert_true "Codex fallback is created" grep -Fq 'project_doc_fallback_filenames = ["CLAUDE.md"]' "$TEST_HOME/.codex/config.toml"
 assert_true "Codex status line is created" grep -Fq 'status_line = ["project-name", "git-branch", "model-with-reasoning", "context-used", "five-hour-limit", "weekly-limit", "thread-credits", "estimated-thread-cost"]' "$TEST_HOME/.codex/config.toml"
 assert_true "Codex long context is created" grep -Fq 'model_context_window = 1050000' "$TEST_HOME/.codex/config.toml"
@@ -175,6 +185,8 @@ assert_success "Pi-only apply succeeds" run_setup --apply --host pi
 assert_true "Pi-only apply links instructions" assert_link "$TEST_HOME/.pi/agent/AGENTS.md" "$TEST_REPO/AGENTS.md"
 assert_true "Pi-only apply links the personal dir too" assert_link "$TEST_HOME/.pi-personal/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" && assert_link "$TEST_HOME/.pi-personal/agent/extensions" "$TEST_REPO/pi/extensions" && assert_link "$TEST_HOME/.pi-personal/agent/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$TEST_HOME/.pi-personal/agent/models.json" "$TEST_REPO/pi/models.json" && assert_link "$TEST_HOME/.pi-personal/agent/agents" "$TEST_REPO/agents"
 assert_true "Pi-only apply links shared skills" assert_link "$TEST_HOME/.agents/skills" "$TEST_REPO/skills"
+assert_true "Pi-only apply links shared scripts" assert_link "$TEST_HOME/.agents/scripts" "$TEST_REPO/scripts"
+assert_true "Pi-only apply links shared templates" assert_link "$TEST_HOME/.agents/templates" "$TEST_REPO/templates"
 assert_true "Pi-only apply skips Codex" test ! -e "$TEST_HOME/.codex"
 assert_success "Pi-only check exits zero" run_setup --check --host pi
 assert_success "Pi-only re-apply is idempotent" run_setup --apply --host pi
@@ -336,7 +348,9 @@ assert_true "legacy wrapper links Claude config" assert_link "$TEST_HOME/.claude
 assert_true "legacy wrapper backs up Claude conflict" test "$(backup_count "$TEST_HOME/.claude/CLAUDE.md")" -eq 1
 assert_true "legacy wrapper does not configure Codex" test ! -e "$TEST_HOME/.codex"
 assert_true "legacy wrapper does not configure Pi" test ! -e "$TEST_HOME/.pi"
-assert_true "legacy wrapper does not configure shared skills" test ! -e "$TEST_HOME/.agents"
+# The shared root is host-neutral, so a Claude-only run creates it too:
+# shared skills name ~/.agents paths and would break without it.
+assert_true "legacy wrapper links the shared root" assert_link "$TEST_HOME/.agents/skills" "$TEST_REPO/skills"
 assert_success "legacy --check remains report-only" run_wrapper --check
 assert_success "legacy -n remains report-only" run_wrapper -n
 assert_success "legacy --dry-run remains report-only" run_wrapper --dry-run
