@@ -60,7 +60,7 @@ Every agent follows the same 5-section skeleton (ADR 0007):
 
 Two kinds of persona (see CONTEXT.md glossary):
 
-- **Advisory personas** are mechanically read-only via `tools:` frontmatter (no Edit/Write/NotebookEdit): PR Reviewer, Cybersecurity Expert, GDPR Expert, Product Manager, UX Expert. They cannot be lane-mode writers.
+- **Advisory personas** drop the editing tools via `tools:` frontmatter (no Edit/Write/NotebookEdit): PR Reviewer, Cybersecurity Expert, GDPR Expert, Product Manager, UX Expert. They keep Bash, which they need for `git diff` and `gh`, so a write is still reachable through a shell command; the frontmatter removes the one-call edit and the brief does the rest. They are not lane-mode writers.
 - **Writer personas** (the other 11) omit `tools:` and keep full access for lane-mode implementation work.
 
 ## Routing

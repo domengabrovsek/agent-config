@@ -85,8 +85,8 @@ Another pi session on this machine, addressable directly for coordination; exist
 _Avoid_: "subagent", "teammate" for cross-session peers.
 
 **Advisory persona**:
-A persona whose frontmatter `tools` list excludes Edit/Write/NotebookEdit, making the panel-mode read-only guarantee mechanical rather than brief-level (PR Reviewer, Cybersecurity Expert, GDPR Expert, Product Manager, UX Expert).
-_Avoid_: "read-only agent", "reviewer agent".
+A persona whose frontmatter `tools` list excludes Edit/Write/NotebookEdit, so mutating a file takes a deliberate shell command rather than one tool call (PR Reviewer, Cybersecurity Expert, GDPR Expert, Product Manager, UX Expert). These personas keep Bash, which they need for `git diff` and `gh`, so the brief still carries the read-only instruction.
+_Avoid_: "read-only agent", "reviewer agent", "mechanically read-only" - Bash makes the guarantee partial.
 
 **Writer persona**:
 A full-tool persona that can mutate files and therefore serve as a lane-mode teammate.

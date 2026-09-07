@@ -26,6 +26,6 @@ Read-only parallel work (research, grilling, design) runs bounded, never as free
 2. Each sees the others' output and sends targeted challenges - one pass for research, iterate to agreement for grilling and design.
 3. The parent pulls the results together and puts the disagreement to the user as the next question. Teammates never message the user.
 
-Research panels spawn as `Explore`, whose toolset excludes Edit and Write, so read-only is mechanical. Grill and design panels use the domain personas from `rules/agent-routing.md` with a read-only brief, backstopped by the parent's review `(review-time: agent-type selection)`
+Research panels spawn as `Explore`, whose toolset drops Edit and Write, leaving a write reachable only through Bash. Grill and design panels use the domain personas from `rules/agent-routing.md` with a read-only brief, backstopped by the parent's review `(review-time: agent-type selection)`
 
 Merging finished lanes: see the `worktree-merge` skill.
