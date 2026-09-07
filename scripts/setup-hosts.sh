@@ -489,6 +489,7 @@ skills|skills
 scripts|scripts
 docs|docs
 references|references
+templates|templates
 statusline.sh|scripts/statusline.sh
 pull_request_template.md|.github/pull_request_template.md
 EOF

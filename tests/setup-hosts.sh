@@ -61,7 +61,7 @@ new_case() {
   TEST_REPO="$CASE_DIR/repo"
   mkdir -p "$TEST_HOME" "$TEST_REPO/.github" "$TEST_REPO/scripts"
   TEST_REPO=$(cd "$TEST_REPO" && pwd)
-  for PATH_NAME in agents hooks rules skills scripts docs references; do
+  for PATH_NAME in agents hooks rules skills scripts docs references templates; do
     mkdir -p "$TEST_REPO/$PATH_NAME"
   done
   : > "$TEST_REPO/CLAUDE.md"
@@ -147,6 +147,7 @@ skills|skills
 scripts|scripts
 docs|docs
 references|references
+templates|templates
 statusline.sh|scripts/statusline.sh
 pull_request_template.md|.github/pull_request_template.md
 EOF
