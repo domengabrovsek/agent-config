@@ -4,6 +4,7 @@
 # If no argument, detects the PR for the current branch.
 
 PR_REF="${1:-}"
+DEADLINE_SECONDS="${PR_CHECK_DEADLINE_SECONDS:-1800}"
 
 # If no PR ref given, try to get it from the current branch
 if [ -z "$PR_REF" ]; then
@@ -16,35 +17,36 @@ fi
 
 PR_TITLE=$(gh pr view "$PR_REF" --json title -q '.title' 2>/dev/null || echo "PR #$PR_REF")
 
-# Poll every 30 seconds, max 60 attempts (30 minutes)
-MAX_ATTEMPTS=60
-ATTEMPT=0
+notify() {
+  osascript -e "display notification \"$1\" with title \"$2\" sound name \"$3\""
+}
 
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-  ATTEMPT=$((ATTEMPT + 1))
-  sleep 30
+# `gh pr checks --watch` blocks until every check settles, then exits 0 when
+# they all passed and nonzero when any failed. Polling the table instead loses
+# the failure case: gh also exits nonzero while checks are still pending.
+gh pr checks "$PR_REF" --watch --fail-fast --interval 30 >/dev/null 2>&1 &
+WATCH_PID=$!
 
-  # Get check status
-  CHECKS=$(gh pr checks "$PR_REF" 2>/dev/null)
-  if [ $? -ne 0 ]; then
-    continue
-  fi
-
-  # Count statuses
-  PENDING=$(echo "$CHECKS" | grep -c "pending\|queued\|in_progress" 2>/dev/null || echo "0")
-  FAILED=$(echo "$CHECKS" | grep -c "fail" 2>/dev/null || echo "0")
-
-  # If nothing is pending, checks are done
-  if [ "$PENDING" -eq 0 ]; then
-    if [ "$FAILED" -gt 0 ]; then
-      osascript -e "display notification \"$FAILED check(s) failed on: $PR_TITLE\" with title \"PR Checks Failed\" sound name \"Basso\""
-    else
-      osascript -e "display notification \"All checks passed on: $PR_TITLE\" with title \"PR Checks Passed\" sound name \"Glass\""
-    fi
+# Stock macOS ships no `timeout`, so bound the wait by polling the child.
+ELAPSED=0
+while kill -0 "$WATCH_PID" 2>/dev/null; do
+  if [ "$ELAPSED" -ge "$DEADLINE_SECONDS" ]; then
+    kill "$WATCH_PID" 2>/dev/null
+    wait "$WATCH_PID" 2>/dev/null
+    notify "Timed out waiting for checks on: $PR_TITLE" "PR Checks Timeout" "default"
     exit 0
   fi
+  sleep 5
+  ELAPSED=$((ELAPSED + 5))
 done
 
-# Timeout
-osascript -e "display notification \"Timed out waiting for checks on: $PR_TITLE\" with title \"PR Checks Timeout\""
+wait "$WATCH_PID"
+STATUS=$?
+
+if [ "$STATUS" -eq 0 ]; then
+  notify "All checks passed on: $PR_TITLE" "PR Checks Passed" "Glass"
+else
+  notify "Checks failed on: $PR_TITLE" "PR Checks Failed" "Basso"
+fi
+
 exit 0
