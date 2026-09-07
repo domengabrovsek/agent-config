@@ -3,7 +3,7 @@
 #
 # Two parts:
 #   fixtures  strings that must block, and strings that must pass
-#   corpus    every markdown file in the repo must pass
+#   corpus    every tracked markdown file must pass
 #
 # The corpus pass is the regression guard that matters. The tier split was
 # chosen because these words had zero hits in this repo; the corpus pass is
@@ -186,8 +186,18 @@ echo '{"tool_input":{}}' | "$GATE" badmode >/dev/null 2>&1
 if [ $? = 1 ]; then ok; else fail "unknown mode should exit 1"; fi
 
 # ---------------------------------------------------------------------------
-# Corpus - every markdown file in the repo must pass
+# Corpus - every tracked markdown file must pass
 # ---------------------------------------------------------------------------
+# Tracked files only. Vendored markdown under node_modules is not this repo's
+# prose, and scanning it turns a dependency install into a red test run.
+list_corpus() {
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git ls-files '*.md' | sort
+  else
+    find . -path ./.git -prune -o -path ./node_modules -prune -o -name '*.md' -print | sort
+  fi
+}
+
 echo "== corpus =="
 CORPUS_FAILED=0
 while IFS= read -r f; do
@@ -197,7 +207,7 @@ while IFS= read -r f; do
     echo "$out" | grep "line " | sed 's/^/      /' >&2
     CORPUS_FAILED=$((CORPUS_FAILED + 1))
   fi
-done < <(find . -path ./.git -prune -o -name '*.md' -print | sort)
+done < <(list_corpus)
 
 if [ "$CORPUS_FAILED" -eq 0 ]; then
   ok
