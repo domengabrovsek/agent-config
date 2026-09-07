@@ -70,6 +70,9 @@ jobs:
       - name: Test the drift check
         run: bash tests/symlink-check.sh
 
+      - name: Check shared paths resolve
+        run: bash tests/shared-paths.sh
+
   # ==============================================
   # Gate
   # ==============================================
