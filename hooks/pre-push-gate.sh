@@ -4,6 +4,9 @@
 # Exit code 2 blocks the action and sends the error message to Claude.
 # Bypass with SKIP_PUSH_GATE=1, in the environment or inline in the command.
 
+# shellcheck source=lib/resolve-repo.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -27,40 +30,15 @@ if [ "$SKIP_PUSH_GATE" = "1" ]; then
   exit 0
 fi
 
-# `git -C <path> push` never contains the literal "git push", so the repo
-# must come from the -C argument. Best-effort parse: unquoted path with the
-# push subcommand directly after it. A garbled extraction fails open below,
-# because the project-root walk on a bogus path finds nothing.
-C_PATH=$(printf '%s\n' "$COMMAND" | sed -n 's/.*git -C  *\([^ ]*\)  *push.*/\1/p' | head -1)
-
+# `git -C <path> push` never contains the literal "git push", so a command
+# without either is not ours to gate.
 case "$COMMAND" in
   *"git push"*) ;;
-  *) [ -z "$C_PATH" ] && exit 0 ;;
+  *) printf '%s\n' "$COMMAND" | grep -q 'git -C  *[^ ]*  *push' || exit 0 ;;
 esac
 
-# A leading `cd <path> && git push` moves the push's repo away from the
-# recorded tool cwd, which reflects the shell's directory before the cd runs.
-CD_PATH=""
-case "$COMMAND" in
-  "cd "*)
-    CD_PATH=${COMMAND#cd }
-    CD_PATH=${CD_PATH%%"&&"*}
-    CD_PATH=${CD_PATH%%";"*}
-    CD_PATH=$(printf '%s\n' "$CD_PATH" | sed "s/^[[:space:]]*//;s/[[:space:]]*\$//;s/^[\"']//;s/[\"']\$//")
-    ;;
-esac
-
-# Resolve where the push actually runs: `git -C` target, then a leading cd
-# prefix, then the tool call's cwd (worktree pushes run from the worktree
-# while CLAUDE_PROJECT_DIR stays on the main checkout), then CLAUDE_PROJECT_DIR.
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-DIR="${C_PATH:-${CD_PATH:-${CWD:-${CLAUDE_PROJECT_DIR:-$PWD}}}}"
-
-# Relative -C / cd paths are relative to the tool call's cwd, not the hook's.
-case "$DIR" in
-  /*) ;;
-  *) DIR="${CWD:-$PWD}/$DIR" ;;
-esac
+DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
 
 # Find project root: walk up looking for package.json or *.tf
 PROJECT_ROOT=""

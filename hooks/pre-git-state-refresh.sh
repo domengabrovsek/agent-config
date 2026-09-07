@@ -12,6 +12,9 @@
 # Always exit 0. Warn-only; never blocks.
 # Bypass with SKIP_PR_STATE_REFRESH=1.
 
+# shellcheck source=lib/resolve-repo.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -43,7 +46,11 @@ emit() {
   exit 0
 }
 
-DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+# The hook's own cwd is not the tool call's, so the repo comes from the
+# payload. Reading only CLAUDE_PROJECT_DIR made every probe report
+# "unavailable=not-a-repo" whenever the harness ran hooks from elsewhere.
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
 
 # Not in a git repo - nothing to probe.
 if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
