@@ -16,7 +16,7 @@ set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GATE="$ROOT/hooks/prose-gate.sh"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 
 PASSED=0
 FAILED=0

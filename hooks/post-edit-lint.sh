@@ -147,7 +147,7 @@ esac
 
 # --- 9. `:latest` Docker tag in Dockerfile / compose / k8s (rules/infrastructure.md) ---
 case "$FILE" in
-  *Dockerfile*|*docker-compose*.y*ml|*compose.y*ml|*/k8s/*.y*ml|*/k8s/*.yaml)
+  *Dockerfile*|*docker-compose*.y*ml|*compose.y*ml|*/k8s/*.y*ml)
     LATEST_TAG=$(echo "$ADDED" | grep -nE '^[[:space:]]*(FROM[[:space:]]+[^:[:space:]]+:latest\b|image:[[:space:]]*[^:[:space:]]+:latest\b)' 2>/dev/null || true)
     if [ -n "$LATEST_TAG" ]; then
       VIOLATIONS+="\`:latest\` Docker tag detected. rules/infrastructure.md: pin a specific version so the build is reproducible:

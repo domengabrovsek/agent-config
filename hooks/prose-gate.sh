@@ -21,6 +21,9 @@
 # doc-title convention and the "term: definition" rule format rely on both.
 #
 # Bypass: SKIP_PROSE_GATE=1.
+#
+# shellcheck disable=SC1112  # the curly quotes below are the patterns
+# this gate detects, inside the embedded python; they are not typos.
 
 MODE="${1:-file}"
 

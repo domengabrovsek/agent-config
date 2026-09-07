@@ -36,9 +36,9 @@ done
 
 # Color codes when stdout is a tty
 if [ -t 1 ]; then
-  C_RED=$'\033[31m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_DIM=$'\033[2m'; C_RESET=$'\033[0m'
+  C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_DIM=$'\033[2m'; C_RESET=$'\033[0m'
 else
-  C_RED=""; C_GREEN=""; C_YELLOW=""; C_DIM=""; C_RESET=""
+  C_GREEN=""; C_YELLOW=""; C_DIM=""; C_RESET=""
 fi
 
 # Determine the repo's default branch (origin/HEAD if set, else main, else master)
@@ -124,6 +124,7 @@ prune_repo() {
 
   printf '%s== %s ==%s\n' "$C_DIM" "$repo" "$C_RESET"
 
+  # shellcheck disable=SC2034  # head is a positional field, read but unused
   while IFS=$'\t' read -r path head branch locked prunable; do
     [ -z "$path" ] && continue
     total=$((total+1))
