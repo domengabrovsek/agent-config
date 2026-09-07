@@ -93,6 +93,9 @@ jobs:
       - name: Test git hook repo resolution
         run: bash tests/resolve-repo.sh
 
+      - name: Test the commit gates
+        run: bash tests/commit-gates.sh
+
   # ==============================================
   # Gate
   # ==============================================
