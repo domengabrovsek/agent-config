@@ -49,6 +49,19 @@ manifest() {
   sed -n "/^CLAUDE.md|CLAUDE.md$/,/^EOF$/p" "$FAKE_REPO/scripts/setup-hosts.sh" | grep -v '^EOF$'
 }
 
+# The bootstrap audits the shared root as well, so a converged fixture needs
+# it. Read the entries from the bootstrap rather than restating them.
+link_shared() {
+  local dir="$TEST_HOME/.agents" entry relative
+  mkdir -p "$dir"
+  while IFS='|' read -r entry relative; do
+    [ -n "$entry" ] || continue
+    ln -sfn "$FAKE_REPO/$relative" "$dir/$entry"
+  done <<EOF
+$(awk '/manage_link "shared\/\$NAME"/,/^EOF$/' "$FAKE_REPO/scripts/setup-hosts.sh" | grep -E '^[A-Za-z0-9_.-]+\|')
+EOF
+}
+
 link_all() {
   local dir="$1" entry relative
   mkdir -p "$dir"
@@ -61,6 +74,9 @@ EOF
 }
 
 run_hook() {
+  # HOME is sandboxed too: the bootstrap resolves the shared root from it, and
+  # without this the hook would audit the caller's real ~/.agents.
+  HOME="$TEST_HOME" \
   AGENT_CONFIG_REPO="$FAKE_REPO" \
   CLAUDE_DOTFILES_REPO="" \
   CLAUDE_CONFIG_DIR="$1" \
@@ -84,34 +100,37 @@ assert_reports() {
   local name="$1" dir="$2" needle="$3"
   [ -n "$needle" ] || { fail "$name (empty needle)"; return; }
   run_hook "$dir"
-  if grep -q -- "$needle" "$TEST_ROOT/err"; then pass "$name"; else
+  if grep -qE -- "$needle" "$TEST_ROOT/err"; then pass "$name"; else
     sed -n '1,20p' "$TEST_ROOT/err" >&2
     fail "$name"
   fi
 }
 
+TEST_HOME="$TEST_ROOT/home"
+link_shared
+
 # A fully linked dir is silent.
-CONVERGED="$TEST_ROOT/home/.claude-converged"
+CONVERGED="$TEST_HOME/.claude-converged"
 link_all "$CONVERGED"
 assert_silent "converged dir reports nothing" "$CONVERGED"
 
 # Every manifest entry is audited. The old hand-maintained list omitted docs,
 # references and templates, so a dir missing only those looked converged.
 for entry in docs references templates; do
-  PARTIAL="$TEST_ROOT/home/.claude-no-$entry"
+  PARTIAL="$TEST_HOME/.claude-no-$entry"
   link_all "$PARTIAL"
   rm -f "$PARTIAL/$entry"
-  assert_reports "missing $entry is reported" "$PARTIAL" "/$entry MISSING"
+  assert_reports "missing $entry is reported" "$PARTIAL" "/${entry}[[:space:]]+MISSING"
 done
 
 # A link pointing at the wrong target is drift, not convergence.
-WRONG="$TEST_ROOT/home/.claude-wrong"
+WRONG="$TEST_HOME/.claude-wrong"
 link_all "$WRONG"
 ln -sfn "$FAKE_REPO/rules" "$WRONG/skills"
 assert_reports "wrong link target is reported" "$WRONG" "WRONG-LINK"
 
 # A real file where a link belongs needs --adopt, so it must surface.
-REAL="$TEST_ROOT/home/.claude-real"
+REAL="$TEST_HOME/.claude-real"
 link_all "$REAL"
 rm -f "$REAL/CLAUDE.md"
 echo "real file" > "$REAL/CLAUDE.md"
@@ -123,14 +142,14 @@ assert_reports "drift output names the bootstrap" "$WRONG" "setup-hosts.sh --app
 # Escape hatches stay quiet.
 SKIP=1 assert_silent "SKIP_SYMLINK_CHECK=1 silences the check" "$WRONG"
 
-MISSING_REPO="$TEST_ROOT/home/.claude-missing-repo"
+MISSING_REPO="$TEST_HOME/.claude-missing-repo"
 link_all "$MISSING_REPO"
 rm -f "$MISSING_REPO/CLAUDE.md"
-AGENT_CONFIG_REPO="$TEST_ROOT/no-such-repo" CLAUDE_CONFIG_DIR="$MISSING_REPO" \
+HOME="$TEST_HOME" AGENT_CONFIG_REPO="$TEST_ROOT/no-such-repo" CLAUDE_CONFIG_DIR="$MISSING_REPO" \
   bash "$HOOK" 2>"$TEST_ROOT/err"
 if [ -s "$TEST_ROOT/err" ]; then fail "absent checkout is silent"; else pass "absent checkout is silent"; fi
 
-ABSENT_DIR="$TEST_ROOT/home/.claude-does-not-exist"
+ABSENT_DIR="$TEST_HOME/.claude-does-not-exist"
 assert_silent "absent config dir is silent" "$ABSENT_DIR"
 
 echo ""
