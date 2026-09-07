@@ -1,8 +1,8 @@
-# ADR NNNN: <Title>
+# <Decision stated as a sentence>
 
-- **Status**: Proposed
-- **Date**: YYYY-MM-DD
-- **Deciders**: <names>
+## Status
+
+Proposed - YYYY-MM-DD
 
 ## Context
 
@@ -16,11 +16,15 @@ The chosen option, stated plainly in one or two sentences. No hedging.
 
 What this commits us to. Group as Positive / Negative / Neutral if it helps. Be honest about the downsides.
 
-## Alternatives Considered
+## Considered alternatives
 
 Each alternative in one short paragraph: what it was, why it was rejected. Keep this section tight - the goal is to show the decision was not accidental, not to write a survey.
 
 ---
+
+## Conventions
+
+The title is the decision itself, not a label: "Share agent configuration across hosts", not "ADR 0008: Host sharing". The number lives in the filename, `NNNN-kebab-title.md`.
 
 ## Status values
 
