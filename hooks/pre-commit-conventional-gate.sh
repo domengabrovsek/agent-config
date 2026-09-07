@@ -30,12 +30,18 @@ import sys, re
 
 cmd = sys.stdin.read()
 
+# Only a heredoc opened after `git commit` can carry its message. A command
+# chain may open others first, such as a PR body written to a file, and
+# reading those attributes unrelated prose to this change.
+anchor = cmd.find("git commit")
+scope = cmd[anchor:] if anchor != -1 else cmd
+
 # Prefer heredoc when the command uses one - it carries the structured message.
 heredoc_re = re.compile(r"<<-?[\047\"]?(\w+)[\047\"]?")
-m = heredoc_re.search(cmd)
+m = heredoc_re.search(scope)
 if m:
     delim = m.group(1)
-    after = cmd[m.end():]
+    after = scope[m.end():]
     # Drop everything up to and including the first newline after the opener.
     nl = after.find("\n")
     if nl != -1:
@@ -50,7 +56,7 @@ if m:
             sys.exit(0)
 
 # Fall back to the first -m / --message value.
-m_re = re.search(r"(?:-m|--message)[=\s]+[\047\"]([^\047\"]+)[\047\"]", cmd)
+m_re = re.search(r"(?:-m|--message)[=\s]+[\047\"]([^\047\"]+)[\047\"]", scope)
 if m_re:
     print(m_re.group(1).splitlines()[0])
     sys.exit(0)

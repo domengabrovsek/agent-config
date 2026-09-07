@@ -89,11 +89,17 @@ import sys, re
 
 cmd = sys.stdin.read()
 
+# Only a heredoc opened after `git commit` can carry its message. A command
+# chain may open others first, such as a PR body written to a file, and
+# reading those attributes unrelated prose to this change.
+anchor = cmd.find("git commit")
+scope = cmd[anchor:] if anchor != -1 else cmd
+
 # A heredoc carries the structured multi-line message when one is used.
-m = re.search(r"<<-?[\x27\"]?(\w+)[\x27\"]?", cmd)
+m = re.search(r"<<-?[\x27\"]?(\w+)[\x27\"]?", scope)
 if m:
     delim = m.group(1)
-    after = cmd[m.end():]
+    after = scope[m.end():]
     nl = after.find("\n")
     if nl != -1:
         out = []
@@ -107,7 +113,7 @@ if m:
 # Otherwise collect every -m / --message value. The backreference keeps a
 # quote of the other kind inside the message from ending the match early.
 vals = [m.group(2) for m in
-        re.finditer(r"(?:-m|--message)[=\s]+([\x27\"])(.*?)\1", cmd, re.S)]
+        re.finditer(r"(?:-m|--message)[=\s]+([\x27\"])(.*?)\1", scope, re.S)]
 if vals:
     print("\n".join(vals))
 ' 2>/dev/null)
