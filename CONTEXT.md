@@ -15,8 +15,12 @@ The concise root `AGENTS.md`, which holds only always-needed host-neutral guidan
 _Avoid_: "Codex instructions", "Claude rules" when the guidance applies across hosts.
 
 **Shared skill library**:
-The repo's `skills/` tree, exposed to Claude Code through `~/.claude/skills` and to Codex and Pi through the repo-owned `~/.agents/skills` symlink.
+The repo's `skills/` tree, exposed to Claude Code through `~/.claude/skills` and to every host through the Shared root.
 _Avoid_: "Claude skills", "Codex skills" when the skill follows the shared Agent Skills format.
+
+**Shared root**:
+The repo-owned `~/.agents/` directory, linked on every host, holding the trees a shared skill may name by absolute path: `skills`, `rules`, `scripts`, `templates`, `references`, `agents`, and the pull request template. A shared file names `~/.agents/...`, never a host's own config dir.
+_Avoid_: `~/.claude/...` inside `skills/`, `rules/`, or `agents/` for anything but a genuinely Claude-only mechanism such as hooks.
 
 **Compatibility notation**:
 Legacy Claude-oriented names in shared skills that each agent host interprets through its equivalent capability, including `/name`, `$ARGUMENTS`, `Agent`, and `SendMessage`.
@@ -140,6 +144,7 @@ _Avoid_: "soft rules", "style guide".
 
 - Each **Agent host** loads the **Shared instruction source** through its **Host adapter**.
 - Each **Agent host** discovers the same **Shared skill library** through its native user-level path.
+- Every **Agent host** also gets the **Shared root**, so one absolute path in a shared file resolves everywhere.
 - Each **Agent host** maps **Compatibility notation** to its native skill and teammate mechanisms.
 - The **Host bootstrap** installs every **Host adapter** while the legacy Claude setup command remains a compatibility entrypoint.
 - The **Host bootstrap** leaves provider, model, and credential choices to each **Agent host** user.
