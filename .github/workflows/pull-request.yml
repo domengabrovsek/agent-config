@@ -90,6 +90,9 @@ jobs:
       - name: Check shared paths resolve
         run: bash tests/shared-paths.sh
 
+      - name: Test git hook repo resolution
+        run: bash tests/resolve-repo.sh
+
   # ==============================================
   # Gate
   # ==============================================
