@@ -1,8 +1,12 @@
 {
-  "name": "claude-config",
+  "name": "agent-config",
   "version": "0.1.0",
   "private": true,
   "description": "Shared behavioral configuration for Claude Code, Codex, and Pi, installable as a Pi package.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "test": "node --test tests/*.test.ts"
   },
