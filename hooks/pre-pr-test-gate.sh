@@ -12,10 +12,16 @@ case "$COMMAND" in
   *) exit 0 ;;
 esac
 
-# Find project root (look for package.json)
-DIR="${CLAUDE_PROJECT_DIR:-.}"
+# Find project root (look for package.json). The walk needs an absolute
+# start: dirname "." is ".", so a relative path would loop forever.
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+DIR="${CWD:-${CLAUDE_PROJECT_DIR:-$PWD}}"
+case "$DIR" in
+  /*) ;;
+  *) DIR="$PWD/$DIR" ;;
+esac
 PROJECT_ROOT=""
-while [ "$DIR" != "/" ]; do
+while [ "$DIR" != "/" ] && [ -n "$DIR" ]; do
   [ -f "$DIR/package.json" ] && PROJECT_ROOT="$DIR" && break
   DIR=$(dirname "$DIR")
 done
