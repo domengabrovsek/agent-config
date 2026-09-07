@@ -12,7 +12,7 @@
 
 [ "$SKIP_SYMLINK_CHECK" = "1" ] && exit 0
 
-REPO="${CLAUDE_DOTFILES_REPO:-$HOME/dev/claude}"
+REPO="${AGENT_CONFIG_REPO:-${CLAUDE_DOTFILES_REPO:-$HOME/dev/personal/agent-config}}"
 [ -d "$REPO" ] || exit 0
 
 LIVE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"

@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   notify:
-    if: github.repository == 'domengabrovsek/claude'
+    if: github.repository == 'domengabrovsek/agent-config'
     uses: domengabrovsek/github-actions/.github/workflows/notify.yml@main
     with:
       api_url: ${{ vars.TELEGRAM_API_URL }}

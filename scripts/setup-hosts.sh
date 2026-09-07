@@ -99,7 +99,7 @@ else
   if [ -d "$CANDIDATE/.git" ] || git -C "$CANDIDATE" rev-parse --git-dir >/dev/null 2>&1; then
     REPO="$CANDIDATE"
   else
-    REPO="$HOME/dev/claude"
+    REPO="$HOME/dev/personal/agent-config"
   fi
 fi
 
