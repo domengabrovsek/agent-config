@@ -21,7 +21,7 @@ Hooks and deny rules back these. Know them so you do not waste a cycle hitting t
 - PR descriptions use bullets, not prose paragraphs `(review-time: formatting of free-form text)`
 - Never reference `.claude/state/` plans, research, or diaries in a PR description. They are untracked and invisible to reviewers `(review-time: formatting of free-form text)`
 - After pushing new commits to an open PR, update its title and body with `gh pr edit` `(review-time: requires judging whether the body still reflects the diff)`
-- Use the repo's `.github/pull_request_template.md` when it exists, otherwise `~/.claude/pull_request_template.md` `(review-time: template selection requires reading the directory)`
+- Use the repo's `.github/pull_request_template.md` when it exists, otherwise `~/.agents/pull_request_template.md` `(review-time: template selection requires reading the directory)`
 - Editing tests? Update mocks to match the new DB queries, service dependencies, and imports `(review-time: requires understanding mock-target coupling)`
 - Semver: MAJOR for breaking, MINOR for additive, PATCH for fixes `(review-time: classifying a change as breaking needs judgment)`
 - Use `gh` for all GitHub operations. Never MCP tools `(review-time: tool selection per action, not a single regex)`

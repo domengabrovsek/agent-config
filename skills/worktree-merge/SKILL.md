@@ -37,4 +37,4 @@ When several lane-mode teammates finish, merge their branches into the integrati
 1. Review each teammate's diff for correctness.
 2. Merge one branch. Resolve any conflict by hand before merging the next - never spawn an agent for conflict resolution.
 3. After the last merge, run the full test suite, typecheck, and lint.
-4. Prune the worktrees: `~/.claude/scripts/worktree-prune.sh --apply`. It removes only worktrees whose branch is upstream-gone or merged into the default, which is the post-merge state. Anything still active survives.
+4. Prune the worktrees: `~/.agents/scripts/worktree-prune.sh --apply`. It removes only worktrees whose branch is upstream-gone or merged into the default, which is the post-merge state. Anything still active survives.

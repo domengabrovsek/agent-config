@@ -30,7 +30,7 @@ description: "Create a merge request or pull request from the current branch: ve
    - Do NOT call `gh pr create` / `glab mr create` until that explicit confirmation arrives `(review-time: see section note)`
 10. **Create MR/PR using the template**: `(review-time: see section note)`
     - If `.github/pull_request_template.md` or `.gitlab/merge_request_templates/` exists, use that template `(review-time: see section note)`
-    - Otherwise use `~/.claude/pull_request_template.md` `(review-time: see section note)`
+    - Otherwise use `~/.agents/pull_request_template.md` `(review-time: see section note)`
     - Fill in the description explaining what changed and why `(review-time: see section note)`
     - Add a "Not touched (intentionally)" list naming adjacent code left alone, when the reviewer could expect it changed; it proves scope discipline and surfaces known adjacent problems `(review-time: see section note)`
     - Check the relevant category box(es) - exactly one or more of: Bugfix, Feature, Refactor, Chore, CI/CD, Infrastructure `(review-time: see section note)`

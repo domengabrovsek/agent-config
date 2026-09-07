@@ -11,8 +11,8 @@ description: "Monitor the CI pipeline for the current branch via a background Mo
 
 1. **Detect VCS platform**: `.gitlab-ci.yml` -> glab, `.github/` -> gh `(review-time: see section note)`
 2. **Start a Monitor** with the matching script: `(review-time: see section note)`
-   - GitHub: `bash ~/.claude/skills/ci/scripts/gh-ci-monitor.sh` `(review-time: see section note)`
-   - GitLab: `bash ~/.claude/skills/ci/scripts/glab-ci-monitor.sh` `(review-time: see section note)`
+   - GitHub: `bash scripts/gh-ci-monitor.sh`, resolved inside this skill's own directory `(review-time: see section note)`
+   - GitLab: `bash scripts/glab-ci-monitor.sh`, resolved inside this skill's own directory `(review-time: see section note)`
    - Use `persistent: false`, `timeout_ms: 3600000` (1 hour ceiling - CI pipelines can be long) `(review-time: see section note)`
    - Description: "CI pipeline on <branch-name>" `(review-time: see section note)`
 3. **React to Monitor notifications**: `(review-time: see section note)`
@@ -20,11 +20,11 @@ description: "Monitor the CI pipeline for the current branch via a background Mo
    - `error|persistent-failure`: the monitor script hit 5 consecutive errors - report and stop `(review-time: see section note)`
    - Status change (e.g., `in_progress|null` → `completed|success`): acknowledge briefly `(review-time: see section note)`
    - **Pipeline passes** (`completed|success`): `(review-time: see section note)`
-     - Run `~/.claude/scripts/notify.sh "CI passed - <branch-name>"` `(review-time: see section note)`
+     - Run `~/.agents/scripts/notify.sh "CI passed - <branch-name>"` `(review-time: see section note)`
      - Report success `(review-time: see section note)`
    - **Pipeline awaiting manual action** (`completed|manual`, GitLab only): `(review-time: see section note)`
      - All automatic jobs completed; the pipeline is paused on a manual gate and will not progress without user action `(review-time: see section note)`
-     - Run `~/.claude/scripts/notify.sh "CI awaiting manual action - <branch-name>"` `(review-time: see section note)`
+     - Run `~/.agents/scripts/notify.sh "CI awaiting manual action - <branch-name>"` `(review-time: see section note)`
      - Report status and stop watching - do NOT trigger the manual job automatically `(review-time: see section note)`
    - **Pipeline fails** (`completed|failure` or any non-success conclusion): `(review-time: see section note)`
      a. Fetch the job log:
@@ -34,7 +34,7 @@ description: "Monitor the CI pipeline for the current branch via a background Mo
      c. Analyze the root cause - identify the specific failure (test, lint, type check, build, coverage, etc.)
      d. **Classify the failure as transient or real before proposing any change** - transient = infra outage, rate limit, queued/timed-out runner, auth/network flake, registry or dependency propagation delay; real = a test/lint/type/build/coverage failure caused by the code under change. State the classification `(review-time: see section note)`
      e. **If transient**: re-run the failed job (`gh run rerun <run-id> --failed` / `glab ci retry <job-id>`) and keep monitoring - do NOT edit code for a transient failure. Escalate to the user only if it recurs after a re-run `(review-time: see section note)`
-     f. Run `~/.claude/scripts/notify.sh "CI failed - <failure-summary>"`
+     f. Run `~/.agents/scripts/notify.sh "CI failed - <failure-summary>"`
      g. **If real, propose the fix to the user** - explain what failed and what you'd change. Do NOT push automatically `(review-time: see section note)`
      h. Wait for user approval before implementing the fix `(review-time: see section note)`
      i. After approval: fix, commit with a descriptive message, push `(review-time: see section note)`

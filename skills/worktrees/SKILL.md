@@ -15,8 +15,8 @@ Run worktree cleanup: $ARGUMENTS
 
 Strip the `--all` flag from `$ARGUMENTS` and dispatch:
 
-- If `--all` was passed: `~/.claude/scripts/worktree-prune.sh audit-all <remaining-args>`
-- Otherwise: `~/.claude/scripts/worktree-prune.sh <args>`
+- If `--all` was passed: `~/.agents/scripts/worktree-prune.sh audit-all <remaining-args>`
+- Otherwise: `~/.agents/scripts/worktree-prune.sh <args>`
 
 ## Safety rule
 

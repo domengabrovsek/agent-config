@@ -23,7 +23,7 @@ Ranked by reliability (earliest catch wins per the shift-left principle):
 | `(hook)` | `~/.claude/hooks/*.sh` via `~/.claude/settings.json` | ~1s, fed back to Claude as a tool result |
 | `(lint)` | Repo `biome.json` / `eslint.config.js` / `.markdownlint*` | `npm run check` run |
 | `(CI)` | `.github/workflows/` and shared reusable workflows | PR cycle |
-| `(persona)` | A `~/.claude/agents/*.md` persona file's guardrail section | Subagent compliance, not global |
+| `(persona)` | A `agents/*.md` persona file's guardrail section | Subagent compliance, not global |
 | `(review-time: <why>)` | Human attention or Claude attention at review or response time | Open-ended |
 
 ## The marker requirement

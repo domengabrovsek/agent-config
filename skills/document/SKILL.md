@@ -20,7 +20,7 @@ Parse the first word of `$ARGUMENTS` as the subcommand:
 - `adr "<title>"` - draft the next-numbered ADR in `docs/adr/` `(review-time: see section note)`
 - `diagram <type> <topic>` - add or update a mermaid diagram inside the matching doc `(review-time: see section note)`
 - `audit` - read every `docs/**/*.md`, compare against current code, produce a drift report (read-only, no edits) `(review-time: see section note)`
-- `bootstrap` - create the full `docs/` skeleton in a repo that has none yet (uses `~/.claude/templates/docs-readme.md` and `~/.claude/templates/adr.md`) `(review-time: see section note)`
+- `bootstrap` - create the full `docs/` skeleton in a repo that has none yet (uses `~/.agents/templates/docs-readme.md` and `~/.agents/templates/adr.md`) `(review-time: see section note)`
 
 If no subcommand matches, ask the user which one they meant before writing anything.
 
@@ -96,7 +96,7 @@ When `adr "<title>"`:
 1. Gate check: the decision must be hard to reverse, surprising without context, and a real trade-off. If a criterion fails, name it in one sentence, then write only after the user confirms. `(review-time: see section note)`
 2. Convention scan: look for an existing ADR scheme (directory, numbering, headings). An existing scheme wins; steps 3-5 apply only when none exists. `(review-time: see section note)`
 3. Scan `docs/adr/` for highest existing number. New file = `NNNN-<kebab-title>.md`, zero-padded to 4 digits. `(review-time: see section note)`
-4. Use `~/.claude/templates/adr.md` as the body. Fill `<Title>`, today's date, status `Proposed`. `(review-time: see section note)`
+4. Use `~/.agents/templates/adr.md` as the body. Fill `<Title>`, today's date, status `Proposed`. `(review-time: see section note)`
 5. Append a row to `docs/adr/README.md` table. `(review-time: see section note)`
 6. Ask the user for Context, Decision, Consequences before finalizing - never invent a decision. `(review-time: see section note)`
 

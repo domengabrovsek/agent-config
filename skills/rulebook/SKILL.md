@@ -7,7 +7,7 @@ description: "Routes agent hosts to the applicable detailed standards in this re
 
 Load detailed standards for the current task from `rules/`. Read only the relevant files from the routing table. Do not read every rule by default.
 
-The `rules/` tree sits beside the `skills/` tree in the agent-config checkout, so it resolves as `../../rules/` from this file. Claude Code also reaches it at `~/.claude/rules/`.
+Every host reaches these files at `~/.agents/rules/`. Claude Code also has them at `~/.claude/rules/`.
 
 ## Routing
 

@@ -10,7 +10,8 @@ Pull everything needed to debug a Sentry issue, starting from just a short ID.
 ## Quick start
 
 ```bash
-~/.claude/skills/sentry-issue/scripts/sentry-issue.sh MY-PROJECT-4X2
+# from this skill's own directory
+scripts/sentry-issue.sh MY-PROJECT-4X2
 ```
 
 Accepts a short ID (`PROJECT-ABC`), a numeric issue ID, or a full issue URL

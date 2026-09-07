@@ -13,7 +13,7 @@ Hard rule: do NOT write any fix until Phase 3 is reached and the user (or the ev
 
 Gather, do not theorize. Save findings to `.claude/state/research/YYYY-MM-DD-debug-<short-slug>.md`.
 
-- If given a Sentry issue (short ID like `PROJECT-ABC`, numeric ID, or sentry.io URL), fetch the digest first via the `sentry-issue` skill: `~/.claude/skills/sentry-issue/scripts/sentry-issue.sh <id>`. Full payloads land in `/tmp/sentry-{issue,event}-<id>.json` for deeper `jq` queries. `(review-time: see section note)`
+- If given a Sentry issue (short ID like `PROJECT-ABC`, numeric ID, or sentry.io URL), fetch the digest first via the `sentry-issue` skill: `~/.agents/skills/sentry-issue/scripts/sentry-issue.sh <id>`. Full payloads land in `/tmp/sentry-{issue,event}-<id>.json` for deeper `jq` queries. `(review-time: see section note)`
 - Reproduce locally if feasible. Capture exact error, stack trace, request ID, timestamp. `(review-time: see section note)`
 - Pull logs (Sentry, Cloud Run, container, browser console) for the affected window. `(review-time: see section note)`
 - `git log -p --since='2 weeks ago' -- <suspect-paths>` to surface recent changes that touched the code path. `(review-time: see section note)`
