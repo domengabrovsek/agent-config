@@ -43,6 +43,7 @@ jobs:
   tests:
     name: Extension Tests
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
@@ -54,6 +55,20 @@ jobs:
 
       - name: Run pi extension tests
         run: npm test
+
+  shell-tests:
+    name: Shell Tests
+    runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: domengabrovsek/github-actions/.github/actions/checkout@main
+
+      - name: Test the multi-host bootstrap
+        run: bash tests/setup-hosts.sh
+
+      - name: Test the drift check
+        run: bash tests/symlink-check.sh
 
   # ==============================================
   # Gate
@@ -68,6 +83,7 @@ jobs:
       - budget
       - prose
       - tests
+      - shell-tests
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 1
     steps:
@@ -78,6 +94,7 @@ jobs:
             "${{ needs.budget.result }}"
             "${{ needs.prose.result }}"
             "${{ needs.tests.result }}"
+            "${{ needs.shell-tests.result }}"
           )
           for r in "${results[@]}"; do
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
