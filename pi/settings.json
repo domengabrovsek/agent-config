@@ -21,6 +21,6 @@
     "npm:pi-mcp-adapter@2.31.0",
     "npm:pi-intercom@0.12.1"
   ],
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-5"
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.6-sol"
 }
