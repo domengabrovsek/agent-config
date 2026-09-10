@@ -511,6 +511,7 @@ if host_enabled pi; then
     manage_link "$TAG/extensions" "$PI_DIR/extensions" "$REPO/pi/extensions"
     manage_link "$TAG/settings.json" "$PI_DIR/settings.json" "$REPO/pi/settings.json"
     manage_link "$TAG/models.json" "$PI_DIR/models.json" "$REPO/pi/models.json"
+    manage_link "$TAG/mcp.json" "$PI_DIR/mcp.json" "$REPO/pi/mcp.json"
     manage_link "$TAG/agents" "$PI_DIR/agents" "$REPO/agents"
   done
 fi

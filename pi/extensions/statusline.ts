@@ -34,6 +34,7 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
 	extractOpenAIAccountId,
+	parseCodexHeaders,
 	parseCodexUsagePayload,
 	type JsonValue,
 	type UsageWindow,
@@ -117,25 +118,6 @@ export function parseUnifiedHeaders(
 		num(headers["anthropic-ratelimit-unified-7d-reset"]),
 		headers["anthropic-ratelimit-unified-7d-status"],
 	);
-	return fiveHour || sevenDay ? { fiveHour, sevenDay } : undefined;
-}
-
-/** Parse the x-codex-* response header family. */
-export function parseCodexHeaders(headers: Record<string, string>): Pick<UsageWindows, "fiveHour" | "sevenDay"> | undefined {
-	const parse = (pctName: string, resetName: string): UsageWindow | null => {
-		if (headers[pctName] === undefined && headers[resetName] === undefined) return null;
-		const pct = num(headers[pctName]);
-		let resetEpoch = num(headers[resetName]);
-		// Observers have seen both seconds and milliseconds; big values are ms.
-		if (resetEpoch !== null && resetEpoch > 1e12) resetEpoch /= 1000;
-		return {
-			pct: pct === null ? null : Math.round(Math.min(Math.max(pct, 0), 999)),
-			resetEpochSec: resetEpoch !== null && resetEpoch > 0 ? Math.round(resetEpoch) : null,
-			rejected: false,
-		};
-	};
-	const fiveHour = parse("x-codex-primary-used-percent", "x-codex-primary-reset-at");
-	const sevenDay = parse("x-codex-secondary-used-percent", "x-codex-secondary-reset-at");
 	return fiveHour || sevenDay ? { fiveHour, sevenDay } : undefined;
 }
 

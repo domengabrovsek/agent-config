@@ -61,6 +61,30 @@ export function parseCodexUsagePayload(payload: JsonValue): ParsedUsageWindows |
   return fiveHour || sevenDay ? { fiveHour, sevenDay } : undefined;
 }
 
+export function parseCodexHeaders(headers: Record<string, string>): ParsedUsageWindows | undefined {
+  const num = (value: string | undefined): number | null => {
+    if (value === undefined) return null;
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const parse = (prefix: string): UsageWindow | null => {
+    if (headers[`${prefix}-used-percent`] === undefined && headers[`${prefix}-reset-at`] === undefined) return null;
+    const pct = num(headers[`${prefix}-used-percent`]);
+    const windowMinutes = num(headers[`${prefix}-window-minutes`]);
+    let resetEpoch = num(headers[`${prefix}-reset-at`]);
+    if (resetEpoch !== null && resetEpoch > 1e12) resetEpoch /= 1000;
+    return {
+      pct: pct === null ? null : Math.round(Math.min(Math.max(pct, 0), 999)),
+      resetEpochSec: resetEpoch !== null && resetEpoch > 0 ? Math.round(resetEpoch) : null,
+      rejected: false,
+      label: windowMinutes === null ? undefined : formatWindowLabel(windowMinutes * 60),
+    };
+  };
+  const fiveHour = parse('x-codex-primary');
+  const sevenDay = parse('x-codex-secondary');
+  return fiveHour || sevenDay ? { fiveHour, sevenDay } : undefined;
+}
+
 export function extractOpenAIAccountId(token: string): string | undefined {
   const encodedPayload = token.split('.')[1];
   if (!encodedPayload) return undefined;

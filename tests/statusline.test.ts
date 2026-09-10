@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 
 import {
   extractOpenAIAccountId,
+  parseCodexHeaders,
   parseCodexUsagePayload,
 } from '../pi/extensions/statusline/usage.ts';
 
@@ -70,6 +71,66 @@ describe('parseCodexUsagePayload', () => {
   it('ignores malformed and empty account payloads', () => {
     assert.equal(parseCodexUsagePayload(null), undefined);
     assert.equal(parseCodexUsagePayload({ rate_limit: { primary_window: { used_percent: '42' } } }), undefined);
+  });
+});
+
+describe('parseCodexHeaders', () => {
+  it('keeps weekly primary usage and its reset under the reported duration label', () => {
+    const result = parseCodexHeaders({
+      'x-codex-primary-used-percent': '11',
+      'x-codex-primary-window-minutes': '10080',
+      'x-codex-primary-reset-at': '1736298000',
+      'x-codex-secondary-used-percent': '0',
+      'x-codex-secondary-window-minutes': '300',
+    });
+
+    assert.deepEqual(result, {
+      fiveHour: { pct: 11, resetEpochSec: 1_736_298_000, rejected: false, label: '7d' },
+      sevenDay: { pct: 0, resetEpochSec: null, rejected: false, label: '5h' },
+    });
+  });
+
+  it('preserves endpoint labels when equivalent response headers replace the snapshot', () => {
+    const payload = parseCodexUsagePayload({
+      rate_limit: {
+        primary_window: { used_percent: 11, limit_window_seconds: 604_800, reset_at: 1_736_298_000 },
+      },
+    });
+    const headers = parseCodexHeaders({
+      'x-codex-primary-used-percent': '11',
+      'x-codex-primary-window-minutes': '10080',
+      'x-codex-primary-reset-at': '1736298000000',
+    });
+
+    assert.deepEqual(headers, payload);
+  });
+
+  it('labels standard and nonstandard durations without changing percentages', () => {
+    const result = parseCodexHeaders({
+      'x-codex-primary-used-percent': '42.4',
+      'x-codex-primary-window-minutes': '300',
+      'x-codex-secondary-used-percent': '81',
+      'x-codex-secondary-window-minutes': '60',
+    });
+
+    assert.equal(result?.fiveHour?.label, '5h');
+    assert.equal(result?.fiveHour?.pct, 42);
+    assert.equal(result?.sevenDay?.label, '1h');
+    assert.equal(result?.sevenDay?.pct, 81);
+  });
+
+  it('leaves missing or invalid durations unlabeled and absent windows null', () => {
+    for (const duration of [undefined, '', 'invalid', '0', '-1', 'Infinity']) {
+      const headers: Record<string, string> = { 'x-codex-primary-used-percent': '11' };
+      if (duration !== undefined) headers['x-codex-primary-window-minutes'] = duration;
+      const result = parseCodexHeaders(headers);
+
+      assert.equal(result?.fiveHour?.label, undefined);
+      assert.equal(result?.fiveHour?.pct, 11);
+      assert.equal(result?.sevenDay, null);
+    }
+    assert.equal(parseCodexHeaders({}), undefined);
+    assert.equal(parseCodexHeaders({ 'x-codex-primary-window-minutes': '10080' }), undefined);
   });
 });
 

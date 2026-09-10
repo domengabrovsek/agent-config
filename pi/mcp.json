@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "notion": {
+      "url": "https://mcp.notion.com/mcp",
+      "auth": "oauth"
+    },
+    "slack": {
+      "url": "https://mcp.slack.com/mcp",
+      "auth": "oauth",
+      "exposeResources": false,
+      "oauth": {
+        "clientId": "185316078694.12036247391600",
+        "redirectUri": "http://localhost:19876/callback",
+        "scope": "search:read.public channels:read channels:history users:read search:read.users search:read.private search:read.im search:read.mpim groups:read groups:history im:read im:history mpim:read mpim:history chat:write reactions:write"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}

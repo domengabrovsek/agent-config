@@ -72,6 +72,7 @@ new_case() {
   mkdir -p "$TEST_REPO/pi/extensions"
   : > "$TEST_REPO/pi/settings.json"
   : > "$TEST_REPO/pi/models.json"
+  : > "$TEST_REPO/pi/mcp.json"
   : > "$TEST_REPO/pi/extensions/statusline.ts"
 }
 
@@ -184,6 +185,8 @@ new_case pi_only
 assert_success "Pi-only apply succeeds" run_setup --apply --host pi
 assert_true "Pi-only apply links instructions" assert_link "$TEST_HOME/.pi/agent/AGENTS.md" "$TEST_REPO/AGENTS.md"
 assert_true "Pi-only apply links the personal dir too" assert_link "$TEST_HOME/.pi-personal/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" && assert_link "$TEST_HOME/.pi-personal/agent/extensions" "$TEST_REPO/pi/extensions" && assert_link "$TEST_HOME/.pi-personal/agent/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$TEST_HOME/.pi-personal/agent/models.json" "$TEST_REPO/pi/models.json" && assert_link "$TEST_HOME/.pi-personal/agent/agents" "$TEST_REPO/agents"
+assert_true "Pi base directory receives MCP config" assert_link "$TEST_HOME/.pi/agent/mcp.json" "$TEST_REPO/pi/mcp.json"
+assert_true "Pi personal directory receives MCP config" assert_link "$TEST_HOME/.pi-personal/agent/mcp.json" "$TEST_REPO/pi/mcp.json"
 assert_true "Pi-only apply links shared skills" assert_link "$TEST_HOME/.agents/skills" "$TEST_REPO/skills"
 assert_true "Pi-only apply links shared scripts" assert_link "$TEST_HOME/.agents/scripts" "$TEST_REPO/scripts"
 assert_true "Pi-only apply links shared templates" assert_link "$TEST_HOME/.agents/templates" "$TEST_REPO/templates"
@@ -191,6 +194,8 @@ assert_true "Pi-only apply skips Codex" test ! -e "$TEST_HOME/.codex"
 assert_success "Pi-only check exits zero" run_setup --check --host pi
 assert_success "Pi-only re-apply is idempotent" run_setup --apply --host pi
 assert_true "Pi-only re-apply creates no instruction backup" test "$(backup_count "$TEST_HOME/.pi/agent/AGENTS.md")" -eq 0
+assert_true "Pi-only re-apply preserves MCP link" assert_link "$TEST_HOME/.pi/agent/mcp.json" "$TEST_REPO/pi/mcp.json"
+assert_true "Pi-only re-apply creates no MCP backup" test "$(backup_count "$TEST_HOME/.pi/agent/mcp.json")" -eq 0
 assert_true "Pi-only re-apply creates no skill backup" test "$(backup_count "$TEST_HOME/.agents/skills")" -eq 0
 
 # Pi follows its native config-directory override.
@@ -199,6 +204,7 @@ CUSTOM_PI_DIR="$CASE_DIR/custom-pi"
 assert_success "Pi custom directory apply succeeds" run_setup_with_pi_dir "$CUSTOM_PI_DIR" --apply --host pi
 assert_true "Pi custom directory receives instructions" assert_link "$CUSTOM_PI_DIR/AGENTS.md" "$TEST_REPO/AGENTS.md"
 assert_true "Pi custom directory receives extension and settings links" assert_link "$CUSTOM_PI_DIR/extensions" "$TEST_REPO/pi/extensions" && assert_link "$CUSTOM_PI_DIR/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$CUSTOM_PI_DIR/models.json" "$TEST_REPO/pi/models.json"
+assert_true "Pi custom directory receives MCP config" assert_link "$CUSTOM_PI_DIR/mcp.json" "$TEST_REPO/pi/mcp.json"
 assert_true "Pi default directory stays absent" test ! -e "$TEST_HOME/.pi"
 assert_true "Pi custom directory still gets shared skills" assert_link "$TEST_HOME/.agents/skills" "$TEST_REPO/skills"
 assert_success "Pi custom directory check exits zero" run_setup_with_pi_dir "$CUSTOM_PI_DIR" --check --host pi
