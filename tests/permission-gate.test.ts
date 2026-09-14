@@ -174,6 +174,15 @@ describe('real deny list (drift alarms)', () => {
     );
   });
 
+  it('leaves package-manager lockfiles writable', () => {
+    assert.ok(selection.status === 'ok');
+    const policy = derivePermissionPolicy(selection.config);
+
+    assert.equal(policy.pathWrite['*/package-lock.json'], undefined);
+    assert.equal(policy.pathWrite['*/pnpm-lock.yaml'], undefined);
+    assert.equal(policy.pathWrite['*/yarn.lock'], undefined);
+  });
+
   it('matches the committed derived config byte for byte', () => {
     assert.ok(selection.status === 'ok');
     const document = buildPolicyDocument(derivePermissionPolicy(selection.config));
