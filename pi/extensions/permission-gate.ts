@@ -116,10 +116,8 @@ function denyMap(patterns: string[]): SurfaceMap {
 /**
  * Derive the permission surfaces from classified deny rules. Read rules and
  * Edit rules stay directional (path_read / path_write): their pattern sets are
- * deliberately different (shell histories and editor storage are read-only
- * secrets; lockfiles are write-protected but readable), so a merged
- * cross-cutting `path` surface would deny lockfile reads - a regression, not
- * a superset.
+ * deliberately differ because shell histories and editor storage have Read
+ * rules only. A merged `path` surface would block writes absent from the source.
  */
 export function derivePermissionPolicy(config: Extract<GateConfig, { status: 'ok' }>): {
   universal: 'allow';

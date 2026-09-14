@@ -87,6 +87,6 @@ The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensi
 
 ## More
 
-- **Security boundaries** - deny list, Bash restrictions, and lock-file protection live in [`settings.json`](settings.json).
+- **Security boundaries** - the deny list and Bash restrictions live in [`settings.json`](settings.json).
 - **CI** - `.github/workflows/pull-request.yml` runs six jobs. They cover markdown linting, the rule budget, the prose gate, the pi extension tests, the shell test suites, and config integrity. A single `Gate` check aggregates them.
 - **Local gate** - `scripts/config-budget.sh`, `scripts/config-integrity.sh`, and `scripts/shellcheck-all.sh` each run standalone and are what CI invokes.
