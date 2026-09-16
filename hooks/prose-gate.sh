@@ -4,7 +4,7 @@
 # One word list, three surfaces, dispatched by the first argument:
 #   file    PostToolUse on Write|Edit  - markdown files only
 #   commit  PreToolUse on git commit   - the whole commit message
-#   pr      PreToolUse on gh pr create - the --body / --body-file text
+#   pr      PreToolUse on gh pr create|edit - the body text it sends
 #   corpus  CI / test only              - a whole markdown file by path
 #
 # Two tiers. BLOCK words have no defensible use in this repo and exit 2.
@@ -24,6 +24,9 @@
 #
 # shellcheck disable=SC1112  # the curly quotes below are the patterns
 # this gate detects, inside the embedded python; they are not typos.
+
+# shellcheck source=lib/pr-body.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
 
 MODE="${1:-file}"
 
@@ -123,46 +126,13 @@ if vals:
     COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
     case "$COMMAND" in
       *"gh pr create --help"*|*"gh pr create -h"*) exit 0 ;;
-      *"gh pr create"*) ;;
+      *"gh pr edit --help"*|*"gh pr edit -h"*) exit 0 ;;
+      *"gh pr create"*|*"gh pr edit"*) ;;
       *) exit 0 ;;
     esac
 
     LABEL="PR body"
-    BODY_FILE=$(printf '%s' "$COMMAND" | python3 -c '
-import sys, re
-cmd = sys.stdin.read()
-m = re.search(r"--body-file[=\s]+[\x27\"]?([^\x27\"\s]+)", cmd)
-print(m.group(1) if m else "")
-' 2>/dev/null)
-
-    if [ -n "$BODY_FILE" ] && [ -f "$BODY_FILE" ]; then
-      TEXT=$(cat "$BODY_FILE")
-    else
-      TEXT=$(printf '%s' "$COMMAND" | python3 -c '
-import sys, re
-
-cmd = sys.stdin.read()
-
-m = re.search(r"--body[=\s]+<<-?[\x27\"]?(\w+)[\x27\"]?", cmd)
-if m:
-    delim = m.group(1)
-    after = cmd[m.end():]
-    nl = after.find("\n")
-    if nl != -1:
-        out = []
-        for line in after[nl + 1:].split("\n"):
-            if line.strip() == delim:
-                break
-            out.append(line)
-        print("\n".join(out))
-        sys.exit(0)
-
-vals = [m.group(2) for m in
-        re.finditer(r"(?:-b|--body)[=\s]+([\x27\"])(.*?)\1", cmd, re.S)]
-if vals:
-    print("\n".join(vals))
-' 2>/dev/null)
-    fi
+    TEXT=$(extract_pr_body "$COMMAND")
     ;;
 
   corpus)
