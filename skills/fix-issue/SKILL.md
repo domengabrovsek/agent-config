@@ -23,4 +23,4 @@ Follow this workflow:
 8. **Test**: write or update tests verifying the fix. Run the test suite. `(review-time: see section note)`
 9. **Verify**: run typecheck (`npx tsc --noEmit`), lint, and full test suite `(hook)`
 10. **Commit**: create a conventional commit (e.g., `fix(scope): description`) referencing the issue `(hook)`
-11. **PR**: push the branch and create a PR linking the issue with `gh pr create` `(hook)`
+11. **PR**: create the PR with `/mr`, which pushes the branch. Put `Closes #<issue>` under Linked issues `(hook)`

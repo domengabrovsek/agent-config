@@ -32,6 +32,7 @@ description: "Create a merge request or pull request from the current branch: ve
     - If `.github/pull_request_template.md` or `.gitlab/merge_request_templates/` exists, use that template `(review-time: see section note)`
     - Otherwise use `~/.agents/pull_request_template.md` `(review-time: see section note)`
     - Fill in the description explaining what changed and why `(review-time: see section note)`
+    - Keep the body under 150 words, in bullets, and revise it with `write-plain` before the preview `(review-time: see section note)`
     - Add a "Not touched (intentionally)" list naming adjacent code left alone, when the reviewer could expect it changed; it proves scope discipline and surfaces known adjacent problems `(review-time: see section note)`
     - Check the relevant category box(es) - exactly one or more of: Bugfix, Feature, Refactor, Chore, CI/CD, Infrastructure `(review-time: see section note)`
     - Check "Changes have been tested locally" only if tests were actually run `(review-time: see section note)`
