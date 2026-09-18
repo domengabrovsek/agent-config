@@ -31,7 +31,8 @@ Default to `feat/<slug>`. If the user's request looks like a bug fix, use `fix/<
    ```
 
 4. `cd` into the worktree dir for all subsequent operations.
-5. Show the user the new working dir, branch name, and confirm next steps.
+5. If `package-lock.json` exists, run `npm ci`. The worktree holds only tracked files, and the pre-push gate needs `node_modules`.
+6. Show the user the new working dir, branch name, and confirm next steps.
 
 ## After creation
 

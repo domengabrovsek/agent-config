@@ -89,7 +89,15 @@ if [ "$PROJECT_TYPE" = "node" ]; then
   has_script typecheck && run_step "typecheck" "CI=true npm run typecheck --silent"
   has_script knip && run_step "knip" "CI=true npm run knip --silent"
   has_script test && run_step "test" "CI=true npm test --silent"
-  has_script build && run_step "build" "CI=true npm run build --silent"
+  # A checkout with no local env, such as a fresh worktree, builds with the
+  # committed template. CI builds with throwaway values the same way. The
+  # template stays scoped to the build: test runners read env too.
+  if [ ! -f .env ] && [ ! -f .env.local ] && [ -f .env.example ]; then
+    has_script build && run_step "build (env from .env.example)" \
+      "set -a && . ./.env.example && set +a && CI=true npm run build --silent"
+  else
+    has_script build && run_step "build" "CI=true npm run build --silent"
+  fi
   # Only critical advisories block: pre-existing high/moderate transitive CVEs are
   # Dependabot's job, not a push gate's, and would otherwise block unrelated work.
   command -v npm >/dev/null 2>&1 && run_step "audit" "npm audit --audit-level=critical"
