@@ -96,6 +96,9 @@ jobs:
       - name: Test the commit gates
         run: bash tests/commit-gates.sh
 
+      - name: Test the pre-push gate
+        run: bash tests/pre-push-gate.sh
+
       - name: Test the PR gates
         run: bash tests/pr-gates.sh
 
