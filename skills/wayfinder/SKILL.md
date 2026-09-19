@@ -4,7 +4,7 @@ description: "Plans a huge chunk of work - more than one agent session can hold 
 disable-model-invocation: true
 ---
 
-> Source: [mattpocock/skills - engineering/wayfinder](https://github.com/mattpocock/skills/tree/main/skills/engineering/wayfinder), re-homed onto a local file map (this repo runs no issue tracker - see ADR 0006).
+> Source: [mattpocock/skills - engineering/wayfinder](https://github.com/mattpocock/skills/tree/main/skills/engineering/wayfinder), re-homed onto a local file map (this repo runs no issue tracker - see `docs/decisions.md`).
 
 A loose idea has arrived - too big for one agent session, and wrapped in fog: the way from here to the **destination** isn't visible yet. Wayfinding is about finding that way, not charging at the destination. This skill charts the way as a **shared map** in a local file, then works its **decision tickets** - questions whose resolution is a decision, not slices of a build to execute - one at a time until the route is clear.
 

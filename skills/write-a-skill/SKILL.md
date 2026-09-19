@@ -3,7 +3,7 @@ name: write-a-skill
 description: "Provides the reference and principles for writing and editing skills well - the vocabulary that makes a skill predictable. Use when creating, writing, editing, reviewing, or refactoring an agent skill."
 ---
 
-> Source: [mattpocock/skills - productivity/writing-great-skills](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-great-skills). Kept model-invoked here (see ADR 0006); full definitions in [GLOSSARY.md](GLOSSARY.md).
+> Source: [mattpocock/skills - productivity/writing-great-skills](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-great-skills). Kept model-invoked here (see `docs/decisions.md`); full definitions in [GLOSSARY.md](GLOSSARY.md).
 
 A skill exists to wrangle determinism out of a stochastic system. **Predictability** - the agent taking the same _process_ every run, not producing the same output - is the root virtue; every lever below serves it.
 
