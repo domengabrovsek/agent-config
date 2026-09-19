@@ -25,7 +25,7 @@ Multi-line comments use the language's block format, never a stack of single-lin
 
 - Comments restating the next line. `// Increment counter` above `counter++` `(review-time: requires comparing the comment text against the statement below it)`
 - Historical narrative: how the code got here. What the previous tool did, who applied something, what used to fail, what was tried first. A comment says why the code is the way it is now. History lives in the commit message and PR description, where `git blame` leads anyone who wants it `(review-time: requires judging whether a clause states a present constraint or recounts a past event)`
-- Tracker refs of any kind: `SER-123`, `#456`, `Fixes owner/repo#789`, `ADR-0042`, `Per ADR 0030`. They belong in PR descriptions, ADR files, and git blame. This is why comments went long and stale in the first place `(hook)`
+- Tracker refs of any kind: `SER-123`, `#456`, `Fixes owner/repo#789`, `ADR-0042`, `Per ADR 0030`. They belong in PR descriptions and git blame. This is why comments went long and stale in the first place `(hook)`
 - Em dashes `(hook)`
 - TODO, FIXME, XXX, HACK markers. Open the ticket, fix it now, or accept it is not getting fixed `(hook)`
 

@@ -82,7 +82,7 @@ The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensi
 - **`scripts/`** - the multi-host bootstrap, its Claude compatibility wrapper, and utilities used by hooks and skills.
 - **`docs/decisions.md`** - the design decisions still in force, with the reason for each.
 - **`references/`** - long-form checklists (security, testing) loaded by skills on demand.
-- **`templates/`** - boilerplate for new ADRs and docs.
+- **`templates/`** - the `docs/README.md` skeleton for `/document bootstrap`.
 
 ## More
 

@@ -12,6 +12,6 @@ Suggest the skills to be used, if any, by the next session.
 
 Redact any sensitive information - secrets, API keys, passwords, or personally identifiable information - before writing it into the document. `(review-time: no hook inspects free-form handoff-doc text before it is written)`
 
-Do not duplicate content already captured in other artifacts (specs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
+Do not duplicate content already captured in other artifacts (specs, plans, issues, commits, diffs). Reference them by path or URL instead.
 
 If the user passed arguments, treat them as a description of what the next session will focus on and tailor the doc accordingly.

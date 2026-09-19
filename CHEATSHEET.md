@@ -56,7 +56,7 @@ Some skills enforce a discipline plain English would skip. Use the slash when yo
 Model-invoked, so describing the work is enough. Naming them still works:
 
 - `rulebook` - loads the detailed standards a task needs from `rules/`
-- `write-plain` - fires on prose work: docs, ADRs, specs, PR bodies
+- `write-plain` - fires on prose work: docs, specs, PR bodies
 - `jira` - fires on a Jira key, ticket mention, or an atlassian.net URL
 - `sentry-issue` - fires on a Sentry short ID or a sentry.io URL
 

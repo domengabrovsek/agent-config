@@ -63,7 +63,7 @@ TICKETS=$(echo "$ADDED" | grep -nE \
   2>/dev/null || true)
 
 if [ -n "$TICKETS" ]; then
-  VIOLATIONS+="Ticket / PR / JIRA / ADR reference detected in newly added comment(s). Remove the ref - those belong in PR descriptions, ADR files, and git blame, not in code:
+  VIOLATIONS+="Ticket / PR / JIRA / ADR reference detected in newly added comment(s). Remove the ref - those belong in PR descriptions and git blame, not in code:
 $TICKETS
 
 "
@@ -108,7 +108,7 @@ case "$FILE" in
       'description[[:space:]]*=.*(\b[A-Z]{2,}-[0-9]+\b|[[:space:]]#[0-9]+\b|\b[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+\b|\b[Aa][Dd][Rr][[:space:]-]+[0-9]+\b|\b(Fixes|Closes|Refs|Resolves)[[:space:]]+(#|[A-Z]{2,}-))' \
       2>/dev/null || true)
     if [ -n "$TF_DESC_REFS" ]; then
-      VIOLATIONS+="Tracker reference inside Terraform description attribute. rules/comments.md: descriptions surface in terraform-docs and module-consumer docs - tracker refs belong in PR descriptions, ADR files, and git blame:
+      VIOLATIONS+="Tracker reference inside Terraform description attribute. rules/comments.md: descriptions surface in terraform-docs and module-consumer docs - tracker refs belong in PR descriptions and git blame:
 $TF_DESC_REFS
 
 "

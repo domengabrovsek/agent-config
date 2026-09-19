@@ -145,9 +145,6 @@ if vals:
       */rules/communication.md|rules/communication.md) exit 0 ;;
       */skills/write-plain/SKILL.md|skills/write-plain/SKILL.md) exit 0 ;;
       */.claude/state/*) exit 0 ;;
-      # Accepted ADRs are immutable, so the corpus pass cannot ask for a
-      # rewrite. New ADRs are still gated by file mode as they are written.
-      */docs/adr/*|docs/adr/*) exit 0 ;;
     esac
 
     LABEL="$FILE"

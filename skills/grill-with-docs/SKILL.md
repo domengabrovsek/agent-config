@@ -71,10 +71,6 @@ When a term is resolved, update `CONTEXT.md` right there. Don't batch these up -
 
 Don't couple `CONTEXT.md` to implementation details. Only include terms that are meaningful to domain experts. `CONTEXT.md` is a glossary and nothing else - not a spec, not a scratch pad.
 
-### No ADRs from the grill
-
-ADR creation is explicit-ask only, via `/document adr "<title>"`. The grill records decisions in the exit plan, never in an ADR `(review-time: a proposal is free-form text no hook can see)`
-
 ## Panel grilling (optional)
 
 For a plan with genuine cross-domain tension or competing approaches, convene a **panel** (see `rules/parallel-agents.md`) instead of grilling solo:

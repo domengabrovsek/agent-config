@@ -1,6 +1,6 @@
 ---
 name: improve-codebase-architecture
-description: "Finds deepening opportunities in a codebase, informed by the domain language in CONTEXT.md and the decisions in docs/adr/. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable."
+description: "Finds deepening opportunities in a codebase, informed by the domain language in CONTEXT.md and the repo's documented decisions. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable."
 ---
 
 > Source: [mattpocock/skills - engineering/improve-codebase-architecture](https://github.com/mattpocock/skills/tree/main/skills/engineering/improve-codebase-architecture)
@@ -30,13 +30,13 @@ Key principles (see [LANGUAGE.md](LANGUAGE.md) for the full list):
 - **The interface is the test surface.** `(review-time: see section note)`
 - **One adapter = hypothetical seam. Two adapters = real seam.** `(review-time: see section note)`
 
-This skill is _informed_ by the project's domain model. The domain language gives names to good seams; ADRs record decisions the skill should not re-litigate.
+This skill is _informed_ by the project's domain model. The domain language gives names to good seams; documented decisions are ones the skill should not re-litigate.
 
 ## Process
 
 ### 1. Explore
 
-Read the project's domain glossary and any ADRs in the area you're touching first.
+Read the project's domain glossary and any documented decisions in the area you're touching first.
 
 Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics - explore organically and note where you experience friction:
 
@@ -59,7 +59,7 @@ Present a numbered list of deepening opportunities. For each candidate:
 
 **Use CONTEXT.md vocabulary for the domain, and [LANGUAGE.md](LANGUAGE.md) vocabulary for the architecture.** If `CONTEXT.md` defines "Order," talk about "the Order intake module" - not "the FooBarHandler," and not "the Order service."
 
-**ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly (e.g. _"contradicts ADR-0007 - but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+**Decision conflicts**: if a candidate contradicts a documented decision, only surface it when the friction is real enough to warrant revisiting that decision. Mark it clearly (e.g. _"contradicts the lane-mode decision - but worth reopening because…"_). Don't list every theoretical refactor a decision forbids.
 
 Do NOT propose interfaces yet. Ask the user: "Which of these would you like to explore?"
 
@@ -71,5 +71,5 @@ Side effects happen inline as decisions are made:
 
 - **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term to `CONTEXT.md` - same discipline as `/grill-with-docs` (see [CONTEXT-FORMAT.md](../grill-with-docs/CONTEXT-FORMAT.md)). Create the file lazily if it doesn't exist. `(review-time: see section note)`
 - **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there. `(review-time: see section note)`
-- **User rejects the candidate with a load-bearing reason?** Record the reason in the review output so a future run does not re-suggest it. Do not propose an ADR; the user creates one via `/document adr` when they want the rejection on record. `(review-time: see section note)`
+- **User rejects the candidate with a load-bearing reason?** Record the reason in the review output so a future run does not re-suggest it. `(review-time: see section note)`
 - **Want to explore alternative interfaces for the deepened module?** See [INTERFACE-DESIGN.md](INTERFACE-DESIGN.md). `(review-time: see section note)`

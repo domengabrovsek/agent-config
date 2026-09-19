@@ -9,9 +9,15 @@ The design decisions this config still runs on. Each entry states the choice, th
 - Work runs Research, Grill, Implement, Summarize, as the Workflow section of `AGENTS.md` describes.
 - The grill aligns through real-time questions instead of an annotated plan document.
 - Each phase hands off explicitly. The user's "ready" at the end of the grill is the approval gate.
-- The grill writes domain terms to `CONTEXT.md` and a short plan to `.claude/state/plans/`. It never writes an ADR.
+- The grill writes domain terms to `CONTEXT.md` and a short plan to `.claude/state/plans/`.
 - Trivial changes, such as typos, version bumps, and config tweaks, skip the grill.
 - Cost: the grill needs the user present to answer.
+
+### No ADRs
+
+- Agents never create or propose an ADR, in this repo or any other.
+- This config's decisions live in this file. Elsewhere, a decision goes in the plan and the pull request description.
+- Accepted ADRs are immutable, so they went stale as the config changed. One summary edited in place stays current.
 
 ### No cross-session repo lock
 

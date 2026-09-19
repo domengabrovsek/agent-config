@@ -13,8 +13,8 @@ Prefer quality, consistency, efficiency, then speed. Make the smallest complete 
 - Use active voice and present tense. Name the actor. Keep one idea per sentence. Cap instructions at 20 words and descriptions at 25.
 - Give one action per instruction. Limit noun clusters to three words and paragraphs to six sentences. Use "because" for cause and "since" only for time. Return only a requested table or list.
 - Avoid filler and marketing language. Use `write-plain` for the blocked phrase list.
-- Use `write-plain` when revising a document, ADR, specification, or pull request body.
-- Limits: pull request 150 words; review or reply 120; diary 300; ADR 400. Exceed them only when needed.
+- Use `write-plain` when revising a document, specification, or pull request body.
+- Limits: pull request 150 words; review or reply 120; diary 300. Exceed them only when needed.
 
 ### Verify before asserting
 
@@ -76,7 +76,7 @@ The historical `.claude/state/` path is shared workflow state for every host. Do
 - Use the repository's formatter, linter, type checker, tests, and build commands. Discover the actual CI checks rather than guessing.
 - Add tests for new behavior and bug fixes at the closest useful behavior boundary. Keep tests alongside the increment they verify.
 - Update existing documentation when the implemented behavior it describes changes. Do not document planned or speculative behavior as if it already exists.
-- Never create an ADR unless asked. `/document adr` is the only creation path.
+- Never create or propose an ADR.
 - Outside `/document`, never create a README or other doc unless asked.
 - Before changing or removing an unfamiliar construct, use history and `git blame` to understand why it exists.
 - Never trade away error handling, type safety, tests, or configuration boundaries for speed.

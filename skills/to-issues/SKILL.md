@@ -19,7 +19,7 @@ Work from whatever is already in the conversation context. If the user passes an
 
 ### 2. Explore the codebase (optional)
 
-If you have not already explored the codebase, do so to understand the current state of the code. Issue titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
+If you have not already explored the codebase, do so to understand the current state of the code. Issue titles and descriptions should use the project's domain glossary vocabulary, and respect documented decisions in the area you're touching.
 
 Look for opportunities to prefactor the code to make the implementation easier - "make the change easy, then make the easy change." Any prefactoring should be its own issue, sequenced first. `(review-time: see section note)`
 

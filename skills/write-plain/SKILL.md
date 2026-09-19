@@ -1,6 +1,6 @@
 ---
 name: write-plain
-description: "Edits prose to cut the patterns that read as machine-written: puffery, vague attribution, forced triads, synonym cycling, inline-header lists, and sentences that name a feeling instead of a mechanism. Use when writing or revising a doc, ADR, spec, research artifact, PR description, or any prose longer than a few lines."
+description: "Edits prose to cut the patterns that read as machine-written: puffery, vague attribution, forced triads, synonym cycling, inline-header lists, and sentences that name a feeling instead of a mechanism. Use when writing or revising a doc, spec, research artifact, PR description, or any prose longer than a few lines."
 ---
 
 > Source: [cursor/plugins - pstack/skills/unslop](https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md). Adapted, not vendored verbatim; see "What this skill leaves out" below.
@@ -78,6 +78,6 @@ This one is judgment, not a rule, because the `term: definition` shape used thro
 
 Recorded so a future re-vendor does not silently reintroduce these.
 
-- **The "Adding soul" section.** Two of its six items already exist here in stronger form: "have opinions" is `rules/communication.md` (lead with your recommendation), "be specific" is "Verify before asserting" in `AGENTS.md` (cite the file and line). The other four ("vary rhythm", "let some mess in", "acknowledge complexity", "use I") contradict the length caps and the one-idea-per-sentence rule in "Write plain" in `AGENTS.md`. The output surfaces here are commit messages, ADRs, PR bodies and chat replies, where terse is the correct register.
-- **Sentence-case headings.** The convention here is title case for document titles and sentence case for ADR decision statements, which are sentences. Adopting the upstream rule would rename 36 headings for no gain in clarity.
+- **The "Adding soul" section.** Two of its six items already exist here in stronger form: "have opinions" is `rules/communication.md` (lead with your recommendation), "be specific" is "Verify before asserting" in `AGENTS.md` (cite the file and line). The other four ("vary rhythm", "let some mess in", "acknowledge complexity", "use I") contradict the length caps and the one-idea-per-sentence rule in "Write plain" in `AGENTS.md`. The output surfaces here are commit messages, PR bodies and chat replies, where terse is the correct register.
+- **Sentence-case headings.** The convention here is title case for document titles. Adopting the upstream rule would rename headings across the repo for no gain in clarity.
 - **Four words from the upstream lists.** `surface`, `features`, `vector` and `harness` are terms of art in this repo, so `hooks/prose-gate.sh` does not check them.
