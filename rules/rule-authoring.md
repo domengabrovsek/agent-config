@@ -1,14 +1,13 @@
 ---
 paths:
   - "**/rules/*.md"
-  - "**/CLAUDE.md"
   - "**/agents/*.md"
   - "**/skills/**/SKILL.md"
 ---
 
 # Rule Authoring Policy
 
-**When to apply:** writing or editing any rule bullet in `rules/*.md`, `CLAUDE.md`, `agents/*.md`, or `skills/**/SKILL.md`.
+**When to apply:** writing or editing any rule bullet in `rules/*.md`, `agents/*.md`, or `skills/**/SKILL.md`.
 
 ## Why this exists
 
@@ -57,7 +56,6 @@ Rule text itself follows the plain-language policy in `rules/communication.md` -
 ## In-scope files
 
 - `rules/*.md`
-- `CLAUDE.md`
 - `agents/*.md` (only the Guardrails sections; persona prose stays untagged)
 - `skills/**/SKILL.md` (only the rule bullets; procedure / steps / examples stay untagged)
 

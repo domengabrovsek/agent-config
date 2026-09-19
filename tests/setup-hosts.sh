@@ -64,7 +64,6 @@ new_case() {
   for PATH_NAME in agents hooks rules skills scripts docs references templates; do
     mkdir -p "$TEST_REPO/$PATH_NAME"
   done
-  : > "$TEST_REPO/CLAUDE.md"
   : > "$TEST_REPO/AGENTS.md"
   : > "$TEST_REPO/settings.json"
   : > "$TEST_REPO/scripts/statusline.sh"
@@ -139,7 +138,7 @@ assert_success "apply configures all hosts" run_setup --apply
 while IFS='|' read -r NAME RELATIVE; do
   assert_true "Claude manifest includes $NAME" assert_link "$TEST_HOME/.claude/$NAME" "$TEST_REPO/$RELATIVE"
 done <<'EOF'
-CLAUDE.md|CLAUDE.md
+CLAUDE.md|AGENTS.md
 settings.json|settings.json
 agents|agents
 hooks|hooks
@@ -155,7 +154,7 @@ EOF
 while IFS='|' read -r NAME RELATIVE; do
   assert_true "Claude personal dir gets $NAME" assert_link "$TEST_HOME/.claude-personal/$NAME" "$TEST_REPO/$RELATIVE"
 done <<'EOF'
-CLAUDE.md|CLAUDE.md
+CLAUDE.md|AGENTS.md
 settings.json|settings.json
 hooks|hooks
 rules|rules
@@ -350,7 +349,7 @@ new_case legacy_wrapper
 mkdir -p "$TEST_HOME/.claude"
 printf 'local\n' > "$TEST_HOME/.claude/CLAUDE.md"
 assert_success "legacy wrapper applies and adopts Claude" run_wrapper
-assert_true "legacy wrapper links Claude config" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$TEST_REPO/CLAUDE.md"
+assert_true "legacy wrapper links Claude config" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$TEST_REPO/AGENTS.md"
 assert_true "legacy wrapper backs up Claude conflict" test "$(backup_count "$TEST_HOME/.claude/CLAUDE.md")" -eq 1
 assert_true "legacy wrapper does not configure Codex" test ! -e "$TEST_HOME/.codex"
 assert_true "legacy wrapper does not configure Pi" test ! -e "$TEST_HOME/.pi"
@@ -371,7 +370,7 @@ cat > "$TEST_HOME/.agents/hosts.env" <<'SCOPE'
 : "${HARNESS_SKIP_HOSTS:=codex}"
 SCOPE
 assert_success "scope file applies with no arguments" run_setup_bare --apply
-assert_true "scope file links the base claude dir" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$TEST_REPO/CLAUDE.md"
+assert_true "scope file links the base claude dir" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$TEST_REPO/AGENTS.md"
 assert_true "scope file links the base pi dir" assert_link "$TEST_HOME/.pi/agent/settings.json" "$TEST_REPO/pi/settings.json"
 assert_true "scope file skips the personal claude dir" test ! -e "$TEST_HOME/.claude-personal"
 assert_true "scope file skips the personal pi dir" test ! -e "$TEST_HOME/.pi-personal"
@@ -383,7 +382,7 @@ assert_success "argument-free check is clean after apply" run_setup_bare --check
 # unaffected by the new lookup.
 new_case scope_file_absent_keeps_defaults
 assert_success "no scope file still applies" run_setup_bare --apply
-assert_true "no scope file links the personal claude dir" assert_link "$TEST_HOME/.claude-personal/CLAUDE.md" "$TEST_REPO/CLAUDE.md"
+assert_true "no scope file links the personal claude dir" assert_link "$TEST_HOME/.claude-personal/CLAUDE.md" "$TEST_REPO/AGENTS.md"
 assert_true "no scope file links the personal pi dir" assert_link "$TEST_HOME/.pi-personal/agent/settings.json" "$TEST_REPO/pi/settings.json"
 assert_true "no scope file configures codex" test -e "$TEST_HOME/.codex/AGENTS.md"
 
@@ -417,7 +416,7 @@ SCOPE
 assert_success "relocated scope file applies" env HOME="$TEST_HOME" AGENT_CONFIG_REPO="$TEST_REPO" AGENT_HOSTS_ENV="$TEST_HOME/elsewhere/scope.env" bash "$SETUP" --apply
 assert_true "relocated scope file skips codex" test ! -e "$TEST_HOME/.codex"
 assert_true "relocated scope file skips pi" test ! -e "$TEST_HOME/.pi"
-assert_true "relocated scope file still links claude" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$TEST_REPO/CLAUDE.md"
+assert_true "relocated scope file still links claude" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$TEST_REPO/AGENTS.md"
 
 echo ""
 echo "$PASSED passed; $FAILED failed"

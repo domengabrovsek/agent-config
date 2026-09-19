@@ -2,7 +2,7 @@
 
 **When to apply:** every interaction with the user.
 
-Writing style lives in `CLAUDE.md` under "Read this first". This file covers turn cadence and links.
+Writing style lives in `AGENTS.md` under "Read this first". This file covers turn cadence and links.
 
 **why-no-hook:** every rule here governs the phrasing and turn shape of free-form text sent to the user. Hooks fire on tool calls and never see a reply.
 

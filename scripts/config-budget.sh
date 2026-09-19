@@ -1,8 +1,9 @@
 #!/bin/bash
-# Budget gate for the always-loaded rule surface: CLAUDE.md plus every file it
-# @-imports. The config reached ~8,300 words one reasonable bullet at a time;
-# this fails the build when it starts growing back. Raising a budget is a
-# deliberate edit to this file, reviewed in the same PR as the rule that needs it.
+# Budget gate for the always-loaded rule surface: AGENTS.md plus every rule
+# without paths: frontmatter. The config reached ~8,300 words one reasonable
+# bullet at a time; this fails the build when it starts growing back. Raising a
+# budget is a deliberate edit to this file, reviewed in the same PR as the rule
+# that needs it.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,17 +12,18 @@ cd "$ROOT"
 MAX_WORDS=3800
 MAX_REVIEW_TIME=100
 
-# bash 3.2 on macOS has no mapfile, so build the list the portable way.
-FILES=(CLAUDE.md)
-while IFS= read -r line; do
-  [ -n "$line" ] && FILES+=("$line")
-done < <(grep -oE '^@(AGENTS\.md|rules/[A-Za-z0-9._-]+\.md)' CLAUDE.md | sed 's/^@//')
+# Claude Code loads a rule at launch unless its frontmatter scopes it with paths:.
+has_paths() {
+  awk 'NR == 1 && $0 != "---" { exit 1 }
+       NR > 1 && $0 == "---" { exit 1 }
+       /^paths:/ { found = 1; exit }
+       END { exit !found }' "$1"
+}
 
-missing=0
-for f in "${FILES[@]}"; do
-  [ -f "$f" ] || { echo "MISSING import target: $f" >&2; missing=1; }
+FILES=(AGENTS.md)
+for f in rules/*.md; do
+  has_paths "$f" || FILES+=("$f")
 done
-[ "$missing" -eq 1 ] && exit 1
 
 total=0
 printf '%-38s %6s\n' "file" "words"

@@ -125,7 +125,7 @@ _Avoid_: "spike task", "POC".
 ### Config surface
 
 **Always-loaded rule**:
-A rule in `CLAUDE.md` or an `@`-imported file under `rules/`, present in the context of every session regardless of the task.
+A rule in `AGENTS.md` or in a `rules/` file without `paths:` frontmatter, present in the context of every session regardless of the task.
 _Avoid_: "global rule", "base rule".
 
 **On-demand rule**:

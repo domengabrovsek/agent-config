@@ -1,5 +1,5 @@
 #!/bin/bash
-# Prose gate backing the "Write plain" policy in CLAUDE.md.
+# Prose gate backing the "Write plain" policy in AGENTS.md.
 #
 # One word list, three surfaces, dispatched by the first argument:
 #   file    PostToolUse on Write|Edit  - markdown files only
@@ -353,7 +353,7 @@ fi
 
 if [ "$STATUS" -eq 2 ]; then
   echo "[prose-gate] $LABEL" >&2
-  echo "CLAUDE.md (Write plain): plain word, no filler, no chatbot phrasing." >&2
+  echo "AGENTS.md (Write plain): plain word, no filler, no chatbot phrasing." >&2
   echo "$RESULT" | sed -n '/^BLOCK$/,$p' | grep -v '^BLOCK$' >&2
   echo "(Bypass: SKIP_PROSE_GATE=1)" >&2
   exit 2

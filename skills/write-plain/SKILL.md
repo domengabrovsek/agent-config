@@ -32,7 +32,7 @@ Two checks:
 
 ### Vague attribution
 
-"Experts believe", "industry reports suggest", "some critics argue". Name the source with a link, or delete the claim. This is the prose form of the rule in `CLAUDE.md` section 2: cite the file, the command output, or the query.
+"Experts believe", "industry reports suggest", "some critics argue". Name the source with a link, or delete the claim. This is the prose form of "Verify before asserting" in `AGENTS.md`: cite the file, the command output, or the query.
 
 ### Superficial -ing clauses
 
@@ -72,12 +72,12 @@ This one is judgment, not a rule, because the `term: definition` shape used thro
 
 ### Generic conclusions
 
-"The future looks bright", "this sets us up well". State the next specific step or end the document. A closing paragraph that repeats the opening is already banned by `CLAUDE.md` section 1.
+"The future looks bright", "this sets us up well". State the next specific step or end the document. A closing paragraph that repeats the opening is filler, which "Write plain" in `AGENTS.md` already rules out.
 
 ## What this skill leaves out
 
 Recorded so a future re-vendor does not silently reintroduce these.
 
-- **The "Adding soul" section.** Two of its six items already exist here in stronger form: "have opinions" is `rules/communication.md` (lead with your recommendation), "be specific" is `CLAUDE.md` section 2 (cite the file and line). The other four ("vary rhythm", "let some mess in", "acknowledge complexity", "use I") contradict the length caps and the one-idea-per-sentence rule in `CLAUDE.md` section 1. The output surfaces here are commit messages, ADRs, PR bodies and chat replies, where terse is the correct register.
+- **The "Adding soul" section.** Two of its six items already exist here in stronger form: "have opinions" is `rules/communication.md` (lead with your recommendation), "be specific" is "Verify before asserting" in `AGENTS.md` (cite the file and line). The other four ("vary rhythm", "let some mess in", "acknowledge complexity", "use I") contradict the length caps and the one-idea-per-sentence rule in "Write plain" in `AGENTS.md`. The output surfaces here are commit messages, ADRs, PR bodies and chat replies, where terse is the correct register.
 - **Sentence-case headings.** The convention here is title case for document titles and sentence case for ADR decision statements, which are sentences. Adopting the upstream rule would rename 36 headings for no gain in clarity.
 - **Four words from the upstream lists.** `surface`, `features`, `vector` and `harness` are terms of art in this repo, so `hooks/prose-gate.sh` does not check them.

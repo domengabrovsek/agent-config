@@ -38,7 +38,7 @@ cp "$PROJECT_DIR/scripts/setup-hosts.sh" "$FAKE_REPO/scripts/setup-hosts.sh"
 for NAME in agents hooks rules skills docs references templates; do
   mkdir -p "$FAKE_REPO/$NAME"
 done
-: > "$FAKE_REPO/CLAUDE.md"
+: > "$FAKE_REPO/AGENTS.md"
 : > "$FAKE_REPO/settings.json"
 : > "$FAKE_REPO/scripts/statusline.sh"
 : > "$FAKE_REPO/.github/pull_request_template.md"
@@ -46,7 +46,7 @@ done
 # The manifest the bootstrap creates, read from the bootstrap itself so this
 # test cannot become the third copy of the list it exists to prevent.
 manifest() {
-  sed -n "/^CLAUDE.md|CLAUDE.md$/,/^EOF$/p" "$FAKE_REPO/scripts/setup-hosts.sh" | grep -v '^EOF$'
+  sed -n "/^CLAUDE.md|AGENTS.md$/,/^EOF$/p" "$FAKE_REPO/scripts/setup-hosts.sh" | grep -v '^EOF$'
 }
 
 # The bootstrap audits the shared root as well, so a converged fixture needs
