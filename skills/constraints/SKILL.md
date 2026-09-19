@@ -76,7 +76,7 @@ One file at the repo root, so any agent can read it and a change to it shows up 
 | --- | --- | --- | --- | --- | --- |
 ```
 
-Every row names the command that produces the verdict. A dimension with a number and no command is an aspiration, not a constraint. Add one line to the repo's `CLAUDE.md`: read `CONSTRAINTS.md` before writing code; never weaken it to make a change pass.
+Every row names the command that produces the verdict. A dimension with a number and no command is an aspiration, not a constraint. Add one line to the repo's `CLAUDE.md`, or to `AGENTS.md` when the repo has no `CLAUDE.md`: read `CONSTRAINTS.md` before writing code; never weaken it to make a change pass.
 
 ### 4. Install what each dimension needs
 

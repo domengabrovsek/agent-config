@@ -473,6 +473,8 @@ else
   CLAUDE_DIRS="$HOME/.claude $HOME/.claude-personal"
 fi
 
+# Claude Code reads AGENTS.md only at project level, so the user-level
+# CLAUDE.md slot carries it. Always-loaded rules come from the linked rules/.
 if host_enabled claude; then
   for CLAUDE_DIR in $CLAUDE_DIRS; do
     TAG="$(printf %s "$CLAUDE_DIR" | sed "s#^$HOME#~#")"
@@ -480,7 +482,7 @@ if host_enabled claude; then
       [ -n "$NAME" ] || continue
       manage_link "$TAG/$NAME" "$CLAUDE_DIR/$NAME" "$REPO/$RELATIVE"
     done <<'EOF'
-CLAUDE.md|CLAUDE.md
+CLAUDE.md|AGENTS.md
 settings.json|settings.json
 agents|agents
 hooks|hooks

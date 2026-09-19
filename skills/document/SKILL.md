@@ -112,9 +112,9 @@ When `audit`:
 6. Report any `docs/**/*.md` not linked from `docs/README.md`. `(review-time: see section note)`
 7. Output a report only - do NOT edit files. The user runs targeted subcommands afterward to fix drift. `(review-time: see section note)`
 
-## CLAUDE.md integration
+## Instruction file integration
 
-After bootstrapping or significant doc changes, update the repo's `CLAUDE.md` so it points to `docs/README.md` in its Documentation section. This keeps Claude's auto-discovery working.
+After bootstrapping or significant doc changes, update the repo's instruction file so it points to `docs/README.md` in its Documentation section. Use `CLAUDE.md` when the repo has one, otherwise `AGENTS.md`. Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists, so this keeps Claude's auto-discovery working.
 
 ## Verification before finishing
 

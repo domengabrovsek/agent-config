@@ -13,9 +13,10 @@ description: "Monitor the CI pipeline for the current branch via a background Mo
 2. **Start a Monitor** with the matching script: `(review-time: see section note)`
    - GitHub: `bash scripts/gh-ci-monitor.sh`, resolved inside this skill's own directory `(review-time: see section note)`
    - GitLab: `bash scripts/glab-ci-monitor.sh`, resolved inside this skill's own directory `(review-time: see section note)`
-   - Use `persistent: false`, `timeout_ms: 3600000` (1 hour ceiling - CI pipelines can be long) `(review-time: see section note)`
+   - Use `timeout_ms: 1800000`, the Monitor maximum of 30 minutes `(review-time: see section note)`
    - Description: "CI pipeline on <branch-name>" `(review-time: see section note)`
 3. **React to Monitor notifications**: `(review-time: see section note)`
+   - Monitor expiry before a `completed|*` status: re-arm the same script, since CI pipelines can outlast 30 minutes. The restarted script re-emits the current status `(review-time: see section note)`
    - `no-runs|<branch>`: no CI runs found for this branch - inform the user and stop `(review-time: see section note)`
    - `error|persistent-failure`: the monitor script hit 5 consecutive errors - report and stop `(review-time: see section note)`
    - Status change (e.g., `in_progress|null` → `completed|success`): acknowledge briefly `(review-time: see section note)`

@@ -74,8 +74,7 @@ The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensi
 
 ## What's inside
 
-- **`AGENTS.md`** - concise host-neutral instructions loaded by every supported host. See [ADR 0008](docs/adr/0008-share-agent-config-across-hosts.md).
-- **`CLAUDE.md`** - thin Claude Code adapter that imports `AGENTS.md` and Claude's modular rules.
+- **`AGENTS.md`** - concise host-neutral instructions loaded by every supported host. Claude Code has no user-level `AGENTS.md`, so the bootstrap links `~/.claude/CLAUDE.md` to it. See [ADR 0008](docs/adr/0008-share-agent-config-across-hosts.md).
 - **`rules/`** - detailed standards loaded directly by Claude Code and through the `rulebook` skill by other hosts.
 - **`agents/`** - Claude Code expert teammate personas. Equivalent host mechanics are deferred; routing is in [`rules/agent-routing.md`](rules/agent-routing.md).
 - **`skills/`** - shared workflows such as `grill-with-docs`, `build`, `debug`, `research`, and `verify-done`.
