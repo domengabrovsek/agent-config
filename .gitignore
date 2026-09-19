@@ -18,3 +18,7 @@ pi/extensions/pi-permission-system/logs/
 
 # npm install output for the push gate
 node_modules/
+
+# Skills Claude Code syncs from the claude.ai account. ~/.claude/skills links
+# to skills/, so the sync writes into the checkout.
+skills/synced/
