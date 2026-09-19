@@ -33,6 +33,14 @@ paths:
 - Always tag cloud resources with project, environment, and owner `(review-time: tag presence varies per Terraform resource type)`
 - GCP is primary cloud, AWS is secondary `(review-time: provider preference, not a code pattern)`
 
+## GitHub Actions references
+
+A third-party tag can be moved to new code, so third-party actions get a SHA pin. Dependabot bumps those pins. Actions from the owner's own repos track `@main`, so a change there reaches every repo at once.
+
+- Reference actions and reusable workflows owned by `domengabrovsek` at `@main`, never a SHA or tag `(hook)`
+- Pin every other action to its full commit SHA, with the version as a comment: `uses: actions/checkout@<sha> # v4.2.2` `(hook)`
+- Never propose pinning `domengabrovsek` actions, in a pull request or as a follow-up `(review-time: a proposal is prose, which no hook sees)`
+
 ## Destructive and privileged operations
 
 **why-no-hook:** each rule needs knowledge external to the command text - who consumes a resource, whether a role is valid at a given scope, what a deploy pipeline actually does. A hook sees only the argv, not the blast radius.

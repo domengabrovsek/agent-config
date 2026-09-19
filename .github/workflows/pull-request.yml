@@ -99,6 +99,9 @@ jobs:
       - name: Test the pre-push gate
         run: bash tests/pre-push-gate.sh
 
+      - name: Test the action ref check
+        run: bash tests/action-pins.sh
+
       - name: Test the PR gates
         run: bash tests/pr-gates.sh
 

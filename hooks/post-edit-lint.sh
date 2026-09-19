@@ -164,6 +164,43 @@ $LATEST_TAG
     ;;
 esac
 
+# --- 10. Action refs in workflows and action.yml (rules/infrastructure.md) ---
+# The owner's own actions track @main; every other action is pinned to a SHA.
+case "$FILE" in
+  */.github/workflows/*.yml|*/.github/workflows/*.yaml|*/action.yml|*/action.yaml)
+    OWN_OWNERS=" $(echo "${OWN_ACTION_OWNERS:-domengabrovsek}" | tr ',' ' ' | tr '[:upper:]' '[:lower:]') "
+    OWN_PINNED=""
+    THIRD_UNPINNED=""
+    USES_LINES=$(echo "$ADDED" | grep -nE '^[[:space:]]*(-[[:space:]]*)?uses:' 2>/dev/null || true)
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      ref=$(echo "${line#*uses:}" | sed -E "s/^[[:space:]]*[\"']?//; s/[\"'[:space:]].*$//")
+      case "$ref" in
+        ./*|docker://*|'') continue ;;
+        *@*) ;;
+        *) continue ;;
+      esac
+      owner=$(echo "${ref%%/*}" | tr '[:upper:]' '[:lower:]')
+      version="${ref##*@}"
+      if [[ "$OWN_OWNERS" == *" $owner "* ]]; then
+        [[ "$version" =~ ^[0-9a-f]{40}$ ]] && OWN_PINNED+="$line"$'\n'
+      elif ! [[ "$version" =~ ^[0-9a-f]{40}$ ]]; then
+        THIRD_UNPINNED+="$line"$'\n'
+      fi
+    done <<< "$USES_LINES"
+    if [ -n "$OWN_PINNED" ]; then
+      VIOLATIONS+="Own action pinned to a SHA. rules/infrastructure.md: reference actions from your own repos at @main:
+$OWN_PINNED
+"
+    fi
+    if [ -n "$THIRD_UNPINNED" ]; then
+      VIOLATIONS+="Third-party action not pinned to a commit SHA. rules/infrastructure.md: pin the full 40-character SHA, with the version as a comment (uses: owner/repo@<sha> # vX.Y.Z):
+$THIRD_UNPINNED
+"
+    fi
+    ;;
+esac
+
 if [ -n "$VIOLATIONS" ]; then
   echo "[post-edit-lint] $FILE" >&2
   echo "$VIOLATIONS" >&2
