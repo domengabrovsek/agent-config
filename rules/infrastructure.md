@@ -35,11 +35,13 @@ paths:
 
 ## GitHub Actions references
 
-A third-party tag can be moved to new code, so third-party actions get a SHA pin. Dependabot bumps those pins. Actions from the owner's own repos track `@main`, so a change there reaches every repo at once.
+A third-party tag can be moved to new code, so third-party actions get a SHA pin. Dependabot bumps those pins. Own actions track `@main`, so a change there reaches every repo at once.
 
-- Reference actions and reusable workflows owned by `domengabrovsek` at `@main`, never a SHA or tag `(hook)`
+Own means the owner of the repo's `origin` remote, plus any owners in `OWN_ACTION_OWNERS` (comma-separated). Set it where one person's repos span several owners.
+
+- Reference own actions and reusable workflows at `@main`, never a SHA or tag `(hook)`
 - Pin every other action to its full commit SHA, with the version as a comment: `uses: actions/checkout@<sha> # v4.2.2` `(hook)`
-- Never propose pinning `domengabrovsek` actions, in a pull request or as a follow-up `(review-time: a proposal is prose, which no hook sees)`
+- Never propose pinning own actions, in a pull request or as a follow-up `(review-time: a proposal is prose, which no hook sees)`
 
 ## Destructive and privileged operations
 

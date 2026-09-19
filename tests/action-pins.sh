@@ -1,8 +1,11 @@
 #!/bin/bash
-# Tests for the action-ref check in hooks/post-edit-lint.sh: the owner's own
-# actions stay at @main, and every third-party action is pinned to a SHA.
+# Tests for the action-ref check in hooks/post-edit-lint.sh: own actions stay
+# at @main, and every third-party action is pinned to a SHA. Own is the owner
+# of the repo's origin remote, plus any owners in OWN_ACTION_OWNERS.
 
 set -u
+# A value from the caller's shell would change which owners count as own.
+unset OWN_ACTION_OWNERS
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 HOOK="$PROJECT_DIR/hooks/post-edit-lint.sh"
@@ -17,6 +20,11 @@ REPO=$(mktemp -d "${TMPDIR:-/tmp}/action-pins.XXXXXX")
 trap 'rm -rf "$REPO"' EXIT
 git -C "$REPO" init -q
 mkdir -p "$REPO/.github/workflows" "$REPO/.github/actions/setup" "$REPO/config"
+
+set_origin() {
+  git -C "$REPO" remote remove origin 2>/dev/null
+  [ -n "$1" ] && git -C "$REPO" remote add origin "$1"
+}
 
 # assert_file <name> <path relative to the repo> <content> <expected-exit> [env...]
 # The file stays untracked, so the hook reads every line as newly added.
@@ -36,6 +44,7 @@ assert_file() {
 WF=.github/workflows/ci.yml
 
 echo "== own actions stay at @main =="
+set_origin git@github.com:domengabrovsek/sample.git
 assert_file "an own action at @main passes" "$WF" \
   "      - uses: domengabrovsek/github-actions/.github/actions/checkout@main" 0
 assert_file "an own reusable workflow at @main passes" "$WF" \
@@ -44,8 +53,30 @@ assert_file "an own action pinned to a SHA blocks" "$WF" \
   "      - uses: domengabrovsek/github-actions/.github/actions/checkout@$SHA # main" 2
 assert_file "the owner match ignores case" "$WF" \
   "      - uses: DomenGabrovsek/github-actions/.github/actions/checkout@$SHA" 2
-assert_file "OWN_ACTION_OWNERS names other owners" "$WF" \
-  "      - uses: acme/tools@main" 0 OWN_ACTION_OWNERS=domengabrovsek,acme
+assert_file "another owner's action at @main is third-party" "$WF" \
+  "      - uses: acme/tools@main" 2
+assert_file "OWN_ACTION_OWNERS adds owners to the origin's" "$WF" \
+  "      - uses: acme/tools@main" 0 OWN_ACTION_OWNERS=acme,other
+
+echo
+echo "== the owner comes from the origin remote =="
+set_origin https://github.com/acme/app.git
+assert_file "an https origin makes its owner own" "$WF" \
+  "      - uses: acme/shared/.github/actions/build@main" 0
+assert_file "under another owner, domengabrovsek actions are third-party" "$WF" \
+  "      - uses: domengabrovsek/github-actions/.github/actions/checkout@main" 2
+set_origin ssh://git@github.com/acme/app.git
+assert_file "an ssh:// origin makes its owner own" "$WF" \
+  "      - uses: acme/shared@main" 0
+set_origin git@github-work:acme/app.git
+assert_file "an ssh host alias origin makes its owner own" "$WF" \
+  "      - uses: acme/shared@main" 0
+set_origin ""
+assert_file "with no origin, every action needs a SHA" "$WF" \
+  "      - uses: acme/shared@main" 2
+assert_file "with no origin, OWN_ACTION_OWNERS still applies" "$WF" \
+  "      - uses: acme/shared@main" 0 OWN_ACTION_OWNERS=acme
+set_origin git@github.com:domengabrovsek/sample.git
 
 echo
 echo "== third-party actions are pinned to a SHA =="

@@ -165,10 +165,21 @@ $LATEST_TAG
 esac
 
 # --- 10. Action refs in workflows and action.yml (rules/infrastructure.md) ---
-# The owner's own actions track @main; every other action is pinned to a SHA.
+# Own actions track @main; every other action is pinned to a SHA. "Own" is the
+# owner of this repo's origin remote plus any owners in OWN_ACTION_OWNERS, so
+# the check works for anyone, in any organisation, with no setup.
 case "$FILE" in
   */.github/workflows/*.yml|*/.github/workflows/*.yaml|*/action.yml|*/action.yaml)
-    OWN_OWNERS=" $(echo "${OWN_ACTION_OWNERS:-domengabrovsek}" | tr ',' ' ' | tr '[:upper:]' '[:lower:]') "
+    ORIGIN_URL=$(git -C "$FILE_DIR" remote get-url origin 2>/dev/null || true)
+    ORIGIN_PATH="${ORIGIN_URL#*://}"
+    if [ "$ORIGIN_PATH" != "$ORIGIN_URL" ]; then
+      ORIGIN_PATH="${ORIGIN_PATH#*/}"
+    else
+      ORIGIN_PATH="${ORIGIN_URL#*:}"
+    fi
+    REPO_OWNER=""
+    [ -n "$ORIGIN_URL" ] && REPO_OWNER="${ORIGIN_PATH%%/*}"
+    OWN_OWNERS=" $(echo "$REPO_OWNER,${OWN_ACTION_OWNERS:-}" | tr ',' ' ' | tr '[:upper:]' '[:lower:]') "
     OWN_PINNED=""
     THIRD_UNPINNED=""
     USES_LINES=$(echo "$ADDED" | grep -nE '^[[:space:]]*(-[[:space:]]*)?uses:' 2>/dev/null || true)
@@ -189,7 +200,7 @@ case "$FILE" in
       fi
     done <<< "$USES_LINES"
     if [ -n "$OWN_PINNED" ]; then
-      VIOLATIONS+="Own action pinned to a SHA. rules/infrastructure.md: reference actions from your own repos at @main:
+      VIOLATIONS+="Own action pinned to a SHA. rules/infrastructure.md: reference actions from this repo's owner (or OWN_ACTION_OWNERS) at @main:
 $OWN_PINNED
 "
     fi
