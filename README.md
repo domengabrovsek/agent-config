@@ -70,17 +70,17 @@ Agent delegation is provided by the [`pi-subagents`](https://pi.dev/packages/pi-
 
 Run `/reload` after installing MCP configuration. Authenticate Notion with `/mcp-auth notion` and Slack with `/mcp-auth slack`; credentials stay outside this repository. Project `.mcp.json` overrides global servers with matching names, and `.pi/mcp.json` has highest precedence. Pi does not import Claude's MCP configuration.
 
-The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensions/`) and are tracked like the claude root files. See [ADR 0009](docs/adr/0009-pi-adapter-vendored-settings-and-extensions.md) for the adapter boundary.
+The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensions/`) and are tracked like the claude root files. See [the Pi adapter decision](docs/decisions.md#pi-adapter-under-pi) for the adapter boundary.
 
 ## What's inside
 
-- **`AGENTS.md`** - concise host-neutral instructions loaded by every supported host. Claude Code has no user-level `AGENTS.md`, so the bootstrap links `~/.claude/CLAUDE.md` to it. See [ADR 0008](docs/adr/0008-share-agent-config-across-hosts.md).
+- **`AGENTS.md`** - concise host-neutral instructions loaded by every supported host. Claude Code has no user-level `AGENTS.md`, so the bootstrap links `~/.claude/CLAUDE.md` to it. See [the host-sharing decision](docs/decisions.md#one-instruction-file-and-skill-library-for-every-host).
 - **`rules/`** - detailed standards loaded directly by Claude Code and through the `rulebook` skill by other hosts.
 - **`agents/`** - Claude Code expert teammate personas. Equivalent host mechanics are deferred; routing is in [`rules/agent-routing.md`](rules/agent-routing.md).
 - **`skills/`** - shared workflows such as `grill-with-docs`, `build`, `debug`, `research`, and `verify-done`.
 - **`hooks/`** - Claude Code automation wired into `settings.json`; host-specific parity is deferred.
 - **`scripts/`** - the multi-host bootstrap, its Claude compatibility wrapper, and utilities used by hooks and skills.
-- **`docs/adr/`** - Architecture Decision Records.
+- **`docs/decisions.md`** - the design decisions still in force, with the reason for each.
 - **`references/`** - long-form checklists (security, testing) loaded by skills on demand.
 - **`templates/`** - boilerplate for new ADRs and docs.
 

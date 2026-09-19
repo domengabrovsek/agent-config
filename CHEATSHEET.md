@@ -100,4 +100,4 @@ These run independently of the implementation workflow:
 
 ## Agents
 
-Claude Code agents auto-spawn via `rules/agent-routing.md` when a task touches a specialized domain. Pi spawns the same personas as child sessions through the `pi-subagents` package, including background runs and worktree-isolated lanes. Codex maps `Agent` and `SendMessage` to its own teammate mechanisms when available, and follows the workflow locally otherwise. See [ADR 0008](docs/adr/0008-share-agent-config-across-hosts.md) for the shared boundary and [ADR 0009](docs/adr/0009-pi-adapter-vendored-settings-and-extensions.md) for the Pi adapter.
+Claude Code agents auto-spawn via `rules/agent-routing.md` when a task touches a specialized domain. Pi spawns the same personas as child sessions through the `pi-subagents` package, including background runs and worktree-isolated lanes. Codex maps `Agent` and `SendMessage` to its own teammate mechanisms when available, and follows the workflow locally otherwise. See [`docs/decisions.md`](docs/decisions.md#hosts) for the shared boundary and the Pi adapter.

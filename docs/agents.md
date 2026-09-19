@@ -1,6 +1,6 @@
 # Expert Agents
 
-16 expert agent personas: lean spawn-time briefs with repo-specific guardrails, red-flag detection, and explicit output contracts. Each agent is spawned as a subagent when a task matches its domain via the routing table in [`rules/agent-routing.md`](../rules/agent-routing.md) (see ADR 0003 and ADR 0007).
+16 expert agent personas: lean spawn-time briefs with repo-specific guardrails, red-flag detection, and explicit output contracts. Each agent is spawned as a subagent when a task matches its domain via the routing table in [`rules/agent-routing.md`](../rules/agent-routing.md) (see [decisions](decisions.md#agents)).
 
 ## Engineering
 
@@ -50,7 +50,7 @@
 
 ## Agent Structure
 
-Every agent follows the same 5-section skeleton (ADR 0007):
+Every agent follows the same 5-section skeleton ([decision](decisions.md#lean-personas-that-inherit-the-rules)):
 
 1. **Role** - 2-3 sentences of responsibility and approach
 2. **How to work** - investigation-first discipline; findings are returned in the final message, not written to report files
@@ -65,7 +65,7 @@ Two kinds of persona (see CONTEXT.md glossary):
 
 ## Routing
 
-The routing table in [`rules/agent-routing.md`](../rules/agent-routing.md) maps domain triggers to agent files. Claude spawns matching agents as subagents before starting work (ADR 0003 - agent files are never read into the main conversation). Multiple subagents spawn in parallel when a task crosses domains (e.g., a new API endpoint spawns backend + security + QA).
+The routing table in [`rules/agent-routing.md`](../rules/agent-routing.md) maps domain triggers to agent files. Claude spawns matching agents as subagents before starting work, and never reads agent files into the main conversation ([decision](decisions.md#spawn-personas-as-subagents)). Multiple subagents spawn in parallel when a task crosses domains (e.g., a new API endpoint spawns backend + security + QA).
 
 ## Parallelism limits
 
