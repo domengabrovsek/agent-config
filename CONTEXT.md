@@ -114,6 +114,18 @@ _Avoid_: "helper skill".
 The agreed point where a test exercises behaviour; chosen highest and fewest, fixed during spec and reused by test and build.
 _Avoid_: "mock point".
 
+**Acceptance criterion**:
+A spec line with an ID and a check (`test`, `cmd`, or `manual`) that proves it.
+_Avoid_: "requirement" for a line with no check.
+
+**Evidence ledger**:
+The per-branch table of each criterion's status, check output, and the commit it ran at; written by the Spec Verifier, read by the evidence gate.
+_Avoid_: "test report".
+
+**Spec Verifier**:
+The read-only persona that runs each criterion's check at HEAD and writes the evidence ledger; it never fixes what it finds.
+_Avoid_: "QA agent".
+
 **Decision ticket**:
 A wayfinder map entry that resolves to a decision, not a deliverable.
 _Avoid_: "task", "story".

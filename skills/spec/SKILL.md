@@ -15,9 +15,12 @@ Follow this workflow:
    - **Boundaries** - what is explicitly out of scope?
    - Ask **one question at a time**, waiting for the answer before asking the next. The list above is the topic checklist to cover across the discovery phase, not a batch to dump in one turn. See `rules/communication.md`.
 
-2. **Draft the spec**: based on the answers, write a specification with these sections:
+2. **Draft the spec**: based on the answers, write a specification with these sections. Give every acceptance criterion an ID and a check. Prefer `test` or `cmd`; use `manual` only when no command can prove it:
 
 ```markdown
+---
+branch: <feature branch, filled in when build starts>
+---
 # Spec: <title>
 
 ## Problem Statement
@@ -27,8 +30,12 @@ Follow this workflow:
 - As a <role>, I want <capability> so that <benefit>
 
 ## Acceptance Criteria
-- [ ] <Specific, testable criterion>
-- [ ] <Specific, testable criterion>
+- [ ] AC-1: <Specific, testable criterion> | verify: test <file>::<test name>
+- [ ] AC-2: <Specific, testable criterion> | verify: cmd <command whose output shows it>
+- [ ] AC-3: <Criterion only a person can judge> | verify: manual <steps>
+
+## Seams
+- <Where tests exercise the behaviour, chosen highest and fewest>
 
 ## Non-Functional Requirements
 - Performance: <latency, throughput targets>
