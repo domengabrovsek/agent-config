@@ -47,7 +47,7 @@ A machine that does not use every default dir records its own scope in `~/.agent
 
 Without this, an argument-free `--check` re-derives the two-dir defaults and reports permanent drift on dirs the machine never adopted. That matters because the `drift-check` extension calls the script with no arguments and no environment, so the scope has to be a recorded fact rather than a shell prefix someone remembers to type.
 
-For Codex, the bootstrap adds the shared-instruction fallback, the long-context window and its compaction limit, and a built-in TUI status line, each only when absent. It preserves an existing custom status line. It also enables Codex hooks and writes `~/.codex/hooks.json`, which sends every hook event to `hooks/lib/dispatch.sh`. An existing hooks file of your own needs `--adopt`. Codex asks you to trust the hooks once, and again after each regeneration.
+For Codex, the bootstrap adds the shared-instruction fallback, the long-context window and its compaction limit, and a built-in TUI status line, each only when absent. It preserves an existing custom status line. It also enables Codex hooks and writes `~/.codex/hooks.json`, which sends every hook event to `hooks/lib/dispatch.sh`. The deny list reaches Codex through `hooks/deny-gate.sh`: it blocks Bash commands matching a Bash rule, edits and shell commands naming a denied path, and denied MCP tools. Like the Pi policy, it is friction, not a sandbox. An existing hooks file of your own needs `--adopt`. Codex asks you to trust the hooks once, and again after each regeneration.
 
 ### Pi
 

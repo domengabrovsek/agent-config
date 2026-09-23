@@ -169,6 +169,12 @@ describe('runDispatcher', () => {
     assert.deepEqual(interpretDispatch('PreToolUse', result), { kind: 'block', reason: 'Blocked: no' });
   });
 
+  it('tells the dispatcher it runs on Pi', async () => {
+    const script = fake('host.sh', 'cat >/dev/null; echo "$AGENT_HOOK_HOST" >&2; exit 2');
+    const result = await runDispatcher(script, 'PreToolUse', payload, { cwd: dir });
+    assert.deepEqual(interpretDispatch('PreToolUse', result), { kind: 'block', reason: 'pi' });
+  });
+
   it('returns stdout context on exit 0', async () => {
     const script = fake('ctx.sh', `cat >/dev/null; echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"hi"}}'`);
     const result = await runDispatcher(script, 'PreToolUse', payload, { cwd: dir });

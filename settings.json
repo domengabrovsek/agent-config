@@ -129,6 +129,16 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Bash|Write|Edit|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/deny-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/deny-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
