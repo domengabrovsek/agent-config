@@ -181,6 +181,14 @@ check "$RC $(cat "$OUT")$(ran)" "0 " "an event missing from the registry is a no
 dispatch PreToolUse "not json"
 check "$RC" "0" "a malformed payload is a no-op"
 
+HOST_LOG="$TEST_DIR/host.log"
+HOST_REGISTRY="$TEST_DIR/host-registry.json"
+printf '#!/bin/bash\ncat >/dev/null\nprintf "%%s\\n" "${AGENT_HOOK_HOST:-unset}" >> "%s"\n' "$HOST_LOG" > "$STUBS/host"
+printf '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"bash %s"}]}]}}' "$STUBS/host" > "$HOST_REGISTRY"
+bash_call "ls" | HOOK_REGISTRY="$HOST_REGISTRY" bash "$DISPATCH" PreToolUse >/dev/null 2>&1
+bash_call "ls" | AGENT_HOOK_HOST=pi HOOK_REGISTRY="$HOST_REGISTRY" bash "$DISPATCH" PreToolUse >/dev/null 2>&1
+check "$(tr '\n' ' ' < "$HOST_LOG")" "codex pi " "hooks see codex by default and the caller's host when set"
+
 echo ""
 echo "$PASSED passed; $FAILED failed"
 [ "$FAILED" -eq 0 ]

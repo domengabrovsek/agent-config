@@ -191,6 +191,7 @@ export function runDispatcher(
      * started too, not only the bash wrapper. */
     const child = spawn('bash', [dispatcherPath, event], {
       cwd: options.cwd,
+      env: { ...process.env, AGENT_HOOK_HOST: 'pi' },
       detached: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });

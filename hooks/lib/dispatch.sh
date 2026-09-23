@@ -135,7 +135,10 @@ try:
                          capture_output=True, text=True).stdout.strip()
 except OSError:
     top = ""
-env = dict(os.environ, CLAUDE_PROJECT_DIR=top or cwd, AGENT_CONFIG_HOOKS=os.path.join(repo, "hooks"))
+# Hooks that differ by host read AGENT_HOOK_HOST. The Pi bridge sets "pi";
+# Codex is the only host that calls the dispatcher directly.
+env = dict(os.environ, CLAUDE_PROJECT_DIR=top or cwd, AGENT_CONFIG_HOOKS=os.path.join(repo, "hooks"),
+           AGENT_HOOK_HOST=os.environ.get("AGENT_HOOK_HOST", "codex"))
 run_dir = cwd if os.path.isdir(cwd) else None
 contexts = []
 
