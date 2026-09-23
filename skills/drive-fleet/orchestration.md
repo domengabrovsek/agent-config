@@ -18,7 +18,7 @@ Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope
 2. **Open MRs.** Once lanes are pushed, open MRs via `/mr` - conventional commits, no co-author trailers, stacked-MR dependencies and retargeting.
 3. **Poll CI in the background.** One Monitor per branch via `/ci` (emits only on status change, zero cost while running). React on Monitor notifications and agent-completion events - never block the manager turn polling.
 4. **Per red MR - fix subagent.** Spawn a domain-expert subagent in that lane's worktree to diagnose and fix. Infra-flake or clearly-unrelated failure -> retry the job (`glab ci retry` / `gh run rerun`); real failure -> fix and push. Same issue 3x -> escalate to the user.
-5. **Per green MR - review subagent.** Spawn a PR Reviewer subagent that applies `/review-pr` and fixes blockers + majors + one-line fixes in the worktree.
+5. **Per green MR - review subagent.** Spawn a PR Reviewer subagent that applies `/review-pr` and fixes blockers + majors + one-line fixes in the worktree. Reviewer comments on the MR go through `/pr-comments`.
 6. **Rebase + retarget.** Per branch, a subagent rebases onto latest `{target_branch}` (`--force-with-lease`, resolving conflicts). Retarget stacked MRs to `{target_branch}` as their bases merge.
 7. **Close out.** When the WHOLE fleet meets the condition simultaneously, run the `post_completion_action` (if any) on each MR. Only then does the `/goal` clear.
 
