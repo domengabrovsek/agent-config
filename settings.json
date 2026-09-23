@@ -156,6 +156,12 @@
           },
           {
             "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-evidence-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-evidence-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(gh pr create *)",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-push-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-push-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git push *)",
             "timeout": 300

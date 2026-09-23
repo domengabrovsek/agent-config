@@ -9,6 +9,7 @@ Comprehensive quality gate before declaring work done.
 2. **Run each CI step in order**: execute the discovered commands (lint, typecheck, test, build, etc.) in the same order as CI. Stop at the first failure.
 3. **Git status**: show uncommitted changes and untracked files.
 4. **Diff review**: summarize what changed in this session (files, lines added/removed).
+5. **Spec check**: if a spec in `.claude/state/specs/` has `branch: <current branch>`, spawn the `Spec Verifier` and include its verdict. Any automated criterion not PASS at HEAD fails the gate.
 
 If all CI steps pass and git status is clean: output "READY - all quality gates passed."
 If any step fails: list failures and stop. Do NOT declare work done.

@@ -14,6 +14,8 @@ Follow these disciplines:
 - Verify an approved plan exists (in `.claude/state/plans/` or the current conversation) `(review-time: see section note)`
 - If no plan exists, stop and ask the user to run /plan first `(review-time: see section note)`
 - Read the plan and identify the task list `(review-time: see section note)`
+- Copy the task list to `.claude/state/runs/<branch-slug>/tasks.md` and tick each task as it finishes. Read that file, not memory, to resume after compaction `(review-time: see section note)`
+- If a spec drives the plan, set its `branch:` frontmatter to the current branch `(review-time: see section note)`
 - Load relevant expert agents based on the plan's domain (see `rules/agent-routing.md`) - their guardrails apply to every increment `(review-time: see section note)`
 - If the plan has 2+ file-isolated lanes, execute it in **lane mode** - spawn one lane-mode teammate per lane (see `rules/parallel-agents.md`); single-lane plans stay in this session `(review-time: lane-vs-single judgment from the plan shape)`
 
@@ -30,6 +32,11 @@ For each task in the plan:
    - Run `/verify-done` (typecheck + lint + tests + build) - do not rely on post-edit hooks alone `(review-time: see section note)`
    - If all pass, commit with a conventional commit message `(review-time: see section note)`
    - If any fail, fix before moving to the next task - never accumulate errors across tasks `(review-time: see section note)`
+
+## Finishing
+
+- After the last task, spawn the `Spec Verifier` when a spec matches the branch. Fix each FAIL and re-run it until every automated criterion passes at HEAD `(review-time: see section note)`
+- End the run with three headings: **Blocked on me** (including manual criteria), **Changed**, **Found** `(review-time: see section note)`
 
 ## Feature Flags
 
