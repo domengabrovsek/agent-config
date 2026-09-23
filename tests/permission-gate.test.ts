@@ -6,8 +6,8 @@
  * byte, so deny-list edits fail here instead of shipping a stale config.
  */
 
-// Lives under tests/ (not pi/extensions/) because pi auto-discovers every
-// *.ts directly inside extensions/ and would load this file as an extension.
+/* Lives under tests/ (not pi/extensions/) because pi auto-discovers every
+ * *.ts directly inside extensions/ and would load this file as an extension. */
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -204,7 +204,7 @@ describe('real deny list (drift alarms)', () => {
     assert.ok(selection.status === 'ok');
     const document = buildPolicyDocument(derivePermissionPolicy(selection.config));
     const expected = serializePolicyDocument(document);
-    const actual = readFileSync(join(repoRoot, 'pi/extensions/pi-permission-system/config.json'), 'utf8');
+    const actual = readFileSync(committedConfig, 'utf8');
     assert.equal(actual, expected, 'derived policy drifted from the tracked config; regenerate it');
   });
 

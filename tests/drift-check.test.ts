@@ -27,8 +27,6 @@ const DRIFTED_STDOUT = [
   '~/.claude/settings.json            MISSING       no such file or directory',
   '~/.claude/skills                   CONFLICT      path exists and is not a symlink',
   '~/.agents/skills                   WRONG-LINK    links elsewhere',
-  '',
-  'All selected host configuration is current.',
 ].join('\n');
 
 const DRIFTED_STDERR = '3 selected configuration issue(s) remain.\n';
@@ -37,17 +35,12 @@ describe('isIssueRow', () => {
   it('keeps data rows whose state is not OK', () => {
     assert.ok(isIssueRow('~/.claude/settings.json   MISSING   no such file or directory'));
     assert.ok(isIssueRow('~/.claude-personal/agent/settings.json MISSING-SRC /x/settings.json'));
+    assert.ok(isIssueRow('codex/hooks.json                   STALE         registry events changed'));
   });
 
   it('skips OK rows even when column padding collapses to single spaces', () => {
     assert.ok(!isIssueRow('~/.claude/pull_request_template.md OK already correct'));
     assert.ok(!isIssueRow('~/.claude/settings.json            OK            already correct'));
-  });
-
-  it('skips the header, separator, and blanks', () => {
-    assert.ok(!isIssueRow('PATH                               STATE         DETAIL'));
-    assert.ok(!isIssueRow('----                               -----         ------'));
-    assert.ok(!isIssueRow(''));
   });
 
   it('skips the header, separator, OK rows, and blanks', () => {

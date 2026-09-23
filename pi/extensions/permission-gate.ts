@@ -39,9 +39,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 
-// ---------------------------------------------------------------------------
-// Pure rule engine
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Pure rule engine
+ * --------------------------------------------------------------------------- */
 
 export type RuleFamily = 'path-read' | 'path-write' | 'bash' | 'mcp';
 
@@ -240,9 +240,9 @@ export function resolvePermissionSource(candidates: string[]): SourceSelection {
   return { status: 'unavailable', reason: 'no permission source found in candidate paths' };
 }
 
-// ---------------------------------------------------------------------------
-// Extension wiring
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Extension wiring
+ * --------------------------------------------------------------------------- */
 
 const WIDGET_ID = 'permission-gate';
 const CONSUMER_DIR = 'pi-permission-system';
@@ -257,9 +257,9 @@ export default async function (pi: ExtensionAPI) {
     } catch {
       moduleDir = dirname(fileURLToPath(import.meta.url));
     }
-    // Order: the tracked root settings.json next to the extension (symlinks
-    // resolved, i.e. the checkout), then Claude's config-dir symlink to the
-    // same tracked file, then the pi agent dir for standalone installs.
+    /* Order: the tracked root settings.json next to the extension (symlinks
+     * resolved, i.e. the checkout), then Claude's config-dir symlink to the
+     * same tracked file, then the pi agent dir for standalone installs. */
     const candidates = [
       join(moduleDir, '../../settings.json'),
       join(homedir(), '.claude', 'settings.json'),
@@ -281,9 +281,9 @@ export default async function (pi: ExtensionAPI) {
       return;
     }
 
-    // Writes go through the agent dir so both account dirs land on the same
-    // tracked file via the extensions symlink; it is also the path the
-    // consumer resolves (<agent dir>/extensions/pi-permission-system/config.json).
+    /* Writes go through the agent dir so both account dirs land on the same
+     * tracked file via the extensions symlink; it is also the path the
+     * consumer resolves (<agent dir>/extensions/pi-permission-system/config.json). */
     const configPath = join(getAgentDir(), 'extensions', CONSUMER_DIR, 'config.json');
     const document = buildPolicyDocument(derivePermissionPolicy(selection.config));
     const serialized = serializePolicyDocument(document);
