@@ -19,6 +19,7 @@ For full descriptions of each tool see the [README](README.md).
 | Verify everything before pushing | `/verify-done` |
 | Open a PR/MR (auto-runs verify-done first, regex-checks the title) | `/mr` |
 | Watch CI on the latest PR | `/ci` (or `/loop 2m /ci`) |
+| Address reviewer comments on a PR (bots answered, humans drafted) | `/pr-comments` |
 | Cut a release | `/ship` |
 | Make a diagram (mermaid or drawio) | `/diagram <topic>` |
 | Save the session's work as a diary entry | `/summarize` |
@@ -80,6 +81,8 @@ Lightweight helpers; structure is minimal:
 /mr               open PR (gate runs again)
         ↓
 /ci               watch pipeline
+        ↓
+/pr-comments      address reviewer comments
         ↓
 /summarize        session diary
 ```

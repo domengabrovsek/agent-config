@@ -58,6 +58,7 @@ description: "Create a merge request or pull request from the current branch: ve
     - Mention in description: `> **Stacked PR**: depends on #<base-pr-number>. Retarget to main/develop after #<base-pr-number> is merged.` `(review-time: see section note)`
 
 11. **Report**: print the MR/PR URL. If a dependency was set, mention it. `(review-time: see section note)`
+12. **Watch the PR**: start `/ci` and `/pr-comments` so CI failures and reviewer comments get handled `(review-time: see section note)`
 
 ## Rules
 

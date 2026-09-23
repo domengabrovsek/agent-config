@@ -81,4 +81,4 @@ Manager orchestration loop, authorization model, guardrails, and the per-repo bl
 
 ## Delegates to
 
-`/grill-with-docs`, `/mr`, `/ci`, `/review-pr`, `/worktree`; agent personas Frontend Staff Engineer, Backend Staff Engineer, and PR Reviewer (via Agent `subagent_type`).
+`/grill-with-docs`, `/mr`, `/ci`, `/pr-comments`, `/review-pr`, `/worktree`; agent personas Frontend Staff Engineer, Backend Staff Engineer, and PR Reviewer (via Agent `subagent_type`).

@@ -102,6 +102,9 @@ jobs:
       - name: Test the PR gates
         run: bash tests/pr-gates.sh
 
+      - name: Test the PR reply gate
+        run: bash tests/pr-reply-gate.sh
+
   # ==============================================
   # Gate
   # ==============================================
