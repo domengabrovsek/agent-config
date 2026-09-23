@@ -233,6 +233,16 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-edit-test-lock.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-edit-test-lock.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
