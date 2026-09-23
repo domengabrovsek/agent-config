@@ -17,7 +17,7 @@ jobs:
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
 
       - name: Lint Markdown
-        uses: DavidAnson/markdownlint-cli2-action@v19
+        uses: domengabrovsek/github-actions/.github/actions/markdownlint@main
         with:
           globs: "**/*.md"
 
@@ -48,13 +48,11 @@ jobs:
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: domengabrovsek/github-actions/.github/actions/checkout@main
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Check out and set up Node
+        uses: domengabrovsek/github-actions/.github/actions/setup-node-npm@main
         with:
           node-version: 24
+          install: 'false'
 
       - name: Run pi extension tests
         run: npm test
@@ -118,7 +116,7 @@ jobs:
   # Gate
   # ==============================================
   # Single aggregator check every PR must pass. Branch protection requires the
-  # "Gate" status, so required checks stay stable even as the jobs below change.
+  # "Gate" status, so required checks stay stable even as the jobs above change.
   gate:
     name: Gate
     if: always()

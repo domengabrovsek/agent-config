@@ -23,8 +23,6 @@
  * windows are alert-colored, dim after 10 min, gone after 1 h.
  *
  * Portability: imports only the adjacent parser, pi packages, and node builtins.
- *
- * Approved plan: .claude/state/plans/2026-08-31-pi-statusline-footer.md
  */
 
 import { execFile } from "node:child_process";
@@ -42,9 +40,9 @@ import {
 
 export type { UsageWindow } from "./statusline/usage.ts";
 
-// ---------------------------------------------------------------------------
-// Pure helpers
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Pure helpers
+ * --------------------------------------------------------------------------- */
 
 type ColorToken = "success" | "warning" | "error" | "dim" | "accent";
 
@@ -129,9 +127,9 @@ export function usageColorName(pct: number, binding: boolean): ColorToken {
 	return "success";
 }
 
-// ---------------------------------------------------------------------------
-// Line assembly
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Line assembly
+ * --------------------------------------------------------------------------- */
 
 const SEP = " │ ";
 
@@ -142,19 +140,6 @@ interface Seg {
 	 * under width pressure; segments without a priority are never dropped.
 	 */
 	drop?: 1 | 2 | 3;
-}
-
-export interface LiveFooterState {
-	cwd: string;
-	branch: string | null;
-	dirty: boolean | undefined;
-	spendParts: string[];
-	/** `145k (34%)` data, or undefined before the first response. */
-	context: { tokens: number; percent: number } | undefined;
-	windows: UsageWindows | undefined;
-	nowSec: number;
-	modelId: string | undefined;
-	thinkingLevel?: string;
 }
 
 function usageSegments(
@@ -245,9 +230,9 @@ export function assembleLine(theme: FooterStyle, segs: Seg[], width: number): st
 	return truncateToWidth(line, width);
 }
 
-// ---------------------------------------------------------------------------
-// Live state
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Live state
+ * --------------------------------------------------------------------------- */
 
 interface LiveFooter {
 	cwd: string;
@@ -350,9 +335,9 @@ async function refreshCodexUsage(ctx: UsageRefreshContext): Promise<void> {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Extension entry point
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Extension entry point
+ * --------------------------------------------------------------------------- */
 
 export default function (pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
@@ -446,8 +431,8 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("model_select", (event, ctx) => {
 		if (currentWindows && currentWindows.provider !== event.model.provider) {
-			// Windows are provider-scoped; numbers from the old provider must not
-			// render next to the new model.
+			/* Windows are provider-scoped; numbers from the old provider must not
+			 * render next to the new model. */
 			currentWindows = undefined;
 		}
 		if (event.model.provider === "openai-codex" && event.previousModel?.provider !== "openai-codex") {

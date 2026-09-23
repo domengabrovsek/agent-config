@@ -2,8 +2,8 @@
 # Shared PR body extraction for the `gh pr` hooks.
 #
 # Two hooks read the same body out of one command string: the prose gate lints
-# its wording, the body gate checks it against rules/git-conventions.md. A copy
-# each is how lib/resolve-repo.sh came to exist, so the parse lives here once.
+# its wording, the body gate checks it against rules/git-conventions.md. The
+# parse lives here once so both hooks read the same body.
 #
 # Handles the three shapes gh accepts: `--body-file <path>`, a `--body`
 # heredoc, and a quoted `--body` / `-b` value. A command with no body prints

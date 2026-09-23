@@ -20,9 +20,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 
-// ---------------------------------------------------------------------------
-// Pure check-result summarizer
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Pure check-result summarizer
+ * --------------------------------------------------------------------------- */
 
 export interface CheckResult {
   code: number;
@@ -38,7 +38,7 @@ export interface CheckSummary {
   sample: string[];
 }
 
-const ISSUE_STATES = /^(MISSING|MISSING-SRC|CONFLICT|WRONG-LINK|REFUSED|FAILED)$/;
+const ISSUE_STATES = /^(MISSING|MISSING-SRC|CONFLICT|WRONG-LINK|REFUSED|FAILED|STALE)$/;
 
 /**
  * True for table rows reporting a failure state; false for headers, rules,
@@ -76,9 +76,9 @@ export function summarizeCheckResult(result: CheckResult): CheckSummary {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Extension wiring
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Extension wiring
+ * --------------------------------------------------------------------------- */
 
 function runCheck(scriptPath: string): Promise<CheckResult> {
   return new Promise((resolveCheck) => {
@@ -87,8 +87,8 @@ function runCheck(scriptPath: string): Promise<CheckResult> {
       [scriptPath, '--check'],
       { timeout: 10_000, encoding: 'utf8', maxBuffer: 1024 * 1024 },
       (error, stdout, stderr) => {
-        // Nonzero exits carry the drift report; only total run failures (e.g.
-        // the script itself missing) arrive without a code to interpret.
+        /* Nonzero exits carry the drift report; only total run failures (e.g.
+         * the script itself missing) arrive without a code to interpret. */
         const code = typeof error?.code === 'number' ? error.code : error ? 1 : 0;
         resolveCheck({ code, stdout: String(stdout ?? ''), stderr: String(stderr ?? '') });
       },
@@ -113,9 +113,9 @@ export default async function (pi: ExtensionAPI) {
     } catch {
       moduleDir = dirname(fileURLToPath(import.meta.url));
     }
-    // Same layout assumption as permission-gate's source resolution: the
-    // extension file lives under <checkout>/pi/extensions, so the bootstrap
-    // script is two levels up. The agent-dir path covers standalone installs.
+    /* Same layout assumption as permission-gate's source resolution: the
+     * extension file lives under <checkout>/pi/extensions, so the bootstrap
+     * script is two levels up. The agent-dir path covers standalone installs. */
     const candidates = [
       join(moduleDir, '../../scripts/setup-hosts.sh'),
       join(getAgentDir(), 'scripts/setup-hosts.sh'),

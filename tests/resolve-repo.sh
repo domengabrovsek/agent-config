@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tests for hooks/lib/resolve-repo.sh and the three hooks that use it.
+# Tests for hooks/lib/resolve-repo.sh and the hooks that use it (three covered end to end below).
 #
 # The end-to-end cases run each hook from a cwd that is NOT the repo, with
 # CLAUDE_PROJECT_DIR unset, which is how the harness actually invokes them.

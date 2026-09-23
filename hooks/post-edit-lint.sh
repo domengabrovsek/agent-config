@@ -108,7 +108,7 @@ case "$FILE" in
       'description[[:space:]]*=.*(\b[A-Z]{2,}-[0-9]+\b|[[:space:]]#[0-9]+\b|\b[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+\b|\b[Aa][Dd][Rr][[:space:]-]+[0-9]+\b|\b(Fixes|Closes|Refs|Resolves)[[:space:]]+(#|[A-Z]{2,}-))' \
       2>/dev/null || true)
     if [ -n "$TF_DESC_REFS" ]; then
-      VIOLATIONS+="Tracker reference inside Terraform description attribute. rules/comments.md: descriptions surface in terraform-docs and module-consumer docs - tracker refs belong in PR descriptions, ADR files, and git blame:
+      VIOLATIONS+="Tracker reference inside Terraform description attribute. rules/infrastructure.md: descriptions surface in terraform-docs and module-consumer docs - tracker refs belong in PR descriptions, ADR files, and git blame:
 $TF_DESC_REFS
 
 "
@@ -129,10 +129,10 @@ $VAR_DECL
     ;;
 esac
 
-# --- 7. New TODO/FIXME/XXX/HACK markers in code (engineering-principles: complete code only) ---
+# --- 7. New TODO/FIXME/XXX/HACK markers in code (rules/comments.md: no markers) ---
 TODOS=$(echo "$ADDED" | grep -nE '\b(TODO|FIXME|XXX|HACK)\b' 2>/dev/null || true)
 if [ -n "$TODOS" ]; then
-  VIOLATIONS+="TODO / FIXME / XXX / HACK marker. rules/engineering-principles.md: complete code only - no placeholders. Either finish the work now or open a tracked issue and remove the marker:
+  VIOLATIONS+="TODO / FIXME / XXX / HACK marker. rules/comments.md: no TODO, FIXME, XXX, or HACK markers. Either finish the work now or open a tracked issue and remove the marker:
 $TODOS
 
 "

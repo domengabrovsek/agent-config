@@ -25,7 +25,7 @@ An orchestrator. You approve the spec. Everything after that runs without asking
 6. **Verify**: spawn the `Spec Verifier` for the whole branch, then run `/verify-done`. Fix and repeat until both pass `(review-time: see section note)`
 7. **Open the PR**: run `/mr`. List manual criteria under **Blocked on me** in the PR body `(review-time: see section note)`
 8. **Watch**: run `/ci` and `/pr-comments` until CI is green and every bot comment has a reply. Human-reviewer replies go to the user as drafts `(review-time: see section note)`
-9. **Report**: end with **Blocked on me**, **Changed**, and **Found**, plus the PR URL. Notify with `notify.sh "PR ready: <url>"` `(review-time: see section note)`
+9. **Report**: end with **Blocked on me**, **Changed**, and **Found**, plus the PR URL. Notify with `~/.agents/scripts/notify.sh "PR ready: <url>"` `(review-time: see section note)`
 
 ## Gates the user keeps
 

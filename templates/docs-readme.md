@@ -7,7 +7,7 @@
 Docs follow [Diataxis](https://diataxis.fr/). Each doc has exactly one job:
 
 | Quadrant | When you're... | Where to look |
-|----------|----------------|---------------|
+| --- | --- | --- |
 | **Explanation** | Trying to understand *why* or *how it fits together* | [explanation/](explanation/) |
 | **Reference** | Looking up an exact value, name, or signature | [reference/](reference/) |
 | **How-to** | Doing a concrete task | [how-to/](how-to/) |
@@ -16,7 +16,7 @@ Docs follow [Diataxis](https://diataxis.fr/). Each doc has exactly one job:
 
 ## Conventions
 
-- Markdown only. Diagrams are [Mermaid](https://mermaid.js.org/) in fenced blocks - GitHub renders them natively.
+- Markdown only. Diagrams are [Mermaid](https://mermaid.js.org/) in fenced blocks by default; complex layouts use a drawio source plus a committed PNG.
 - Each doc opens with a 3-sentence TL;DR before any heading.
 - Source files are cited with backticked relative paths: `src/foo/bar.ts`.
 - Max 300 lines per doc. Split if longer.

@@ -78,7 +78,6 @@ new_case() {
 run_setup() {
   PI_CONFIG_DIRS="$TEST_HOME/.pi/agent $TEST_HOME/.pi-personal/agent" \
   PI_CODING_AGENT_DIR="" \
-  CLAUDE_CONFIG_DIR="" \
   CLAUDE_CONFIG_DIRS="$TEST_HOME/.claude $TEST_HOME/.claude-personal" \
   HOME="$TEST_HOME" \
   CODEX_HOME="$TEST_HOME/.codex" \

@@ -9,7 +9,7 @@ Reach for `acli` (Atlassian CLI) before doing anything else.
 
 ## Detection
 
-Trigger this rule when any of the following appears in the user's message:
+Use this skill when any of the following appears in the user's message:
 
 - A Jira-style key matching `[A-Z]+-\d+` `(review-time: trigger condition for the rule, not a rule itself)`
 - The words "Jira", "ticket", "issue", "story", "epic", "bug" used in a tracker sense (not a generic "there's an issue with X") `(review-time: trigger condition)`

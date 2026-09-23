@@ -19,7 +19,7 @@ Ranked by reliability (earliest catch wins per the shift-left principle):
 
 | Tag | Where enforced | Cost when violated |
 | --- | --- | --- |
-| `(hook)` | `~/.claude/hooks/*.sh` via `~/.claude/settings.json` | ~1s, fed back to Claude as a tool result |
+| `(hook)` | `hooks/*.sh` via root `settings.json`, dispatched on every host | ~1s, fed back to Claude as a tool result |
 | `(lint)` | Repo `biome.json` / `eslint.config.js` / `.markdownlint*` | `npm run check` run |
 | `(CI)` | `.github/workflows/` and shared reusable workflows | PR cycle |
 | `(persona)` | A `agents/*.md` persona file's guardrail section | Subagent compliance, not global |
@@ -31,7 +31,7 @@ Every **rule** bullet in an in-scope file ends with a tag. A rule bullet says "d
 
 Format: backtick-wrapped, single space before, end of line.
 
-Rule text itself follows the plain-language policy in `rules/communication.md` - a rule the reader has to parse twice does not get followed. `(hook)`
+Rule text itself follows the Write plain section of `AGENTS.md` - a rule the reader has to parse twice does not get followed. `(hook)`
 
 ```markdown
 - No `var` in JS/TS - use `const` or `let` `(hook)`

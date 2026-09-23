@@ -16,7 +16,8 @@ Prefer one line. Use more when the WHY genuinely needs more, but do not pad a on
 
 Multi-line comments use the language's block format, never a stack of single-line comments.
 
-- JS, TS, TSX, CSS, HCL: `/* ... */`, never consecutive `//` lines `(hook)`
+- JS, TS, TSX: `/* ... */`, never consecutive `//` lines `(hook)`
+- CSS, HCL: `/* ... */`, never consecutive `//` or `#` lines `(review-time: hook checks JS/TS only)`
 - SQL: `/* ... */`, never consecutive `--` lines `(hook)`
 - Python: a triple-quoted string, never consecutive `#` lines as narrative `(review-time: no hook for Python yet)`
 - Bash has no block format. Use one `#` per logical comment and accept the stack `(review-time: language limitation)`

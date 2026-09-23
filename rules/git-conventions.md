@@ -7,10 +7,11 @@
 Hooks and deny rules back these. Know them so you do not waste a cycle hitting the gate.
 
 - Conventional commit format. Scope optional: `feat(auth): add token refresh` `(hook)`
-- No AI attribution anywhere: no Co-Authored-By, no "Generated with" footer, in commits, PR titles and bodies, issues, or comments `(hook)`
+- No AI attribution anywhere: no Co-Authored-By, no "Generated with" footer, in commits, PR titles, or PR bodies `(hook)`
+- Same for issues and comments `(review-time: no hook covers them)`
 - Check the branch with `git branch --show-current` before committing. Never commit or push to main/master, even when the user approves it. Every change lands through a PR `(hook)`
 - Rebase onto the target branch (`git fetch origin main && git rebase origin/main`) before opening a PR. Update an open PR with `gh pr update-branch`, never a force-push `(review-time: no hook checks this)`
-- Run `/verify-done` before any push `(hook)`
+- Run `/verify-done` before any push. The pre-push gate backs its checks `(hook)`
 
 ## Judgment calls
 
@@ -18,7 +19,7 @@ Hooks and deny rules back these. Know them so you do not waste a cycle hitting t
 - Never force-push without asking immediately before the push. Approval of a plan containing a force-push is not approval of the push. Ask every time, at execution time. Teammates report a needed force-push back rather than running it `(review-time: needs a fresh confirmation at execution time; deny rules block bare --force)`
 - Never merge a PR. The user merges `(review-time: depends on a user signal, not a pattern)`
 - PR descriptions use bullets, not prose paragraphs `(review-time: formatting of free-form text)`
-- Never reference `.claude/state/` plans, research, or diaries in a PR description. They are untracked and invisible to reviewers `(review-time: formatting of free-form text)`
+- Never reference `.claude/state/` plans, research, or diaries in a PR description. They are untracked and invisible to reviewers `(hook)`
 - After pushing new commits to an open PR, update its title and body with `gh pr edit` `(review-time: requires judging whether the body still reflects the diff)`
 - Use the repo's `.github/pull_request_template.md` when it exists, otherwise `~/.agents/pull_request_template.md` `(review-time: template selection requires reading the directory)`
 - Editing tests? Update mocks to match the new DB queries, service dependencies, and imports `(review-time: requires understanding mock-target coupling)`

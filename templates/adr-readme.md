@@ -14,7 +14,7 @@ ADRs capture significant technical decisions: what we chose, why, and what it co
 /document adr "<short title>"
 ```
 
-Fill in Context, Decision, Consequences, Alternatives Considered. Keep each section tight. Status starts as `Proposed`; flip to `Accepted` once the team agrees.
+Fill in Context, Decision, Consequences, Considered alternatives. Keep each section tight. Status starts as `Proposed`; flip to `Accepted` once the team agrees.
 
 ## Status values
 

@@ -24,9 +24,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 
-// ---------------------------------------------------------------------------
-// Pure decision predicate
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Pure decision predicate
+ * --------------------------------------------------------------------------- */
 
 export type ShutdownReason = 'quit' | 'reload' | 'new' | 'resume' | 'fork';
 
@@ -44,9 +44,9 @@ export function shouldCleanup(reason: ShutdownReason, env: Record<string, string
   return !cleanupDisabledByEnv(env);
 }
 
-// ---------------------------------------------------------------------------
-// Extension wiring
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * Extension wiring
+ * --------------------------------------------------------------------------- */
 
 export default async function (pi: ExtensionAPI) {
   const { getAgentDir } = await import('@earendil-works/pi-coding-agent');
@@ -60,8 +60,8 @@ export default async function (pi: ExtensionAPI) {
     } catch {
       moduleDir = dirname(fileURLToPath(import.meta.url));
     }
-    // Same layout assumption as the other extensions: the script lives under
-    // <checkout>/scripts; the agent-dir path covers standalone installs.
+    /* Same layout assumption as the other extensions: the script lives under
+     * <checkout>/scripts; the agent-dir path covers standalone installs. */
     const candidates = [
       join(moduleDir, '../../scripts/worktree-prune.sh'),
       join(getAgentDir(), 'scripts/worktree-prune.sh'),
@@ -70,8 +70,8 @@ export default async function (pi: ExtensionAPI) {
     if (scriptPath === undefined) return; // hook parity: [ -x ... ] || exit 0
 
     try {
-      // Synchronous like the Claude hook: the prune (fast, conservative)
-      // completes before the process exits instead of dying mid-prune.
+      /* Synchronous like the Claude hook: the prune (fast, conservative)
+       * completes before the process exits instead of dying mid-prune. */
       execFileSync('bash', [scriptPath, '--apply', '--repo', ctx.cwd], { timeout: 30_000, stdio: 'ignore' });
     } catch {
       // Advisory only: prune failures never block shutdown (hook parity).

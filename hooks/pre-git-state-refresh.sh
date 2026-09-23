@@ -47,8 +47,8 @@ emit() {
 }
 
 # The hook's own cwd is not the tool call's, so the repo comes from the
-# payload. Reading only CLAUDE_PROJECT_DIR made every probe report
-# "unavailable=not-a-repo" whenever the harness ran hooks from elsewhere.
+# payload. CLAUDE_PROJECT_DIR alone is wrong whenever the harness runs hooks
+# from another directory.
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
 

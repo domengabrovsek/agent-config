@@ -52,8 +52,8 @@ Terraform spreads state across many stacks and files. A reader looking at one bl
 Good:
 
 ```hcl
-# Per-env random password for the platform admin's first login.
-# Consumed by the app-bootstrap Cloud Run Job; rotated by bumping keepers.rotation_id.
+/* Per-env random password for the platform admin's first login.
+   Consumed by the app-bootstrap Cloud Run Job; rotated by bumping keepers.rotation_id. */
 resource "random_password" "platform_admin_initial" {
   ...
 }

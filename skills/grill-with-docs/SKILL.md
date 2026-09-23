@@ -73,7 +73,7 @@ Don't couple `CONTEXT.md` to implementation details. Only include terms that are
 
 ### No ADRs from the grill
 
-ADR creation is explicit-ask only, via `/document adr "<title>"`. The grill records decisions in the exit plan, never in an ADR `(review-time: a proposal is free-form text no hook can see)`
+ADR creation is explicit-ask only, via `/document adr "<title>"`. The grill records decisions in the exit plan, saved on agreement to `.claude/state/plans/YYYY-MM-DD-<topic>.md`, never in an ADR `(review-time: a proposal is free-form text no hook can see)`
 
 ## Panel grilling (optional)
 

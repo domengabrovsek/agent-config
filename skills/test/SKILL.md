@@ -39,7 +39,7 @@ A **seam** is the public boundary you test at: the interface where you observe b
 
 ## Test Level Selection
 
-Pick the lowest level that captures the behavior (see `references/testing-patterns.md`):
+Pick the lowest level that captures the behavior (see `~/.agents/references/testing-patterns.md`):
 
 | Behavior | Test Level | Why |
 | --- | --- | --- |

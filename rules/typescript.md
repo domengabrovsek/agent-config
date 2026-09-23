@@ -16,6 +16,7 @@ paths:
 - No barrel exports (`index.ts` re-exports) - import directly from source `(review-time: file-structure pattern, hard to detect without false positives)`
 - No default exports - use named exports only `(lint)`
 - Zod schemas for runtime validation at system boundaries (API inputs, env vars, external data) `(review-time: requires knowing which functions are at the boundary)`
-- Prefer `const` over `let`, never use `var` `(hook)`
+- Never use `var` `(hook)`
+- Prefer `const` over `let` `(review-time: post-edit-lint catches var only)`
 - Use strict null checks - handle `null`/`undefined` explicitly `(lint)`
 - No non-null assertion operator (`!`) - use proper null checks, optional chaining, or narrowing instead `(lint)`

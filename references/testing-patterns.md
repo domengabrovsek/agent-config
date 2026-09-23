@@ -1,6 +1,6 @@
 # Testing Patterns
 
-Reusable testing methodology reference. Referenced by the /test skill and QA agent.
+Reusable testing methodology reference. Referenced by the test skill and the QA Expert agent.
 
 ## Testing Pyramid
 

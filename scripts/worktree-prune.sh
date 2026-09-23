@@ -41,7 +41,7 @@ else
   C_GREEN=""; C_YELLOW=""; C_DIM=""; C_RESET=""
 fi
 
-# Determine the repo's default branch (origin/HEAD if set, else main, else master)
+# Determine the repo's default branch (origin/HEAD if set, else main, master, or trunk)
 default_branch() {
   local repo="$1"
   local d
