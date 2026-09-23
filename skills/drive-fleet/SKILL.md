@@ -21,7 +21,7 @@ The built-in `/goal` command keeps the session working across turns until the co
 
 Template (fill the `{knobs}`):
 
-> Every open MR/PR from `{plan}` is CI-green, reviewed (`{review_depth}` applied via review-pr), and rebased on `{target_branch}`. `{post_completion_action}`
+> Every open MR/PR from `{plan}` is CI-green, reviewed (`{review_depth}` applied via review-pr), rebased on `{target_branch}`, and passes every automated spec criterion at HEAD. `{post_completion_action}`
 
 | Knob | Default |
 | --- | --- |

@@ -11,6 +11,7 @@ For full descriptions of each tool see the [README](README.md).
 | Understand an unfamiliar code area | `/research <topic>` |
 | Define formal requirements before planning | `/spec <topic>` |
 | Turn an approved spec into vertical slices | `/plan` |
+| Hand over a whole feature: approve the spec, get a green PR | `/deliver <goal>` |
 | Stress-test a plan / reach alignment before code | `/grill-with-docs <topic>` |
 | Build the agreed plan | `/build` |
 | Write tests for code (TDD or prove-it) | `/test <target>` |

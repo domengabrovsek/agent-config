@@ -36,9 +36,8 @@ description: "Monitor the CI pipeline for the current branch via a background Mo
      d. **Classify the failure as transient or real before proposing any change** - transient = infra outage, rate limit, queued/timed-out runner, auth/network flake, registry or dependency propagation delay; real = a test/lint/type/build/coverage failure caused by the code under change. State the classification `(review-time: see section note)`
      e. **If transient**: re-run the failed job (`gh run rerun <run-id> --failed` / `glab ci retry <job-id>`) and keep monitoring - do NOT edit code for a transient failure. Escalate to the user only if it recurs after a re-run `(review-time: see section note)`
      f. Run `~/.agents/scripts/notify.sh "CI failed - <failure-summary>"`
-     g. **If real, propose the fix to the user** - explain what failed and what you'd change. Do NOT push automatically `(review-time: see section note)`
-     h. Wait for user approval before implementing the fix `(review-time: see section note)`
-     i. After approval: fix, commit with a descriptive message, push `(review-time: see section note)`
+     g. **If real, fix it**: make the change, run `/verify-done`, commit with a descriptive message, push, and keep monitoring `(review-time: see section note)`
+     h. Report what failed and what changed in the same message as the next action `(review-time: see section note)`
 
 ## How it works
 
