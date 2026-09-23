@@ -10,6 +10,7 @@ For full descriptions of each tool see the [README](README.md).
 | --- | --- |
 | Understand an unfamiliar code area | `/research <topic>` |
 | Define formal requirements before planning | `/spec <topic>` |
+| Turn an approved spec into vertical slices | `/plan` |
 | Stress-test a plan / reach alignment before code | `/grill-with-docs <topic>` |
 | Build the agreed plan | `/build` |
 | Write tests for code (TDD or prove-it) | `/test <target>` |
@@ -73,6 +74,8 @@ Lightweight helpers; structure is minimal:
 [/research]       optional orientation
         ↓
 /grill-with-docs  alignment - emits CONTEXT.md terms + execution plan
+        ↓
+[/spec → /plan]   when criteria need checks: spec, then slices
         ↓
 /build            walk the execution plan
         ↓
