@@ -75,7 +75,8 @@ The design decisions this config still runs on. Each entry states the choice, th
 - `scripts/setup-hosts.sh` links each host's native path to the same files.
 - Claude Code has no user-level `AGENTS.md`, so `~/.claude/CLAUDE.md` links to it.
 - Claude Code loads `rules/` natively through `~/.claude/rules`. Other hosts reach it through the `rulebook` skill.
-- Hooks, permissions, and teammate mechanics stay host-specific.
+- Hooks run on every host from one registry in `settings.json`. Claude Code runs it natively. Codex (through a generated `~/.codex/hooks.json`) and Pi (through the `hook-bridge` extension) call `hooks/lib/dispatch.sh`, so each check stays one script.
+- Permissions and teammate mechanics stay host-specific. Codex has no deny-list translation yet.
 - Shared skills keep Claude notation, and `AGENTS.md` maps it for the other hosts.
 
 ### Pi adapter under pi/

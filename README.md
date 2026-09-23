@@ -47,7 +47,7 @@ A machine that does not use every default dir records its own scope in `~/.agent
 
 Without this, an argument-free `--check` re-derives the two-dir defaults and reports permanent drift on dirs the machine never adopted. That matters because the `drift-check` extension calls the script with no arguments and no environment, so the scope has to be a recorded fact rather than a shell prefix someone remembers to type.
 
-For Codex, the bootstrap adds the shared-instruction fallback and a built-in TUI status line only when each setting is absent. It preserves an existing custom status line.
+For Codex, the bootstrap adds the shared-instruction fallback, the long-context window and its compaction limit, and a built-in TUI status line, each only when absent. It preserves an existing custom status line. It also enables Codex hooks and writes `~/.codex/hooks.json`, which sends every hook event to `hooks/lib/dispatch.sh`. An existing hooks file of your own needs `--adopt`. Codex asks you to trust the hooks once, and again after each regeneration.
 
 ### Pi
 
@@ -58,13 +58,15 @@ npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 bash scripts/setup-hosts.sh --apply --host pi
 ```
 
-The Pi selector links instructions, `extensions/`, `settings.json`, `models.json`, and `mcp.json` into every configured pi agent dir. `PI_CONFIG_DIRS` defaults to `~/.pi/agent` plus `~/.pi-personal/agent`; `PI_CODING_AGENT_DIR` overrides it. It links shared skills under `~/.agents/skills`. These resources apply in interactive, print, JSON, and RPC modes. See [Pi's usage documentation](https://pi.dev/docs/latest/usage).
+The Pi selector links instructions, `agents/`, `extensions/`, `settings.json`, `models.json`, and `mcp.json` into every configured pi agent dir. `PI_CONFIG_DIRS` defaults to `~/.pi/agent` plus `~/.pi-personal/agent`; `PI_CODING_AGENT_DIR` overrides it. It links shared skills under `~/.agents/skills`. These resources apply in interactive, print, JSON, and RPC modes. See [Pi's usage documentation](https://pi.dev/docs/latest/usage).
 
 The bootstrap does not install or upgrade Pi. It does not manage providers, models, credentials, project trust, tools, or isolation. Pi has no built-in sandbox, so unattended work needs an external boundary. See [Pi's security guidance](https://pi.dev/docs/latest/security). Auto-compaction stays off by choice: a long session is handed off or stopped rather than silently summarized.
 
 The `permission-gate` extension derives pi's permission policy from the deny list in the root `settings.json` (the **Derived policy**): `Read` rules become `path_read` surfaces, `Edit`/`Write` rules `path_write`, `Bash` rules command patterns, and MCP rules are enforced rather than skipped. Mechanical enforcement is the pinned [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system) package; this extension regenerates its `config.json` at every session start and announces a stale policy loudly. Only deny rules are generated - the universal fallback is `allow` - so semantics stay deny-wins and headless sessions never prompt. Rules without a translation fail in tests, not at runtime. It remains friction, not a sandbox: deliberately obfuscated commands still win, so unattended pi work still needs the external boundary above.
 
-Two more pinned packages complete the stack: [`pi-mcp-adapter`](https://pi.dev/packages/pi-mcp-adapter) loads Notion, Slack, and Playwright from `pi/mcp.json`, plus each project's `.mcp.json` (host-specific config discovery stays off), and [`pi-intercom`](https://pi.dev/packages/pi-intercom) lets sessions message each other directly and lets delegated children escalate to their supervisor.
+The `hook-bridge` extension enforces the same hooks as Claude Code. It sends bash, edit, and write calls through `hooks/lib/dispatch.sh`, blocks a call when a hook exits 2, and appends hook feedback to the tool result. `pi/settings.json` loads it into foreground subagent children through `subagents.defaultSubagentOnlyExtensions`, and it reads the child's persona from the `<active_agent>` tag in its system prompt.
+
+`pi-ollama-cloud` adds the Ollama Cloud provider. Two more pinned packages complete the stack: [`pi-mcp-adapter`](https://pi.dev/packages/pi-mcp-adapter) loads Notion, Slack, and Playwright from `pi/mcp.json`, plus each project's `.mcp.json` (host-specific config discovery stays off), and [`pi-intercom`](https://pi.dev/packages/pi-intercom) lets sessions message each other directly and lets delegated children escalate to their supervisor.
 
 Agent delegation is provided by the [`pi-subagents`](https://pi.dev/packages/pi-subagents) package: shared personas (`agents/` tree) spawn as focused child pi sessions, background runs return control while the child keeps working, and worktree-isolated lanes come back with a managed branch. Its worktrees default to the system temp dir (`pi-parallel-*` branches; retarget with `PI_SUBAGENTS_WORKTREE_DIR`) and `worktree-prune` still sweeps them after merges. Note the shared `agents/` tree is reachable through the links, and agents can author personas into it - review `git status` after unusual runs.
 
@@ -76,9 +78,9 @@ The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensi
 
 - **`AGENTS.md`** - concise host-neutral instructions loaded by every supported host. Claude Code has no user-level `AGENTS.md`, so the bootstrap links `~/.claude/CLAUDE.md` to it. See [the host-sharing decision](docs/decisions.md#one-instruction-file-and-skill-library-for-every-host).
 - **`rules/`** - detailed standards loaded directly by Claude Code and through the `rulebook` skill by other hosts.
-- **`agents/`** - Claude Code expert teammate personas. Equivalent host mechanics are deferred; routing is in [`rules/agent-routing.md`](rules/agent-routing.md).
+- **`agents/`** - expert personas, spawned as Claude Code subagents and as Pi child sessions through `pi-subagents`. Routing is in [`rules/agent-routing.md`](rules/agent-routing.md).
 - **`skills/`** - shared workflows such as `grill-with-docs`, `build`, `debug`, `research`, and `verify-done`.
-- **`hooks/`** - Claude Code automation wired into `settings.json`; host-specific parity is deferred.
+- **`hooks/`** - guardrail scripts registered in `settings.json`. Claude Code runs them natively; Codex and Pi run the same registry through `hooks/lib/dispatch.sh`.
 - **`scripts/`** - the multi-host bootstrap, its Claude compatibility wrapper, and utilities used by hooks and skills.
 - **`docs/decisions.md`** - the design decisions still in force, with the reason for each.
 - **`references/`** - long-form checklists (security, testing) loaded by skills on demand.
