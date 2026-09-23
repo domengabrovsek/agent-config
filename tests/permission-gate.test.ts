@@ -145,6 +145,23 @@ describe('buildPolicyDocument', () => {
     assert.equal(doc.permission['*'], 'allow');
   });
 
+  it('puts an explicit bash catch-all first so later denies still win', () => {
+    const doc = buildPolicyDocument({
+      universal: 'allow',
+      pathRead: {},
+      pathWrite: {},
+      bash: { 'sudo *': 'deny' },
+      mcp: {},
+    });
+    assert.deepEqual(doc.permission.bash, { '*': 'allow', 'sudo *': 'deny' });
+    assert.deepEqual(Object.keys(doc.permission.bash as object), ['*', 'sudo *']);
+  });
+
+  it('emits the bash catch-all even with no bash denies', () => {
+    const doc = buildPolicyDocument({ universal: 'allow', pathRead: {}, pathWrite: {}, bash: {}, mcp: {} });
+    assert.deepEqual(doc.permission.bash, { '*': 'allow' });
+  });
+
   it('serializes deterministically with a trailing newline', () => {
     const doc = buildPolicyDocument({
       universal: 'allow',

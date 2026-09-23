@@ -159,7 +159,10 @@ export function buildPolicyDocument(policy: ReturnType<typeof derivePermissionPo
   const surfaces: Record<string, unknown> = { '*': policy.universal };
   if (Object.keys(policy.pathRead).length > 0) surfaces.path_read = policy.pathRead;
   if (Object.keys(policy.pathWrite).length > 0) surfaces.path_write = policy.pathWrite;
-  if (Object.keys(policy.bash).length > 0) surfaces.bash = policy.bash;
+  /* The package applies the last matching bash rule, so the catch-all goes first
+     and every deny after it still wins. Stating it explicitly silences the
+     package's warning about bash inheriting the top-level allow. */
+  surfaces.bash = { '*': policy.universal, ...policy.bash };
   if (Object.keys(policy.mcp).length > 0) surfaces.mcp = policy.mcp;
   return { $schema: PERMISSIONS_SCHEMA_URL, permission: surfaces };
 }
