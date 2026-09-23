@@ -14,7 +14,7 @@ Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope
 
 ## The loop
 
-1. **Build lanes in parallel.** One subagent per lane, each in its own git worktree, file-isolated, <=4-5 concurrent. Route by domain: Frontend Staff Engineer / Backend Staff Engineer (Agent `subagent_type`, `isolation: "worktree"`). Sequential sub-tickets that share files stay inside ONE agent.
+1. **Build lanes in parallel.** Each lane runs `/build`'s Slice Loop. One subagent per lane, each in its own git worktree, file-isolated, <=4-5 concurrent. Route by domain: Frontend Staff Engineer / Backend Staff Engineer (Agent `subagent_type`, `isolation: "worktree"`). Sequential sub-tickets that share files stay inside ONE agent.
 2. **Open MRs.** Once lanes are pushed, open MRs via `/mr` - conventional commits, no co-author trailers, stacked-MR dependencies and retargeting.
 3. **Poll CI in the background.** One Monitor per branch via `/ci` (emits only on status change, zero cost while running). React on Monitor notifications and agent-completion events - never block the manager turn polling.
 4. **Per red MR - fix subagent.** Spawn a domain-expert subagent in that lane's worktree to diagnose and fix. Infra-flake or clearly-unrelated failure -> retry the job (`glab ci retry` / `gh run rerun`); real failure -> fix and push. Same issue 3x -> escalate to the user.

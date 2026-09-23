@@ -49,6 +49,13 @@ The design decisions this config still runs on. Each entry states the choice, th
 - Setting the `/goal` authorizes opening the fleet's pull requests and in-scope fixes, retries, and rebases.
 - The loop always stops for a plan-breaking conflict, the same CI failure three times, or an outward post-completion action.
 
+### Deliver a feature with one human gate
+
+- `deliver` runs research, spec, plan, the tests-first slice loop, spec verification, the PR, CI, and bot comments in one run.
+- The user approves the spec. After that the run stops only for replies to human reviewers, force-push, merge, production changes, and deleting data.
+- The author of code never grades it. The QA Expert writes and locks the tests, a read-only panel reviews, and the Spec Verifier records evidence at HEAD.
+- Hooks back the loop: the evidence gate blocks a PR without passing criteria, the test lock blocks implementers from editing tests, and the reply gate blocks posting to humans.
+
 ## Skills
 
 ### Vendor and adapt upstream skills
