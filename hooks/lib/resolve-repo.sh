@@ -3,8 +3,7 @@
 #
 # A hook runs with its own cwd, which is not the directory the tool call ran
 # in, so the repo has to be recovered from the payload and the command text.
-# Three hooks need the same answer; a copy each is how they drifted apart in
-# the first place, with one of them ignoring the payload cwd entirely.
+# Several hooks need the same answer, so they share this one resolver.
 #
 # Precedence, most explicit first:
 #   1. `git -C <path>` in the command

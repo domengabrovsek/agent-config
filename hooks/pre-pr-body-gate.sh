@@ -2,10 +2,9 @@
 # Pre-PR body gate: blocks a PR whose title or body breaks
 # rules/git-conventions.md.
 #
-# PreToolUse hook on Bash(gh pr create *) and Bash(gh pr edit *). The commit
-# surface of the first rule already has hooks/pre-commit-coauthor-gate.sh; the
-# PR surface had nothing, so the one place a "Generated with" footer or a local
-# state path actually reaches a reviewer was the one place nothing looked.
+# PreToolUse hook on Bash(gh pr create *) and Bash(gh pr edit *). It covers the
+# PR surface; hooks/pre-commit-coauthor-gate.sh covers commits. The PR title and
+# body are where a "Generated with" footer or a local state path reach a reviewer.
 #
 # Two checks:
 #   attribution  no Co-Authored-By trailer, no AI "Generated with" footer

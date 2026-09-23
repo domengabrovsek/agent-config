@@ -7,6 +7,7 @@
 
 # Agent worktrees and other session-local runtime dirs under .claude/
 .claude/worktrees/
+.claude/settings.local.json
 .claude/plans/
 
 # macOS Finder metadata

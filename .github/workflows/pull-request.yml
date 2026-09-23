@@ -17,7 +17,7 @@ jobs:
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
 
       - name: Lint Markdown
-        uses: DavidAnson/markdownlint-cli2-action@v19
+        uses: DavidAnson/markdownlint-cli2-action@v24
         with:
           globs: "**/*.md"
 
@@ -52,7 +52,7 @@ jobs:
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -118,7 +118,7 @@ jobs:
   # Gate
   # ==============================================
   # Single aggregator check every PR must pass. Branch protection requires the
-  # "Gate" status, so required checks stay stable even as the jobs below change.
+  # "Gate" status, so required checks stay stable even as the jobs above change.
   gate:
     name: Gate
     if: always()
