@@ -53,8 +53,9 @@ Use the workflow that matches the user's intent. Do not force research, planning
 
 1. **Research** when entering unfamiliar or uncertain code. Read relevant files, inspect established patterns, and save substantial findings under `.claude/state/research/` when the workflow calls for an artifact.
 2. **Grill** decisions with `grill-with-docs` when alignment is needed. Resolve one decision at a time, update domain language as agreed, and finish with an approved plan under `.claude/state/plans/`.
-3. **Implement** an approved plan with `build`. Work in small complete increments, run the repository's checks, and commit only when the user or active workflow authorizes it.
-4. **Summarize** meaningful completed work under `.claude/state/sessions/` when the workflow requires a session diary.
+3. **Spec and plan** with `spec` and `plan` when criteria need checks. Only the spec needs approval.
+4. **Implement** an approved plan with `build`. Work in small complete increments and run the repository's checks.
+5. **Summarize** meaningful completed work under `.claude/state/sessions/` when the workflow requires a session diary.
 
 For typos, one-line fixes, version bumps, and simple configuration changes, implementation may start directly when the intent is unambiguous. Ask before making an unresolved architectural choice.
 
@@ -104,9 +105,8 @@ Load `rulebook` whenever the task needs detailed language, test, database, infra
 - Run the repository's complete quality gate before pushing.
 - Rebase onto the current target branch before opening a pull request.
 - Never force-push or merge a pull request without fresh, explicit user approval.
-- Reply within the relevant review thread. `(review-time: thread context)`
+- Reply in-thread to bots. Draft replies to humans for the user. `(review-time: thread context)`
 - Keep commits focused and reviewable. Split unrelated work and very large changes.
-- Feature implementation normally ends with a commit, push, and pull request.
 - Stop earlier only when the user or parent workflow explicitly scopes the handoff.
 
 ## Delegation

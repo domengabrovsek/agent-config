@@ -34,7 +34,7 @@ description: "Create a merge request or pull request from the current branch: ve
     - Check "No unnecessary changes outside the scope of this PR" only if true `(review-time: see section note)`
     - Check "Considered the security impact of these changes" - always check, we always consider it `(review-time: see section note)`
     - Check "No credentials or secrets in the code" only if verified `(review-time: see section note)`
-    - Do NOT edit the template structure, wording, or add extra sections - only fill in data and check boxes `(review-time: see section note)`
+    - Do NOT edit the template structure or wording. Fill in data and check boxes. The only added sections are "Not touched (intentionally)" and **Blocked on me** `(review-time: see section note)`
 10. **Set dependencies for stacked MRs/PRs**: `(review-time: see section note)`
     If the target branch is not the default branch (`main`/`master`/`develop`), check for a base MR/PR:
 

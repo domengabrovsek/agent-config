@@ -63,7 +63,7 @@ A host's links diverging from the checkout; the Host bootstrap detects it with `
 _Avoid_: "config drift", "stale links", "out-of-sync".
 
 **Workflow state**:
-Cross-session research, plans, specs, and diaries shared by every agent host under the historical `.claude/state/` project path.
+Cross-session research, plans, specs, diaries, and per-branch run files (task list, test lock, evidence ledger, reply drafts) shared by every agent host under the historical `.claude/state/` project path.
 _Avoid_: "Claude state" - the path is retained for compatibility, but ownership is multi-host.
 
 ### Agent orchestration
@@ -85,7 +85,7 @@ Another pi session on this machine, addressable directly for coordination; exist
 _Avoid_: "subagent", "teammate" for cross-session peers.
 
 **Advisory persona**:
-A persona whose frontmatter `tools` list excludes Edit/Write/NotebookEdit, so mutating a file takes a deliberate shell command rather than one tool call (PR Reviewer, Cybersecurity Expert, GDPR Expert, Product Manager, UX Expert). These personas keep Bash, which they need for `git diff` and `gh`, so the brief still carries the read-only instruction.
+A persona whose frontmatter `tools` list excludes Edit/Write/NotebookEdit, so mutating a file takes a deliberate shell command rather than one tool call (PR Reviewer, Spec Verifier, Cybersecurity Expert, GDPR Expert, Product Manager, UX Expert). These personas keep Bash, which they need for `git diff` and `gh`, so the brief still carries the read-only instruction.
 _Avoid_: "read-only agent", "reviewer agent", "mechanically read-only" - Bash makes the guarantee partial.
 
 **Writer persona**:
@@ -121,6 +121,14 @@ _Avoid_: "requirement" for a line with no check.
 **Evidence ledger**:
 The per-branch table of each criterion's status, check output, and the commit it ran at; written by the Spec Verifier, read by the evidence gate.
 _Avoid_: "test report".
+
+**Slice loop**:
+The per-slice cycle in `build`: the QA Expert writes and locks failing tests, an implementer makes them pass, a read-only panel reviews, and fixes are re-reviewed up to three rounds.
+_Avoid_: "TDD loop" for the multi-role cycle.
+
+**Blocked on me**:
+The heading that ends a run and a PR body, listing what only the user can do: manual criteria, escalations, and drafted replies to humans.
+_Avoid_: "action items", "TODO".
 
 **Test lock**:
 The per-branch list of test files the QA Expert committed for a slice; only the QA Expert may edit them.
@@ -176,7 +184,7 @@ _Avoid_: "soft rules", "style guide".
 - The **Rulebook** exposes detailed `rules/` standards as one **Reusable discipline** without changing their source location.
 - A **Teammate** runs in either **Lane mode** or **Panel mode**.
 - A **Peer session** is another session on this machine reachable through the intercom broker; only Teammates are spawned, and only Peer sessions exist before and after one conversation.
-- Our repo keeps **Orchestrators** at the **Model-invoked** layer (grill and build auto-fire as workflow phases); only `wayfinder` is a **User-invoked** orchestrator.
+- Our repo keeps **Orchestrators** at the **Model-invoked** layer (grill and build auto-fire as workflow phases); only `wayfinder` and `deliver` are **User-invoked** orchestrators.
 - A **Reusable discipline** is always **Model-invoked**; an **Orchestrator** may invoke disciplines.
 - `wayfinder` resolves **Decision tickets** one per session until the fog clears, then hands to the spec stage.
 - **Lane mode** is for mutating work (build/implementation); **Panel mode** is for read-only work (research, grilling, design).

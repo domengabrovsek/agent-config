@@ -6,9 +6,9 @@ The design decisions this config still runs on. Each entry states the choice, th
 
 ### Grill before building
 
-- Work runs Research, Grill, Implement, Summarize, as the Workflow section of `AGENTS.md` describes.
+- Work runs Research, Grill, Spec and plan, Implement, Summarize, as the Workflow section of `AGENTS.md` describes.
 - The grill aligns through real-time questions instead of an annotated plan document.
-- Each phase hands off explicitly. The user's "ready" at the end of the grill is the approval gate.
+- Each phase hands off explicitly. The user's "ready" at the end of the grill, or approval of the spec, is the approval gate.
 - The grill writes domain terms to `CONTEXT.md` and a short plan to `.claude/state/plans/`. It never writes an ADR.
 - Trivial changes, such as typos, version bumps, and config tweaks, skip the grill.
 - Cost: the grill needs the user present to answer.
@@ -61,7 +61,7 @@ The design decisions this config still runs on. Each entry states the choice, th
 ### Vendor and adapt upstream skills
 
 - Upstream skills are adapted, not copied. Each keeps a `> Source:` line and drifts from upstream on purpose.
-- Orchestration skills stay model-invoked, so the model enters workflow phases on its own.
+- Orchestration skills stay model-invoked, so the model enters workflow phases on its own. `wayfinder` and `deliver` are the exceptions: a long run starts only when the user asks.
 - Upstream's user-invoked stages (`to-spec`, `to-tickets`, `implement`) are not adopted.
 - Reusable disciplines merge into an existing skill, such as `test`, `debug`, or `review-pr`, when one fits.
 - `wayfinder` tracks multi-session efforts in files under `.claude/state/`, because this setup runs no issue tracker.

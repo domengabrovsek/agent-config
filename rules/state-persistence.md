@@ -6,10 +6,11 @@ All work artifacts must be saved to the project-level `.claude/state/` directory
 
 ## Directories
 
-- `.claude/state/research/` - research artifacts from Phase 1 `(review-time: descriptive, not a rule)`
+- `.claude/state/research/` - research artifacts from the research phase `(review-time: descriptive, not a rule)`
 - `.claude/state/specs/` - specification documents from the /spec skill `(review-time: descriptive, not a rule)`
-- `.claude/state/plans/` - implementation plans from Phase 2 `(review-time: descriptive, not a rule)`
-- `.claude/state/sessions/` - session diary entries from Phase 5 (Summarize) `(review-time: descriptive, not a rule)`
+- `.claude/state/plans/` - implementation plans from the grill or `/plan` `(review-time: descriptive, not a rule)`
+- `.claude/state/sessions/` - session diary entries from `/summarize` `(review-time: descriptive, not a rule)`
+- `.claude/state/runs/<branch-slug>/` - per-branch run files `(review-time: descriptive, not a rule)`
 
 ## Rules
 

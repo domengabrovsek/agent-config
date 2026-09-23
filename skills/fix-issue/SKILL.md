@@ -18,8 +18,8 @@ Follow this workflow:
    - Root cause analysis
    - Files to change (with specific line ranges)
    - Risks and edge cases
-   - Wait for user approval before implementing
-7. **Implement**: make the changes following the approved plan `(review-time: see section note)`
+   - Continue without asking unless the plan needs an architectural choice the issue leaves open
+7. **Implement**: make the changes following the plan `(review-time: see section note)`
 8. **Test**: write or update tests verifying the fix. Run the test suite. `(review-time: see section note)`
 9. **Verify**: run typecheck (`npx tsc --noEmit`), lint, and full test suite `(hook)`
 10. **Commit**: create a conventional commit (e.g., `fix(scope): description`) referencing the issue `(hook)`
