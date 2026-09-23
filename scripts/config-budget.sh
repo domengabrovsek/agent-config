@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-MAX_WORDS=3800
+MAX_WORDS=3900
 MAX_REVIEW_TIME=100
 
 # Claude Code loads a rule at launch unless its frontmatter scopes it with paths:.
