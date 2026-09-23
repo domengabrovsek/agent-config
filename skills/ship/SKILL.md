@@ -57,7 +57,7 @@ Run these checks in order. Stop at the first failure.
 
 If all checks pass:
 
-1. Create the PR with `/mr`, which fills the repo template, links the issues, and holds for your approval `(review-time: see section note)`
+1. Create the PR with `/mr`, which fills the repo template, links the issues, and creates it without a confirmation step `(review-time: see section note)`
 2. Request reviewers if specified `(review-time: see section note)`
 3. Report: "READY TO SHIP - all pre-launch checks passed" `(review-time: see section note)`
 

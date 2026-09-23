@@ -8,13 +8,13 @@ Hooks and deny rules back these. Know them so you do not waste a cycle hitting t
 
 - Conventional commit format. Scope optional: `feat(auth): add token refresh` `(hook)`
 - No AI attribution anywhere: no Co-Authored-By, no "Generated with" footer, in commits, PR titles and bodies, issues, or comments `(hook)`
-- Check the branch with `git branch --show-current` before committing. Never commit or push to main/master `(hook)`
+- Check the branch with `git branch --show-current` before committing. Never commit or push to main/master, even when the user approves it. Every change lands through a PR `(hook)`
 - Rebase onto the target branch (`git fetch origin main && git rebase origin/main`) before opening a PR `(hook)`
 - Run `/verify-done` before any push `(hook)`
 
 ## Judgment calls
 
-- Never auto-commit or push. Wait to be told `(review-time: depends on a conversational signal, not a pattern)`
+- Commit and push feature-branch work without asking once its checks pass `(review-time: requires judging that the checks ran)`
 - Never force-push without asking immediately before the push. Approval of a plan containing a force-push is not approval of the push. Ask every time, at execution time. Teammates report back for confirmation rather than pushing `(review-time: needs a fresh confirmation at execution time; deny rules block bare --force)`
 - Never merge a PR. The user merges `(review-time: depends on a user signal, not a pattern)`
 - Open a PR once a feature is complete, without being asked `(review-time: requires judging completion)`

@@ -46,7 +46,7 @@ The design decisions this config still runs on. Each entry states the choice, th
 
 - `drive-fleet` plans file-isolated lanes through a grill. One manager session then loops under the built-in `/goal`.
 - Subagents in worktrees do every edit, review, and rebase. The manager never touches a working tree.
-- The user approves the fleet's pull requests once. Setting the `/goal` authorizes in-scope fixes, retries, and rebases.
+- Setting the `/goal` authorizes opening the fleet's pull requests and in-scope fixes, retries, and rebases.
 - The loop always stops for a plan-breaking conflict, the same CI failure three times, or an outward post-completion action.
 
 ## Skills
