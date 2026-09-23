@@ -35,6 +35,6 @@ If the user has more work, suggest `/worktree <new-slug>` for the next task rath
 When several lane-mode teammates finish, merge their branches into the integration branch one at a time:
 
 1. Review each teammate's diff for correctness.
-2. Merge one branch. Resolve any conflict by hand before merging the next - never spawn an agent for conflict resolution.
+2. Merge one branch. Resolve any conflict with `/resolve-conflicts` before merging the next.
 3. After the last merge, run the full test suite, typecheck, and lint.
 4. Prune the worktrees: `~/.agents/scripts/worktree-prune.sh --apply`. It removes only worktrees whose branch is upstream-gone or merged into the default, which is the post-merge state. Anything still active survives.

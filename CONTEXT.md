@@ -189,7 +189,7 @@ _Avoid_: "soft rules", "style guide".
 - A **Teammate** runs in either **Lane mode** or **Panel mode**.
 - A **Peer session** is another session on this machine reachable through the intercom broker; only Teammates are spawned, and only Peer sessions exist before and after one conversation.
 - Our repo keeps **Orchestrators** at the **Model-invoked** layer (grill and build auto-fire as workflow phases); only `wayfinder` and `deliver` are **User-invoked** orchestrators.
-- A **Reusable discipline** is always **Model-invoked**; an **Orchestrator** may invoke disciplines.
+- A **Reusable discipline** is **Model-invoked**, except `wait-what`, which is **User-invoked**; an **Orchestrator** may invoke disciplines.
 - `wayfinder` resolves **Decision tickets** one per session until the fog clears, then hands to the spec stage.
 - **Lane mode** is for mutating work (build/implementation); **Panel mode** is for read-only work (research, grilling, design).
 - An **Advisory persona** can join **Panel mode** only; a **Lane mode** teammate must be a **Writer persona**.

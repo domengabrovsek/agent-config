@@ -11,6 +11,7 @@ All work artifacts must be saved to the project-level `.claude/state/` directory
 - `.claude/state/plans/` - implementation plans from the grill or `/plan` `(review-time: descriptive, not a rule)`
 - `.claude/state/sessions/` - session diary entries from `/summarize` `(review-time: descriptive, not a rule)`
 - `.claude/state/runs/<branch-slug>/` - per-branch run files `(review-time: descriptive, not a rule)`
+- `.claude/state/wayfinder/` - effort maps from the wayfinder skill `(review-time: descriptive, not a rule)`
 
 ## Rules
 

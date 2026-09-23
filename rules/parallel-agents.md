@@ -29,4 +29,4 @@ Read-only parallel work (research, grilling, design) runs bounded, never as free
 
 Research panels spawn as `Explore`, whose toolset drops Edit and Write, leaving a write reachable only through Bash. Grill and design panels use the domain personas from `rules/agent-routing.md` with a read-only brief, backstopped by the parent's review `(review-time: agent-type selection)`
 
-Merging finished lanes: see the `worktree-merge` skill.
+Cleaning up merged lanes: see the `worktree-merge` skill.

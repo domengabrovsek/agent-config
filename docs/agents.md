@@ -55,7 +55,7 @@ Every agent follows the same 5-section skeleton ([decision](decisions.md#lean-pe
 
 1. **Role** - 2-3 sentences of responsibility and approach
 2. **How to work** - investigation-first discipline; findings are returned in the final message, not written to report files
-3. **Guardrails** - 6-10 repo-specific, non-obvious blockers, each tagged `(persona)`; anything already covered by `rules/` is deliberately absent because custom subagents inherit the user instructions (`AGENTS.md`) and every always-loaded rule
+3. **Guardrails** - a short list of repo-specific, non-obvious blockers, each tagged `(persona)`; anything already covered by `rules/` is deliberately absent because custom subagents inherit the user instructions (`AGENTS.md`) and every always-loaded rule
 4. **Red Flags** - concrete, easy-to-miss patterns that trigger investigation
 5. **Output format** - the exact shape of the returned summary (severity buckets + verdict for advisory personas; changed/verified/concerns for writer personas)
 

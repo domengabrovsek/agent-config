@@ -59,7 +59,7 @@ For each drawio diagram:
 
 ### Authoring via MCP
 
-The `drawio` MCP server is configured in `.mcp.json`. Three tools are exposed:
+The `drawio` MCP server is configured in `.mcp.json`. The tools used here are:
 
 - `mcp__drawio__open_drawio_xml` - paste raw drawio XML, opens in the editor `(review-time: descriptive of available tool)`
 - `mcp__drawio__open_drawio_csv` - tabular import (org charts, lists) `(review-time: descriptive)`

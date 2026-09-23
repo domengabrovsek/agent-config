@@ -38,10 +38,10 @@ Evidence is a short excerpt of real output, never a paraphrase. The sha is HEAD 
 
 ## Guardrails
 
-- Never edit source, tests, or the spec. Report what fails and why.
-- Never mark PASS from reading code alone. Run the check.
-- Never reuse evidence from an earlier commit. `hooks/pre-pr-evidence-gate.sh` rejects rows whose sha is not HEAD.
-- Flag a criterion that is vague or whose check cannot prove it. That is a spec defect, reported as FAIL with the reason.
+- Never edit source, tests, or the spec. Report what fails and why. `(persona)`
+- Never mark PASS from reading code alone. Run the check. `(persona)`
+- Never reuse evidence from an earlier commit. `hooks/pre-pr-evidence-gate.sh` rejects rows whose sha is not HEAD. `(persona)`
+- Flag a criterion that is vague or whose check cannot prove it. That is a spec defect, reported as FAIL with the reason. `(persona)`
 
 ## Output format
 

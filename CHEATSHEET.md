@@ -20,7 +20,7 @@ For full descriptions of each tool see the [README](README.md).
 | Review someone's PR | `/review-pr 567` |
 | Verify everything before pushing | `/verify-done` |
 | Open a PR/MR (auto-runs verify-done first, regex-checks the title) | `/mr` |
-| Watch CI on the latest PR | `/ci` (or `/loop 2m /ci`) |
+| Watch CI on the latest PR | `/ci` (or `/loop 2m /ci` on Claude Code) |
 | Address reviewer comments on a PR (bots answered, humans drafted) | `/pr-comments` |
 | Cut a release | `/ship` |
 | Make a diagram (mermaid or drawio) | `/diagram <topic>` |
@@ -67,7 +67,7 @@ Model-invoked, so describing the work is enough. Naming them still works:
 
 Lightweight helpers; structure is minimal:
 
-- `/diagram`, `/loop`, `/schedule`
+- `/diagram`, plus the Claude Code built-ins `/loop` and `/schedule`
 
 ## Workflow
 

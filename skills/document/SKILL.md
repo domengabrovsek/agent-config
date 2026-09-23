@@ -20,7 +20,7 @@ Parse the first word of `$ARGUMENTS` as the subcommand:
 - `adr "<title>"` - draft the next-numbered ADR in `docs/adr/` `(review-time: see section note)`
 - `diagram <type> <topic>` - add or update a mermaid diagram inside the matching doc `(review-time: see section note)`
 - `audit` - read every `docs/**/*.md`, compare against current code, produce a drift report (read-only, no edits) `(review-time: see section note)`
-- `bootstrap` - create the full `docs/` skeleton in a repo that has none yet (uses `~/.agents/templates/docs-readme.md` and `~/.agents/templates/adr.md`) `(review-time: see section note)`
+- `bootstrap` - create the full `docs/` skeleton in a repo that has none yet (uses `~/.agents/templates/docs-readme.md`, `~/.agents/templates/adr-readme.md`, and `~/.agents/templates/adr.md`) `(review-time: see section note)`
 
 If no subcommand matches, ask the user which one they meant before writing anything.
 
@@ -29,7 +29,7 @@ If no subcommand matches, ask the user which one they meant before writing anyth
 If a topic does not clearly fit one quadrant, ask. Do not split a single topic across quadrants.
 
 | Quadrant | Use when... | Don't use when... |
-|----------|-------------|-------------------|
+| --- | --- | --- |
 | explanation | Reader asks *why does this exist* or *how does this fit together* | They want to do a concrete task |
 | reference | Reader needs to look up an exact value, name, or signature | They want narrative context |
 | how-to | Reader has a goal and needs steps | They are still trying to understand the concept |
@@ -45,7 +45,7 @@ If a topic does not clearly fit one quadrant, ask. Do not split a single topic a
 6. **Why before how.** Every explanation doc opens with the problem the thing solves. `(review-time: see section note)`
 7. **No forward-looking content.** Document only behavior that exists now. No "we plan to", no "in the future". `(review-time: see section note)`
 8. **No issue/PR/ticket numbers.** They rot. Put them in PR descriptions and git history, not docs. `(review-time: see section note)`
-9. **ADRs are immutable once Accepted.** A new decision = a new ADR with `Status: Supersedes NNNN`. Never edit the body of an Accepted ADR. `(review-time: see section note)`
+9. **ADRs are immutable once Accepted.** A new decision = a new ADR; the old ADR's status becomes `Superseded by NNNN`. Never edit the body of an Accepted ADR. `(review-time: see section note)`
 10. **Max 300 lines per doc.** If longer, split by sub-topic. `(review-time: see section note)`
 11. **No emoji** unless the user explicitly asked for them. `(review-time: see section note)`
 12. **No em dashes.** Use a regular hyphen. `(review-time: see section note)`
@@ -84,7 +84,7 @@ Use the `/diagram` skill (or `mcp__drawio__*` tools directly) to author drawio d
     adr/
       README.md           # ADR index, table of {NNNN, title, status, date}
       NNNN-<slug>.md
-    diagrams/             # optional shared .mmd snippets, only if reused
+    diagrams/             # drawio sources and exported PNGs
 ```
 
 ## ADR procedure
@@ -96,7 +96,7 @@ When `adr "<title>"`:
 1. Gate check: the decision must be hard to reverse, surprising without context, and a real trade-off. If a criterion fails, name it in one sentence, then write only after the user confirms. `(review-time: see section note)`
 2. Convention scan: look for an existing ADR scheme (directory, numbering, headings). An existing scheme wins; steps 3-5 apply only when none exists. `(review-time: see section note)`
 3. Scan `docs/adr/` for highest existing number. New file = `NNNN-<kebab-title>.md`, zero-padded to 4 digits. `(review-time: see section note)`
-4. Use `~/.agents/templates/adr.md` as the body. Fill `<Title>`, today's date, status `Proposed`. `(review-time: see section note)`
+4. Use `~/.agents/templates/adr.md` as the body. Fill the title placeholder, today's date, status `Proposed`. `(review-time: see section note)`
 5. Append a row to `docs/adr/README.md` table. `(review-time: see section note)`
 6. Ask the user for Context, Decision, Consequences before finalizing - never invent a decision. `(review-time: see section note)`
 
