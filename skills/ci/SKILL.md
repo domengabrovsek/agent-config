@@ -66,4 +66,4 @@ Safe commands to use:
 - After 3 consecutive failures on the **same issue**, stop and escalate - something structural is wrong `(review-time: see section note)`
 - Never weaken tests, skip linting, or lower coverage thresholds to make CI pass `(review-time: see section note)`
 - Never use `--no-verify` or skip hooks `(review-time: see section note)`
-- If a failure looks unrelated to your changes (flaky test, infra issue), flag it to the user rather than trying to fix it `(review-time: see section note)`
+- A failure unrelated to your changes (flaky test, infra issue) is transient: re-run it per step e, and do not edit code for it `(review-time: see section note)`

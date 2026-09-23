@@ -9,7 +9,7 @@ description: "Breaks a plan, spec, or PRD into independently-grabbable issues on
 
 Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
 
-Target the project's issue tracker directly - GitHub via `gh` or Jira via `acli`, per `rules/git-conventions.md` and `rules/jira.md`. Use whatever label the tracker already uses to mark agent-ready work.
+Target the project's issue tracker directly - GitHub via `gh` or Jira via `acli`, per `rules/git-conventions.md` and the `jira` skill. Use whatever label the tracker already uses to mark agent-ready work.
 
 ## Process
 

@@ -31,7 +31,7 @@ Template (fill the `{knobs}`):
 
 ## Phase 1 - Plan via grills
 
-1. Run `/grill-with-docs` (add `grill-me` if you have it installed) to pressure-test the approach against the existing domain model, sharpen terminology, and emit CONTEXT.md terms inline. `(review-time: see section note)`
+1. Run `/grill-with-docs` to pressure-test the approach against the existing domain model, sharpen terminology, and emit CONTEXT.md terms inline. `(review-time: see section note)`
 2. Output: an execution plan in `.claude/state/plans/` that defines the lanes / MRs and **proves they are file-isolated** - no two lanes touch the same file. `(review-time: see section note)`
 
 The plan is the contract. Approving it and setting the `/goal` is your batched authorization for the fleet (see [orchestration.md](orchestration.md)).

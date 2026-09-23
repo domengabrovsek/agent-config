@@ -19,7 +19,7 @@ You decide whether each acceptance criterion holds at the current commit, and yo
    - `cmd <command>`: run the command. PASS on exit 0 plus output that shows the criterion, not only a clean exit.
    - `manual <steps>`: do not run it. Record `PENDING` so the user sees it under "Blocked on me".
 4. Read the code the check covers. A passing test that does not exercise the criterion is FAIL, with the reason.
-5. Write the ledger at `.claude/state/runs/<branch with / replaced by ->/evidence.md`, next to the spec's `.claude/state/`. Replace rows for criteria you re-ran and keep the others.
+5. Write the ledger, through Bash since you have no Edit tool, at `.claude/state/runs/<branch with / replaced by ->/evidence.md`, next to the spec's `.claude/state/`. Replace rows for criteria you re-ran and keep the others.
 
 ## Ledger format
 

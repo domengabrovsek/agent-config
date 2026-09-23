@@ -49,10 +49,10 @@ branch: <feature branch, filled in when build starts>
 - <Explicitly excluded from this work, each item with the reason it is out>
 
 ## Open Questions
-**why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
-
 - <Anything unresolved that needs a decision>
 ```
+
+**why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
 1. **Save**: save the spec to `.claude/state/specs/YYYY-MM-DD-spec-<topic>.md` `(review-time: see section note)`
 2. **Review**: present the spec to the user. Wait for approval before proceeding to /plan. `(review-time: see section note)`

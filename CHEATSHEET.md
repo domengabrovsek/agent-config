@@ -67,9 +67,11 @@ Model-invoked, so describing the work is enough. Naming them still works:
 
 Lightweight helpers; structure is minimal:
 
-- `/diagram`, `/ci`, `/loop`, `/schedule`
+- `/diagram`, `/loop`, `/schedule`
 
-## Workflow phases (4-phase)
+## Workflow
+
+`/deliver <goal>` runs the whole chain below after you approve the spec. Step by step:
 
 ```text
 [/research]       optional orientation
