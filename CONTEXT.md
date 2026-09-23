@@ -38,12 +38,16 @@ _Avoid_: "copy", "fork" - adapters must not duplicate shared guidance.
 The multi-host installer that checks or creates the filesystem links connecting supported agent hosts to this repo.
 _Avoid_: "Codex setup script", "Claude setup script" for the shared installer.
 
+**Hook dispatcher**:
+`hooks/lib/dispatch.sh`, which runs the hooks registered in `settings.json` for a host without Claude Code's native hooks.
+_Avoid_: "hook runner", "hook proxy".
+
 **Behavioral parity**:
 Equivalent host-neutral guidance and skills across supported agent hosts, even when invocation syntax differs.
 _Avoid_: "full parity" - hooks, permissions, and subagent mechanics are outside this boundary.
 
 **Mechanical parity**:
-Equivalent enforcement through host-specific hooks, permissions, notifications, and subagent configuration.
+Equivalent enforcement across hosts: one hook registry run by each host, plus host-specific permissions, notifications, and subagent configuration.
 _Avoid_: "behavioral rules" - this parity is enforced by the host rather than model attention.
 
 **Deny list**:

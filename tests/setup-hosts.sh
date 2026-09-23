@@ -303,7 +303,7 @@ assert_true "custom status migration has one backup" test "$(backup_count "$TEST
 # A compatible fallback and custom status line are a complete no-op.
 new_case codex_compatible
 mkdir -p "$TEST_HOME/.codex"
-printf 'project_doc_fallback_filenames = ["AGENT.md", "CLAUDE.md"]\nmodel_context_window = 1050000\nmodel_auto_compact_token_limit = 950000\n\n[tui]\nstatus_line = ["git-branch"]\n' > "$TEST_HOME/.codex/config.toml"
+printf 'project_doc_fallback_filenames = ["AGENT.md", "CLAUDE.md"]\nmodel_context_window = 1050000\nmodel_auto_compact_token_limit = 950000\n\n[tui]\nstatus_line = ["git-branch"]\n\n[features]\nhooks = true # shared hooks\n' > "$TEST_HOME/.codex/config.toml"
 assert_success "compatible Codex fallback is unchanged" run_setup --apply --host codex
 assert_true "compatible custom status is unchanged" grep -Fq 'status_line = ["git-branch"]' "$TEST_HOME/.codex/config.toml"
 assert_true "compatible Codex config has no backup" test "$(backup_count "$TEST_HOME/.codex/config.toml")" -eq 0
@@ -343,6 +343,73 @@ printf 'project_doc_fallback_filenames = ["CLAUDE.md"]\n\n[tui]\nstatus_line = [
 BEFORE=$(cksum "$TEST_HOME/.codex/config.toml")
 assert_failure "duplicate Codex status lines are refused" run_setup --apply --host codex
 assert_true "duplicate status config is untouched" test "$BEFORE" = "$(cksum "$TEST_HOME/.codex/config.toml")"
+
+# Codex enables hooks inside an existing [features] table, not a second one.
+new_case codex_existing_features
+mkdir -p "$TEST_HOME/.codex"
+printf '[features]\nweb_search = true\n' > "$TEST_HOME/.codex/config.toml"
+assert_success "existing features table gets hooks" run_setup --apply --host codex
+assert_true "existing features table is not duplicated" test "$(grep -c '^\[features\]$' "$TEST_HOME/.codex/config.toml")" -eq 1
+assert_true "hooks flag is inside the features table" test "$(sed -n '/^\[features\]$/,/^\[/p' "$TEST_HOME/.codex/config.toml" | grep -c '^hooks = true$')" -eq 1
+assert_true "existing feature is preserved" grep -Fq 'web_search = true' "$TEST_HOME/.codex/config.toml"
+
+new_case codex_hooks_disabled
+mkdir -p "$TEST_HOME/.codex"
+printf '[features]\nhooks = false\n' > "$TEST_HOME/.codex/config.toml"
+BEFORE=$(cksum "$TEST_HOME/.codex/config.toml")
+assert_failure "a disabled hooks feature is refused" run_setup --apply --host codex
+assert_true "disabled hooks config is untouched" test "$BEFORE" = "$(cksum "$TEST_HOME/.codex/config.toml")"
+
+# Codex hooks.json registers the dispatcher once per registry event.
+write_registry() {
+  cat > "$TEST_REPO/settings.json" <<JSON
+{"hooks": {
+  "PreToolUse": [
+    {"matcher": "Bash", "hooks": [{"type": "command", "command": "a", "timeout": 15}, {"type": "command", "command": "b"}]},
+    {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "c", "timeout": 10}]}
+  ],
+  $1
+  "Notification": [{"hooks": [{"type": "command", "command": "d"}]}]
+}}
+JSON
+}
+new_case codex_hooks
+mkdir -p "$TEST_REPO/hooks/lib"
+printf '#!/bin/bash\n' > "$TEST_REPO/hooks/lib/dispatch.sh"
+chmod +x "$TEST_REPO/hooks/lib/dispatch.sh"
+write_registry ""
+HOOKS_JSON="$TEST_HOME/.codex/hooks.json"
+assert_failure "check reports a missing Codex hooks file" run_setup --check --host codex
+assert_true "check creates no Codex hooks file" test ! -e "$HOOKS_JSON"
+assert_success "apply registers the dispatcher" run_setup --apply --host codex
+assert_true "hooks file covers exactly the registry's Codex events" test "$(jq -c '.hooks | keys' "$HOOKS_JSON")" = '["PreToolUse"]'
+assert_true "the entry calls the dispatcher for its event" test "$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$HOOKS_JSON")" = "'$TEST_REPO/hooks/lib/dispatch.sh' PreToolUse"
+assert_true "the entry budget sums the event's timeouts" test "$(jq '.hooks.PreToolUse[0].hooks[0].timeout' "$HOOKS_JSON")" -eq 85
+assert_true "the hooks feature is enabled" grep -Fxq 'hooks = true' "$TEST_HOME/.codex/config.toml"
+assert_success "check is clean after registering" run_setup --check --host codex
+FIRST_HOOKS=$(cksum "$HOOKS_JSON")
+assert_success "re-apply is idempotent" run_setup --apply --host codex
+assert_true "re-apply leaves the hooks file unchanged" test "$FIRST_HOOKS" = "$(cksum "$HOOKS_JSON")"
+assert_true "re-apply creates no hooks backup" test "$(backup_count "$HOOKS_JSON")" -eq 0
+
+write_registry '"SessionEnd": [{"hooks": [{"type": "command", "command": "e", "timeout": 30}]}],'
+assert_failure "check reports a stale hooks file after a registry change" run_setup --check --host codex
+assert_success "apply regenerates a stale hooks file" run_setup --apply --host codex
+assert_true "regenerated file gains the new event" test "$(jq -c '.hooks | keys' "$HOOKS_JSON")" = '["PreToolUse","SessionEnd"]'
+assert_true "regeneration keeps one backup" test "$(backup_count "$HOOKS_JSON")" -eq 1
+
+new_case codex_hooks_foreign
+mkdir -p "$TEST_REPO/hooks/lib" "$TEST_HOME/.codex"
+printf '#!/bin/bash\n' > "$TEST_REPO/hooks/lib/dispatch.sh"
+chmod +x "$TEST_REPO/hooks/lib/dispatch.sh"
+write_registry ""
+printf '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"mine"}]}]}}\n' > "$TEST_HOME/.codex/hooks.json"
+BEFORE=$(cksum "$TEST_HOME/.codex/hooks.json")
+assert_failure "a user hooks file is refused" run_setup --apply --host codex
+assert_true "a refused user hooks file is untouched" test "$BEFORE" = "$(cksum "$TEST_HOME/.codex/hooks.json")"
+assert_success "a user hooks file can be adopted" run_setup --apply --adopt --host codex
+assert_true "adopt installs the dispatcher" test "$(jq -c '.hooks | keys' "$TEST_HOME/.codex/hooks.json")" = '["PreToolUse"]'
+assert_true "adopt backs up the user hooks file" test "$(backup_count "$TEST_HOME/.codex/hooks.json")" -eq 1
 
 # The legacy command selects only Claude and retains automatic safe adoption.
 new_case legacy_wrapper
