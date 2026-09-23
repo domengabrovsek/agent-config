@@ -125,6 +125,7 @@
     "defaultMode": "auto"
   },
   "model": "opus[1m]",
+  "outputStyle": "Concise",
   "hooks": {
     "PreToolUse": [
       {
@@ -268,17 +269,6 @@
             "type": "command",
             "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; if [ -x \"$HOOK\" ]; then \"$HOOK\" file; fi",
             "timeout": 15
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "nohup bash -c '~/.claude/hooks/watch-pr-checks.sh' >/dev/null 2>&1 &",
-            "if": "Bash(gh pr create *)",
-            "timeout": 5
           }
         ]
       }

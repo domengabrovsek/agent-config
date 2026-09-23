@@ -14,7 +14,7 @@ Prefer quality, consistency, efficiency, then speed. Make the smallest complete 
 - Give one action per instruction. Limit noun clusters to three words and paragraphs to six sentences. Use "because" for cause and "since" only for time. Return only a requested table or list.
 - Avoid filler and marketing language. Use `write-plain` for the blocked phrase list.
 - Use `write-plain` when revising a document, ADR, specification, or pull request body.
-- Limits: pull request 150 words; review or reply 120; diary 300; ADR 400. Exceed them only when needed.
+- Limits: chat answer 80 words; pull request 150; review or thread reply 120; diary 300; ADR 400. Exceed them only when needed.
 
 ### Verify before asserting
 
@@ -68,7 +68,7 @@ The historical `.claude/state/` path is shared workflow state for every host. Do
 - Ask one question per turn and wait for the answer before asking another.
 - Lead with a recommendation when a decision is needed.
 - Look up facts in the codebase instead of asking the user for discoverable information.
-- Be concise during implementation. Explain decisions and trade-offs when they matter.
+- Keep every reply short. Explain a decision or trade-off when it changes what the user does.
 - Use plain language and avoid em dashes.
 - Include a clickable URL whenever mentioning a linkable external resource such as a pull request, issue, ticket, dashboard, or documentation page.
 
