@@ -12,7 +12,7 @@ Follow these disciplines:
 **why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
 - Verify an approved plan exists (in `.claude/state/plans/` or the current conversation) `(review-time: see section note)`
-- If no plan exists, stop and ask the user to run /plan first `(review-time: see section note)`
+- If no plan exists, run `/plan` first. With no spec either, run `/spec` `(review-time: see section note)`
 - Read the plan and identify the task list `(review-time: see section note)`
 - Copy the task list to `.claude/state/runs/<branch-slug>/tasks.md` and tick each task as it finishes. Read that file, not memory, to resume after compaction `(review-time: see section note)`
 - If a spec drives the plan, set its `branch:` frontmatter to the current branch `(review-time: see section note)`
