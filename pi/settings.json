@@ -17,9 +17,9 @@
   "packages": [
     "npm:pi-ollama-cloud",
     "npm:pi-subagents",
-    "npm:@gotgenes/pi-permission-system@29.1.0",
-    "npm:pi-mcp-adapter@2.31.0",
-    "npm:pi-intercom@0.12.1"
+    "npm:@gotgenes/pi-permission-system@33.0.5",
+    "npm:pi-mcp-adapter@2.36.0",
+    "npm:pi-intercom@0.13.0"
   ],
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6-sol"
