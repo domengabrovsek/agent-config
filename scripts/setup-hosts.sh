@@ -234,10 +234,13 @@ manage_codex_config() {
   CONTEXT_MANUAL="manually set TOML root: $CONTEXT_WINDOW"
   COMPACT_MANUAL="manually set TOML root: $COMPACT_LIMIT"
   STATUS_MANUAL="manually set under [tui]: $STATUS_LINE"
+  HOOKS_FEATURE='hooks = true'
+  HOOKS_MANUAL="manually set under [features]: $HOOKS_FEATURE"
   ADD_FALLBACK=1
   ADD_CONTEXT=1
   ADD_COMPACT=1
   ADD_STATUS=1
+  ADD_HOOKS=1
   TUI_COUNT=0
 
   if [ -L "$CONFIG" ] || { [ -e "$CONFIG" ] && [ ! -f "$CONFIG" ]; }; then
@@ -357,9 +360,50 @@ manage_codex_config() {
         return
       fi
     fi
+
+    HOOKS_INFO=$(awk '
+      /^[[:space:]]*\[/ {
+        if (!seen_table) seen_table=1
+        in_features = ($0 ~ /^[[:space:]]*\[features\][[:space:]]*(#.*)?$/)
+      }
+      !seen_table && /^[[:space:]]*features[.]hooks[[:space:]]*=/ { print "root:" $0 }
+      in_features && /^[[:space:]]*hooks[[:space:]]*=/ { print "features:" $0 }
+    ' "$CONFIG")
+    HOOKS_COUNT=$(printf "%s\n" "$HOOKS_INFO" | awk 'NF { count++ } END { print count+0 }')
+    FEATURES_COUNT=$(awk '/^[[:space:]]*\[features\][[:space:]]*(#.*)?$/ { count++ } END { print count+0 }' "$CONFIG")
+
+    if [ "$HOOKS_COUNT" -gt 1 ]; then
+      report "codex/config.toml" "REFUSED" "multiple hooks feature keys; $HOOKS_MANUAL"
+      mark_issue
+      return
+    fi
+    if [ "$HOOKS_COUNT" -eq 1 ]; then
+      if ! printf "%s\n" "$HOOKS_INFO" | grep -Eq '=[[:space:]]*true[[:space:]]*(#.*)?$'; then
+        report "codex/config.toml" "REFUSED" "hooks feature is not true; $HOOKS_MANUAL"
+        mark_issue
+        return
+      fi
+      ADD_HOOKS=0
+    elif [ "$FEATURES_COUNT" -gt 1 ]; then
+      report "codex/config.toml" "REFUSED" "multiple [features] tables; $HOOKS_MANUAL"
+      mark_issue
+      return
+    elif [ "$FEATURES_COUNT" -eq 0 ]; then
+      FEATURES_AMBIGUOUS=$(awk '
+        /^[[:space:]]*\[/ { seen_table=1 }
+        /^[[:space:]]*\[features[.]/ { found=1 }
+        !seen_table && /^[[:space:]]*features[.]/ { found=1 }
+        END { print found+0 }
+      ' "$CONFIG")
+      if [ "$FEATURES_AMBIGUOUS" -eq 1 ]; then
+        report "codex/config.toml" "REFUSED" "nested or dotted features config; $HOOKS_MANUAL"
+        mark_issue
+        return
+      fi
+    fi
   fi
 
-  if [ "$ADD_FALLBACK" -eq 0 ] && [ "$ADD_CONTEXT" -eq 0 ] && [ "$ADD_COMPACT" -eq 0 ] && [ "$ADD_STATUS" -eq 0 ]; then
+  if [ "$ADD_FALLBACK" -eq 0 ] && [ "$ADD_CONTEXT" -eq 0 ] && [ "$ADD_COMPACT" -eq 0 ] && [ "$ADD_STATUS" -eq 0 ] && [ "$ADD_HOOKS" -eq 0 ]; then
     report "codex/config.toml" "OK" "managed defaults configured"
     return
   fi
@@ -379,6 +423,10 @@ manage_codex_config() {
     fi
     if [ "$ADD_STATUS" -eq 1 ]; then
       report "codex/config.toml" "MISSING" "would add default status line"
+      mark_issue
+    fi
+    if [ "$ADD_HOOKS" -eq 1 ]; then
+      report "codex/config.toml" "MISSING" "would enable the hooks feature"
       mark_issue
     fi
     return
@@ -411,17 +459,29 @@ manage_codex_config() {
       if [ "$PREPENDED_ROOT" -gt 0 ] && [ -s "$CONFIG_BACKUP" ]; then
         printf "\n"
       fi
-      awk -v add_status="$ADD_STATUS" -v prepended="$PREPENDED_ROOT" -v status_line="$STATUS_LINE" '
+      awk -v add_status="$ADD_STATUS" -v add_hooks="$ADD_HOOKS" -v prepended="$PREPENDED_ROOT" \
+        -v status_line="$STATUS_LINE" -v hooks_feature="$HOOKS_FEATURE" '
         { print }
         add_status && $0 ~ /^[[:space:]]*\[tui\][[:space:]]*(#.*)?$/ {
           print status_line
-          inserted=1
+          status_done=1
+        }
+        add_hooks && $0 ~ /^[[:space:]]*\[features\][[:space:]]*(#.*)?$/ {
+          print hooks_feature
+          hooks_done=1
         }
         END {
-          if (add_status && !inserted) {
-            if (NR > 0 || prepended) print ""
+          written = NR > 0 || prepended
+          if (add_status && !status_done) {
+            if (written) print ""
             print "[tui]"
             print status_line
+            written=1
+          }
+          if (add_hooks && !hooks_done) {
+            if (written) print ""
+            print "[features]"
+            print hooks_feature
           }
         }
       ' "$CONFIG_BACKUP"
@@ -439,11 +499,115 @@ manage_codex_config() {
     printf "%s\n" "$FALLBACK"
     printf "%s\n" "$CONTEXT_WINDOW"
     printf "%s\n\n" "$COMPACT_LIMIT"
-    printf "[tui]\n%s\n" "$STATUS_LINE"
+    printf "[tui]\n%s\n\n" "$STATUS_LINE"
+    printf "[features]\n%s\n" "$HOOKS_FEATURE"
   } > "$CONFIG"; then
     report "codex/config.toml" "CREATED" "managed defaults"
   else
     report "codex/config.toml" "FAILED" "could not create config"
+    mark_issue
+  fi
+}
+
+# Codex gets one dispatcher entry per registry event instead of a copy of the
+# registry: it runs every matching hook concurrently and has no `if` field, so
+# ordering and filtering live in hooks/lib/dispatch.sh. A file whose commands
+# all call this repo's dispatcher is ours and is regenerated when the registry
+# changes; anything else is a user file and needs --adopt.
+CODEX_HOOK_EVENTS='["PreToolUse", "PostToolUse", "SessionStart", "SessionEnd"]'
+
+manage_codex_hooks() {
+  HOOKS_FILE="$CODEX_DIR/hooks.json"
+  DISPATCHER="$REPO/hooks/lib/dispatch.sh"
+  TRUST_NOTE="review and trust it in Codex"
+
+  if ! command -v jq >/dev/null 2>&1; then
+    report "codex/hooks.json" "FAILED" "jq is required to read the hook registry"
+    mark_issue
+    return
+  fi
+
+  # The dispatcher runs an event's hooks in sequence, so its budget is the sum
+  # of theirs, with Claude's 60-second default for a hook that sets none.
+  if ! EXPECTED=$(jq --arg d "$DISPATCHER" --argjson events "$CODEX_HOOK_EVENTS" '
+    (.hooks // {}) as $h
+    | [$events[] | select(($h[.] // []) | length > 0)]
+    | if length == 0 then empty else
+        {hooks: (map({key: ., value: [{hooks: [{
+          type: "command",
+          command: (($d | @sh) + " " + .),
+          timeout: ([$h[.][].hooks[]? | .timeout // 60] | add)
+        }]}]}) | from_entries)}
+      end
+  ' "$REPO/settings.json" 2>/dev/null); then
+    report "codex/hooks.json" "FAILED" "cannot parse $REPO/settings.json"
+    mark_issue
+    return
+  fi
+
+  if [ -z "$EXPECTED" ]; then
+    report "codex/hooks.json" "OK" "registry has no Codex events"
+    return
+  fi
+  if [ ! -x "$DISPATCHER" ]; then
+    report "codex/hooks.json" "MISSING-SRC" "$DISPATCHER"
+    mark_issue
+    return
+  fi
+  if [ -L "$HOOKS_FILE" ] || { [ -e "$HOOKS_FILE" ] && [ ! -f "$HOOKS_FILE" ]; }; then
+    report "codex/hooks.json" "REFUSED" "must be a regular file"
+    mark_issue
+    return
+  fi
+
+  HOOKS_STATE="missing"
+  if [ -f "$HOOKS_FILE" ]; then
+    if [ "$(jq -S . "$HOOKS_FILE" 2>/dev/null)" = "$(printf '%s\n' "$EXPECTED" | jq -S .)" ]; then
+      report "codex/hooks.json" "OK" "dispatcher registered"
+      return
+    fi
+    if jq -e --arg d "$DISPATCHER" '
+      [.hooks[]?[]?.hooks[]?.command] | length > 0 and all(startswith($d | @sh))
+    ' "$HOOKS_FILE" >/dev/null 2>&1; then
+      HOOKS_STATE="stale"
+    else
+      HOOKS_STATE="foreign"
+    fi
+  fi
+
+  if [ "$MODE" = "check" ]; then
+    case "$HOOKS_STATE" in
+      missing) report "codex/hooks.json" "MISSING" "would register the hook dispatcher" ;;
+      stale) report "codex/hooks.json" "STALE" "registry events changed" ;;
+      foreign) report "codex/hooks.json" "CONFLICT" "user hooks file (requires --adopt)" ;;
+    esac
+    mark_issue
+    return
+  fi
+  if [ "$HOOKS_STATE" = "foreign" ] && [ "$ADOPT" -eq 0 ]; then
+    report "codex/hooks.json" "REFUSED" "user hooks file; re-run with --adopt"
+    mark_issue
+    return
+  fi
+
+  HOOKS_DETAIL="$TRUST_NOTE"
+  if [ "$HOOKS_STATE" != "missing" ]; then
+    HOOKS_BACKUP=$(next_backup "$HOOKS_FILE")
+    if ! mv "$HOOKS_FILE" "$HOOKS_BACKUP"; then
+      report "codex/hooks.json" "FAILED" "could not create backup"
+      mark_issue
+      return
+    fi
+    HOOKS_DETAIL="$TRUST_NOTE; backup: $HOOKS_BACKUP"
+  fi
+  if ensure_parent "$HOOKS_FILE" && printf '%s\n' "$EXPECTED" > "$HOOKS_FILE"; then
+    case "$HOOKS_STATE" in
+      missing) report "codex/hooks.json" "CREATED" "$HOOKS_DETAIL" ;;
+      stale) report "codex/hooks.json" "UPDATED" "$HOOKS_DETAIL" ;;
+      foreign) report "codex/hooks.json" "ADOPTED" "$HOOKS_DETAIL" ;;
+    esac
+  else
+    report "codex/hooks.json" "FAILED" "could not write hooks file"
     mark_issue
   fi
 }
@@ -501,6 +665,7 @@ fi
 if host_enabled codex; then
   manage_link "codex/AGENTS.md" "$CODEX_DIR/AGENTS.md" "$REPO/AGENTS.md"
   manage_codex_config
+  manage_codex_hooks
 fi
 
 if host_enabled pi; then
