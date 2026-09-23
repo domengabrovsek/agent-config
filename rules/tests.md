@@ -11,7 +11,7 @@ paths:
 **When to apply:** editing test files (`*.test.ts`, `*.spec.ts`, `*.test.tsx`, `*.spec.tsx`).
 
 - Vitest preferred as the test runner `(review-time: preference, not enforceable when team picks otherwise)`
-- Mock external dependencies only (APIs, databases, file system) - not internal modules `(review-time: requires understanding the module boundary being mocked)`
+- Mock external dependencies only (third-party APIs, file system, time) - not internal modules. Integration tests use a real test database `(review-time: requires understanding the module boundary being mocked)`
 - Manual class instantiation over dependency injection in tests `(review-time: structural pattern, varies per framework)`
 - Test behavior, not implementation details `(review-time: semantic - which assertions count as implementation-coupled)`
 - No flaky tests in main branch - if a test is flaky, fix or remove it `(CI)`
