@@ -29,5 +29,6 @@ Spawn a teammate via the Agent tool with the matching `subagent_type`. It loads 
 | `GTM Expert` | Google Tag Manager, server-side tagging, GA4, CAPI |
 | `Product Manager` | Feature planning, user stories, success criteria, roadmap |
 | `UX Expert` | Usability, accessibility, WCAG, interaction design |
+| `Spec Verifier` | Checking an implementation against its spec's acceptance criteria before a PR |
 
 Pair them where the work crosses a seam: UI work takes Frontend plus UX, EU data handling adds GDPR, a security-sensitive PR takes PR Reviewer plus Cybersecurity.
