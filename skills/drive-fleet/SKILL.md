@@ -73,7 +73,7 @@ The agent runs `/grill-with-docs`, proves the lanes share no files, writes the p
 Execute the plan at .claude/state/plans/2026-06-02-feature-flags.md
 ```
 
-The manager builds the three lanes in parallel worktrees, opens the MRs (you approve the batch once), then drives CI-fix / review / rebase per repo until the goal clears. Your only inputs after that are the batch approval and any escalation.
+The manager builds the three lanes in parallel worktrees, opens the MRs, then drives CI-fix / review / rebase per repo until the goal clears. Your only input after that is any escalation.
 
 ## Details
 

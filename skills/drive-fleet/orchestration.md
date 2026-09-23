@@ -4,10 +4,9 @@ The manager loop for Phase 2. The main loop is a MANAGER: it polls CI, dispatche
 
 ## Authorization model
 
-Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope downstream work, with exactly one outward checkpoint:
+Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope downstream work, with no per-MR checkpoint:
 
-- **One batched MR gate.** You approve the fleet's MRs in a single batch. This honors `/mr`'s create-time gate (which holds even in auto mode) without serializing the rest of the run.
-- **Hands-off after the gate.** Auto-fix red, retry infra-flake jobs, rebase, and apply review fixes within the plan's lanes - no per-action approval.
+- **Hands-off.** Open MRs via `/mr`, auto-fix red, retry infra-flake jobs, rebase, and apply review fixes within the plan's lanes - no per-action approval.
 - **Always hard-stop and escalate (never plow ahead) on:**
   - a plan-invalidating conflict (e.g. `main` diverged and broke file-isolation)
   - a structural CI failure (the same issue fails 3x - per `/ci`)
@@ -16,7 +15,7 @@ Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope
 ## The loop
 
 1. **Build lanes in parallel.** One subagent per lane, each in its own git worktree, file-isolated, <=4-5 concurrent. Route by domain: Frontend Staff Engineer / Backend Staff Engineer (Agent `subagent_type`, `isolation: "worktree"`). Sequential sub-tickets that share files stay inside ONE agent.
-2. **Open MRs (the batched gate).** Once lanes are pushed, open MRs via `/mr` - conventional commits, no co-author trailers, stacked-MR dependencies and retargeting. Approve the batch once.
+2. **Open MRs.** Once lanes are pushed, open MRs via `/mr` - conventional commits, no co-author trailers, stacked-MR dependencies and retargeting.
 3. **Poll CI in the background.** One Monitor per branch via `/ci` (emits only on status change, zero cost while running). React on Monitor notifications and agent-completion events - never block the manager turn polling.
 4. **Per red MR - fix subagent.** Spawn a domain-expert subagent in that lane's worktree to diagnose and fix. Infra-flake or clearly-unrelated failure -> retry the job (`glab ci retry` / `gh run rerun`); real failure -> fix and push. Same issue 3x -> escalate to the user.
 5. **Per green MR - review subagent.** Spawn a PR Reviewer subagent that applies `/review-pr` and fixes blockers + majors + one-line fixes in the worktree.
@@ -36,7 +35,7 @@ Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope
 
 | Field | Example |
 | --- | --- |
-| `target_branch` | `main` (GitLab) / `develop` (GitHub) |
+| `target_branch` | the repo's default branch, e.g. `main` |
 | verification cmd | `npm run lint:fix && npm run typecheck && npm test && npm run build` |
 | CI tool | glab / gh (auto-detected by `/ci`) |
 | `post_completion_action` | trigger the `notify_reviewers` job / none |

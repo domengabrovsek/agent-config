@@ -62,6 +62,8 @@ The historical `.claude/state/` path is shared workflow state for every host. Do
 
 ## Working with the user
 
+- Keep going when a step does not need the user. Put status notes in the same message as the next action.
+- Stop only when blocked on the user, or before destructive or outward actions beyond a pull request.
 - Ask one question per turn and wait for the answer before asking another.
 - Lead with a recommendation when a decision is needed.
 - Look up facts in the codebase instead of asking the user for discoverable information.
@@ -96,9 +98,9 @@ Load `rulebook` whenever the task needs detailed language, test, database, infra
 
 ## Git and delivery
 
-- Work on a feature branch and never commit directly to `main` or `master`.
+- Work on a feature branch. Never commit or push to `main` or `master`, even with user approval.
 - Use conventional commit messages and do not add AI attribution or co-author trailers.
-- Commit or push only when the user or active workflow authorizes it.
+- Commit, push, and open a pull request for completed feature-branch work without asking.
 - Run the repository's complete quality gate before pushing.
 - Rebase onto the current target branch before opening a pull request.
 - Never force-push or merge a pull request without fresh, explicit user approval.
