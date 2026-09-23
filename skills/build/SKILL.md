@@ -33,6 +33,19 @@ For each task in the plan:
    - If all pass, commit with a conventional commit message `(review-time: see section note)`
    - If any fail, fix before moving to the next task - never accumulate errors across tasks `(review-time: see section note)`
 
+## Slice Loop
+
+When a plan slice lists **Tests first**, run it as a loop with separate roles. The agent that writes code never writes or grades its own tests.
+
+1. **Tests**: a `QA Expert` subagent writes the slice's tests at the spec's seams and runs them. Each must fail for the expected reason. It commits them as `test(...)` and appends their paths to `.claude/state/runs/<branch-slug>/tests.lock` `(review-time: see section note)`
+2. **Implement**: the domain persona from `rules/agent-routing.md`, or this session for a single lane, makes the tests pass. `hooks/pre-edit-test-lock.sh` blocks edits to locked tests. A test it believes is wrong goes back to the `QA Expert` with the reason. Checkpoint as above `(review-time: see section note)`
+3. **Review panel**: in one message, spawn read-only reviewers on the slice diff: `PR Reviewer`, `Cybersecurity Expert`, and `Spec Verifier` for the slice's criteria. Add `GDPR Expert`, `UX Expert`, or `PostgreSQL Expert` when the diff touches their domain `(review-time: see section note)`
+4. **Verify findings**: check each blocker and issue against the code or a reproduction before accepting it. Drop a finding with no file and line or no evidence `(review-time: see section note)`
+5. **Fix**: the implementer fixes accepted code findings, and the `QA Expert` fixes test findings. Checkpoint `(review-time: see section note)`
+6. **Re-review**: the same panel reviews the fix diff. The slice is done when the panel returns no blockers or issues and the Spec Verifier passes `(review-time: see section note)`
+
+Budget: three review rounds per slice. Escalate under **Blocked on me** when the cap is hit, the same failure repeats twice, or a finding invalidates the plan. Log each round in `tasks.md` `(review-time: see section note)`
+
 ## Finishing
 
 - After the last task, spawn the `Spec Verifier` when a spec matches the branch. Fix each FAIL and re-run it until every automated criterion passes at HEAD `(review-time: see section note)`

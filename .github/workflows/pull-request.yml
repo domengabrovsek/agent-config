@@ -99,6 +99,9 @@ jobs:
       - name: Test the pre-push gate
         run: bash tests/pre-push-gate.sh
 
+      - name: Test the test lock
+        run: bash tests/test-lock.sh
+
       - name: Test the evidence gate
         run: bash tests/evidence-gate.sh
 

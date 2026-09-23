@@ -122,6 +122,10 @@ _Avoid_: "requirement" for a line with no check.
 The per-branch table of each criterion's status, check output, and the commit it ran at; written by the Spec Verifier, read by the evidence gate.
 _Avoid_: "test report".
 
+**Test lock**:
+The per-branch list of test files the QA Expert committed for a slice; only the QA Expert may edit them.
+_Avoid_: "frozen tests".
+
 **Spec Verifier**:
 The read-only persona that runs each criterion's check at HEAD and writes the evidence ledger; it never fixes what it finds.
 _Avoid_: "QA agent".

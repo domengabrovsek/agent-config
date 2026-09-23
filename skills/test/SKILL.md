@@ -35,7 +35,7 @@ If you cannot write a failing test, you do not fully understand the bug. Investi
 
 A **seam** is the public boundary you test at: the interface where you observe behaviour without reaching inside. Tests live at seams, never against internals.
 
-**Test only at pre-agreed seams.** Before writing any test, write down the seams under test and confirm them with the user - no test is written at an unconfirmed seam. `(review-time: seam agreement is a conversational step, not pattern-checkable)` You can't test everything; agreeing the seams up front lands testing effort on the critical paths and complex logic instead of every edge case.
+**Test only at pre-agreed seams.** Use the seams in the spec's Seams section. With no spec, write down the seams under test and confirm them with the user - no test is written at an unconfirmed seam. `(review-time: seam agreement is a conversational step, not pattern-checkable)` You can't test everything; agreeing the seams up front lands testing effort on the critical paths and complex logic instead of every edge case.
 
 ## Test Level Selection
 
