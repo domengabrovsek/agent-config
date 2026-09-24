@@ -4,8 +4,8 @@
  * On session teardown (every reason except reload), opportunistically prune
  * safely-disposable git worktrees in the session cwd by invoking
  * scripts/worktree-prune.sh --apply - the same conservative oracle Claude
- * uses: only upstream-gone or merged-into-default branches go, locked
- * worktrees ride inside its safety verdicts, uncertain entries stay.
+ * uses: only upstream-gone, merged-into-default, or squash-merged branches go,
+ * locked worktrees ride inside its safety verdicts, uncertain entries stay.
  *
  * Fully silent by design: the prune is advisory, shutdown-time UI does not
  * render, and scripted pi runs must not gain prune chatter. Dry-run
