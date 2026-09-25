@@ -92,6 +92,7 @@ run_setup_with_pi_dir() {
   HOME="$TEST_HOME" \
   CODEX_HOME="$TEST_HOME/.codex" \
   CLAUDE_CONFIG_DIR="$TEST_HOME/.claude" \
+  AGENT_CONFIG_REPO="" \
   CLAUDE_DOTFILES_REPO="$TEST_REPO" \
     bash "$SETUP" "${@:2}"
 }
@@ -106,6 +107,7 @@ run_wrapper() {
   HOME="$TEST_HOME" \
   CODEX_HOME="$TEST_HOME/.codex" \
   CLAUDE_CONFIG_DIR="$TEST_HOME/.claude" \
+  AGENT_CONFIG_REPO="" \
   CLAUDE_DOTFILES_REPO="$TEST_REPO" \
     bash "$WRAPPER" "$@"
 }
