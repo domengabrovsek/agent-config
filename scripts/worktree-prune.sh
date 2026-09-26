@@ -73,6 +73,15 @@ is_branch_merged() {
   git -C "$repo" merge-base --is-ancestor "$branch" "$default_br" 2>/dev/null
 }
 
+# A merge commit puts a merged branch's tip on its second-parent side. A tip on
+# the default branch's first-parent line means the branch was cut from it and
+# has no commits of its own, like a fresh session worktree. A fast-forward
+# merge looks the same, so it is kept too.
+has_no_own_commits() {
+  local repo="$1" tip="$2" default_br="$3"
+  git -C "$repo" rev-list --first-parent "$default_br" 2>/dev/null | grep -qxF "$tip"
+}
+
 upstream_gone() {
   local repo="$1" branch="$2"
   local track
@@ -82,7 +91,7 @@ upstream_gone() {
 
 # Verdict per worktree: "safe" or "keep". Echos verdict + reason on stdout.
 verdict() {
-  local repo="$1" path="$2" branch="$3" locked="$4" prunable="$5"
+  local repo="$1" path="$2" head="$3" branch="$4" locked="$5" prunable="$6"
   local default_br
   default_br=$(default_branch "$repo")
 
@@ -99,6 +108,9 @@ verdict() {
     echo "safe upstream-gone"; return
   fi
   if is_branch_merged "$repo" "$branch" "$default_br"; then
+    if has_no_own_commits "$repo" "$head" "$default_br"; then
+      echo "keep no-commits-of-its-own"; return
+    fi
     echo "safe merged-into-$default_br"; return
   fi
   if [ "$locked" = "1" ]; then
@@ -124,7 +136,6 @@ prune_repo() {
 
   printf '%s== %s ==%s\n' "$C_DIM" "$repo" "$C_RESET"
 
-  # shellcheck disable=SC2034  # head is a positional field, read but unused
   while IFS=$'\t' read -r path head branch locked prunable; do
     [ -z "$path" ] && continue
     total=$((total+1))
@@ -135,7 +146,7 @@ prune_repo() {
     fi
 
     local v reason
-    v=$(verdict "$repo" "$path" "$branch" "$locked" "$prunable")
+    v=$(verdict "$repo" "$path" "$head" "$branch" "$locked" "$prunable")
     reason=${v#* }
     v=${v%% *}
 

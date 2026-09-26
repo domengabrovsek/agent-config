@@ -112,6 +112,9 @@ jobs:
       - name: Test the PR reply gate
         run: bash tests/pr-reply-gate.sh
 
+      - name: Test the worktree prune verdicts
+        run: bash tests/worktree-prune.sh
+
   # ==============================================
   # Gate
   # ==============================================
