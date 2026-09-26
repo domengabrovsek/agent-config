@@ -134,56 +134,6 @@ jobs:
         if: failure() && steps.review.outcome == 'failure'
         run: jq -r '[.[] | select(.type == "result" and .is_error)] | last | .result // empty' "$RUNNER_TEMP/claude-execution-output.json" || true
 
-  # Shares the reply job's group, so approval decisions for a PR run one at
-  # a time and two jobs cannot both approve the same commit.
-  approve:
-    name: Approve
-    needs: review
-    runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: write
-    concurrency:
-      group: reviewer-post-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
-    steps:
-      # A reply job can approve while the review is still running, so open
-      # threads here also withdraw any approval Claude already gave.
-      - name: Approve when no thread is open
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
-          THREADS_QUERY: >-
-            query($owner: String!, $repo: String!, $pr: Int!) {
-              repository(owner: $owner, name: $repo) {
-                pullRequest(number: $pr) {
-                  reviewThreads(first: 100) { nodes { isResolved comments(first: 1) { nodes { author { login } } } } }
-                }
-              }
-            }
-        run: |
-          # A newer push has its own review and approve run; this one decides nothing.
-          HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
-          [ "$HEAD_SHA" = "$REVIEWED_SHA" ] || { echo "Head moved past $REVIEWED_SHA; skipping."; exit 0; }
-          OPEN=$(gh api graphql \
-            -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
-            -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
-              | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
-          APPROVED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq ".[] | select(.user.login == \"github-actions[bot]\"
-            and .state == \"APPROVED\" and .commit_id == \"$HEAD_SHA\") | .id")
-          if [ "$OPEN" -eq 0 ] && [ -z "$APPROVED" ]; then
-            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "$(shuf -n 1 <<< "$APPROVAL_MESSAGES")"
-          elif [ "$OPEN" -gt 0 ]; then
-            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" \
-              --jq '.[] | select(.user.login == "github-actions[bot]" and .state == "APPROVED") | .id' \
-              | while read -r REVIEW_ID; do
-                  gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews/$REVIEW_ID/dismissals" \
-                    -f message="New review comments are open." -f event=DISMISS --silent
-                done
-          fi
-
   reply-check:
     name: Reply
     if: >-
@@ -280,17 +230,12 @@ jobs:
     if: needs.reply-check.outputs.result != ''
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 5
-    # One run per PR at a time, so two threads settled together cannot each
-    # see the other as open and both skip the approval.
-    concurrency:
-      group: reviewer-post-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
     # Resolving a review thread needs contents: write. This job runs no PR code.
     permissions:
       contents: write
       pull-requests: write
     steps:
-      - name: Reply, resolve, and approve
+      - name: Reply and resolve
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -300,7 +245,7 @@ jobs:
             query($owner: String!, $repo: String!, $pr: Int!) {
               repository(owner: $owner, name: $repo) {
                 pullRequest(number: $pr) {
-                  reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId author { login } } } } }
+                  reviewThreads(first: 100) { nodes { id comments(first: 1) { nodes { databaseId } } } }
                 }
               }
             }
@@ -310,21 +255,64 @@ jobs:
           jq -r '.reply' <<< "$RESULT" > reply.md
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments/$ROOT_ID/replies" -F body=@reply.md --silent
           if [ "$(jq -r '.decision' <<< "$RESULT")" = "resolve" ]; then
-            THREADS=$(gh api graphql \
+            THREAD_ID=$(gh api graphql \
               -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
-              -f query="$THREADS_QUERY")
-            THREAD_ID=$(jq -r --argjson root "$ROOT_ID" \
-              '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].databaseId == $root) | .id' <<< "$THREADS")
+              -f query="$THREADS_QUERY" | jq -r --argjson root "$ROOT_ID" \
+                '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].databaseId == $root) | .id')
             [ -n "$THREAD_ID" ] || { echo "::warning::No review thread found for comment $ROOT_ID"; exit 0; }
             gh api graphql -f threadId="$THREAD_ID" -f query="$RESOLVE_MUTATION" --silent
-            OPEN=$(gh api graphql \
-              -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
-              -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
+          fi
+
+  # Every approval decision happens here, after a review or a posted reply.
+  # Each run re-reads the whole state, so when GitHub cancels a pending run
+  # in this group, the run that replaces it makes the same decision.
+  approve:
+    name: Approve
+    needs: [review, reply-post]
+    if: >-
+      !cancelled() &&
+      (needs.review.result == 'success' || needs.reply-post.result == 'success')
+    runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: reviewer-approve-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    steps:
+      # A reply can settle the last thread while a review of the same commit
+      # is still running, so open threads also withdraw an earlier approval.
+      - name: Approve when no thread is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+          THREADS_QUERY: >-
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) { nodes { isResolved comments(first: 1) { nodes { author { login } } } } }
+                }
+              }
+            }
+        run: |
+          # A newer push has its own review and approve run; this one decides nothing.
+          HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+          [ "$HEAD_SHA" = "$REVIEWED_SHA" ] || { echo "Head moved past $REVIEWED_SHA; skipping."; exit 0; }
+          OPEN=$(gh api graphql \
+            -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
+            -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
-            HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
-            APPROVED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq ".[] | select(.user.login == \"github-actions[bot]\"
-              and .state == \"APPROVED\" and .commit_id == \"$HEAD_SHA\") | .id")
-            if [ "$OPEN" -eq 0 ] && [ -z "$APPROVED" ]; then
-              gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "$(shuf -n 1 <<< "$APPROVAL_MESSAGES")"
-            fi
+          APPROVED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq ".[] | select(.user.login == \"github-actions[bot]\"
+            and .state == \"APPROVED\" and .commit_id == \"$HEAD_SHA\") | .id")
+          if [ "$OPEN" -eq 0 ] && [ -z "$APPROVED" ]; then
+            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "$(shuf -n 1 <<< "$APPROVAL_MESSAGES")"
+          elif [ "$OPEN" -gt 0 ]; then
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" \
+              --jq '.[] | select(.user.login == "github-actions[bot]" and .state == "APPROVED") | .id' \
+              | while read -r REVIEW_ID; do
+                  gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews/$REVIEW_ID/dismissals" \
+                    -f message="New review comments are open." -f event=DISMISS --silent
+                done
           fi
