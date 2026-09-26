@@ -1,9 +1,18 @@
 ---
 name: verify-done
-description: "Runs the comprehensive quality gate before declaring work done: discovers the checks CI actually runs, executes them in order, then reviews git status and the session diff. Use when the user says 'verify done' or '/verify-done', or before pushing any branch."
+description: "Runs the comprehensive quality gate before declaring work done: the repo's `npm run verify` when package.json declares it, otherwise the checks CI runs, then reviews git status and the session diff. Use when the user says 'verify done' or '/verify-done', or before pushing any branch."
 ---
 
 Comprehensive quality gate before declaring work done.
+
+**When package.json declares a `verify` script**, the repo owns the gate. Skip steps 1 and 2:
+
+- Run `npm run verify` once, with `run_in_background` or a 600000ms timeout. It takes minutes.
+- Do not read workflow YAML or run individual checks. `verify` mirrors CI and prints what it skips.
+- On success with a clean tree, `verify` writes HEAD to `<git-dir>/verify-passed`. The PR-open hook reads that stamp.
+- Continue at step 3.
+
+**Otherwise:**
 
 1. **Discover CI steps**: read `.github/workflows/*.yml` (or `.gitlab-ci.yml`, `Jenkinsfile`, etc.) and `package.json` scripts to find the actual checks CI runs. Only run what CI actually runs - do not guess or add extra steps.
 2. **Run each CI step in order**: execute the discovered commands (lint, typecheck, test, build, etc.) in the same order as CI. Stop at the first failure.

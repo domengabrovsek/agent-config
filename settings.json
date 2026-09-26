@@ -167,6 +167,12 @@
           },
           {
             "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-test-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-test-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(gh pr ready *)",
+            "timeout": 30
+          },
+          {
+            "type": "command",
             "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-evidence-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-evidence-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr create *)",
             "timeout": 15
@@ -312,7 +318,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Reminder: follow the workflow (Research - Grill - Spec and plan - Implement - Summarize). Use /grill-with-docs for alignment. Minimal fix first for bugs. Run /verify-done before pushing. Current year: 2026.'"
+            "command": "echo 'Reminder: follow the workflow (Research - Grill - Spec and plan - Implement - Summarize). Use /grill-with-docs for alignment. Minimal fix first for bugs. Run /verify-done before opening a PR. Current year: 2026.'"
           }
         ]
       },

@@ -19,7 +19,7 @@ For full descriptions of each tool see the [README](README.md).
 | Resolve a GitHub issue end-to-end | `/fix-issue 1234` |
 | Review someone's PR | `/review-pr 567` |
 | Verify everything before pushing | `/verify-done` |
-| Open a PR/MR (auto-runs verify-done first, regex-checks the title) | `/mr` |
+| Open a PR/MR (reuses a verify pass at HEAD or runs the gate, regex-checks the title) | `/mr` |
 | Watch CI on the latest PR | `/ci` (or `/loop 2m /ci` on Claude Code) |
 | Address reviewer comments on a PR (bots answered, humans drafted) | `/pr-comments` |
 | Cut a release | `/ship` |
@@ -48,8 +48,8 @@ Some skills enforce a discipline plain English would skip. Use the slash when yo
 - `/build` - quality gates per task
 - `/test` - red-green-refactor or prove-it pattern
 - `/spec` - stakeholder-framed requirements doc
-- `/verify-done` - every CI step in CI's exact order
-- `/mr` - verify-done + commit-format + title-regex gates before opening
+- `/verify-done` - the repo's `npm run verify` when declared, otherwise every CI step in CI's exact order
+- `/mr` - verify pass at HEAD + commit-format + title-regex gates before opening
 - `/ship` - pre-launch validation checklist
 - `/fix-issue` - full issue resolution flow
 - `/review-pr` - severity-tagged review scaffolding
@@ -84,7 +84,7 @@ Lightweight helpers; structure is minimal:
         ↓
 /verify-done      full quality gate
         ↓
-/mr               open PR (gate runs again)
+/mr               open PR (reuses the verify pass at HEAD)
         ↓
 /ci               watch pipeline
         ↓

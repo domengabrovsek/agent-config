@@ -13,7 +13,7 @@ Run these checks in order. Stop at the first failure.
 
 **why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
-- [ ] Run `/verify-done` - stop on first failure (typecheck + lint + tests + build) `(review-time: see section note)`
+- [ ] Full gate passed at HEAD. With a declared `verify`, a `<git-dir>/verify-passed` stamp equal to HEAD on a clean tree counts. Otherwise run `/verify-done` and stop on first failure `(review-time: see section note)`
 - [ ] No debugging artifacts (`console.log`, `debugger`, `.only()`, `TODO` or `FIXME` markers) `(review-time: see section note)`
 
 ### 2. Git Hygiene

@@ -27,7 +27,7 @@ Write tests for: $ARGUMENTS
 2. **Confirm RED**: run the test - it must fail, proving the bug exists in code `(review-time: see section note)`
 3. **Fix**: implement the minimum change to fix the root cause `(review-time: see section note)`
 4. **Confirm GREEN**: run the test - it must now pass `(review-time: see section note)`
-5. **Regression**: run the full test suite to verify nothing else broke `(review-time: see section note)`
+5. **Regression**: run `npm run verify:fast` when package.json declares it, otherwise the full test suite. The full suite runs once per PR in `npm run verify` `(review-time: see section note)`
 
 If you cannot write a failing test, you do not fully understand the bug. Investigate further.
 
@@ -67,4 +67,4 @@ Before considering tests complete:
 - [ ] Mocks only at module boundaries - not on internal code `(review-time: see section note)`
 - [ ] Test names read like specifications `(review-time: see section note)`
 - [ ] All tests pass, no flaky behavior `(review-time: see section note)`
-- [ ] Run full test suite to check for regressions `(review-time: see section note)`
+- [ ] Regression run done: `npm run verify:fast` when declared, otherwise the full test suite `(review-time: see section note)`

@@ -1,9 +1,12 @@
 #!/bin/bash
-# Tests for the pre-push gate's build env.
+# Tests for the pre-push gate.
 #
 # A fresh worktree has no .env, and a build that validates its env fails
 # there for reasons unrelated to the branch. The gate builds such a checkout
 # with the committed .env.example, and leaves a checkout with its own env alone.
+#
+# A repo that declares `verify:fast` runs only that, and a checkout whose
+# core.hooksPath directory is missing blocks until `npm ci` creates it.
 
 set -u
 
@@ -100,6 +103,56 @@ OUT=$(run_gate_cmd "$HUSKY" "git push origin feature/x")
 case "$OUT" in
   *"has its own pre-push hook"*) pass "a husky hooksPath hook counts as the repo's own gate" ;;
   *) echo "    got: $OUT" >&2; fail "a husky hooksPath hook counts as the repo's own gate" ;;
+esac
+
+NOHOOKS="$TEST_ROOT/nohooks"
+make_project "$NOHOOKS"
+git -C "$NOHOOKS" config core.hooksPath .husky/_
+OUT=$(run_gate_cmd "$NOHOOKS" "git push origin feature/x"); STATUS=$?
+case "$OUT" in
+  *"Run 'npm ci'"*) [ "$STATUS" -eq 2 ] && pass "a missing hooksPath directory blocks the push" \
+    || { echo "    exit $STATUS" >&2; fail "a missing hooksPath directory blocks the push"; } ;;
+  *) echo "    got: $OUT" >&2; fail "a missing hooksPath directory blocks the push" ;;
+esac
+
+# A global hooksPath is not the repo's own setting, and git expands its ~.
+GLOBALHOOKS="$TEST_ROOT/globalhooks"
+make_project "$GLOBALHOOKS"
+printf '[core]\n\thooksPath = ~/.githooks-missing\n' > "$TEST_ROOT/global.gitconfig"
+OUT=$(GIT_CONFIG_GLOBAL="$TEST_ROOT/global.gitconfig" run_gate_cmd "$GLOBALHOOKS" "git push origin feature/x")
+case "$OUT" in
+  *"Run 'npm ci'"*) echo "    got: $OUT" >&2; fail "a global ~ hooksPath does not block the push" ;;
+  *) pass "a global ~ hooksPath does not block the push" ;;
+esac
+
+# verify:fast fails unless it runs, so a pass proves it ran and nothing else did.
+FAST="$TEST_ROOT/fast"
+make_project "$FAST"
+cat > "$FAST/package.json" <<'JSON'
+{
+  "name": "probe",
+  "private": true,
+  "scripts": {
+    "verify:fast": "node -e \"require('fs').writeFileSync('ran-fast', '')\"",
+    "test": "node -e \"process.exit(1)\""
+  }
+}
+JSON
+OUT=$(run_gate_cmd "$FAST" "git push origin feature/x"); STATUS=$?
+if [ "$STATUS" -eq 0 ] && [ -f "$FAST/ran-fast" ] && ! printf '%s' "$OUT" | grep -q '\[pre-push-gate\] test'; then
+  pass "a repo declaring verify:fast runs only that"
+else
+  echo "    exit $STATUS, got: $OUT" >&2; fail "a repo declaring verify:fast runs only that"
+fi
+
+cat > "$FAST/package.json" <<'JSON'
+{ "name": "probe", "private": true, "scripts": { "verify:fast": "node -e \"process.exit(3)\"" } }
+JSON
+OUT=$(run_gate_cmd "$FAST" "git push origin feature/x"); STATUS=$?
+case "$OUT" in
+  *"verify:fast FAILED"*) [ "$STATUS" -eq 2 ] && pass "a failing verify:fast blocks the push" \
+    || { echo "    exit $STATUS" >&2; fail "a failing verify:fast blocks the push"; } ;;
+  *) echo "    got: $OUT" >&2; fail "a failing verify:fast blocks the push" ;;
 esac
 
 echo ""

@@ -9,7 +9,9 @@ description: "Create a merge request or pull request from the current branch: ve
 
 **why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
-1. **Run `/verify-done` first**: hard-fail on any failure. Do not proceed to push, title generation, or PR ceremony if lint, typecheck, test, or build is broken. This pre-empts the most common CI failures (lint, format, typecheck) before they cost a CI run. `(review-time: see section note)`
+1. **Make sure the full gate passed at HEAD**: hard-fail on any failure. Do not proceed to push, title generation, or PR ceremony if the gate fails `(review-time: see section note)`
+   - Repo declares `verify` in package.json: skip the run when `<git-dir>/verify-passed` equals HEAD and the tree is clean. Otherwise run `/verify-done`, which runs `npm run verify` once. The PR-open hook blocks without that stamp `(hook)`
+   - Otherwise run `/verify-done`. It pre-empts the most common CI failures before they cost a CI run `(review-time: see section note)`
 2. **Detect VCS platform**: check for `.gitlab-ci.yml` (-> glab) or `.github/` (-> gh) `(review-time: see section note)`
 3. **Determine base branch**: `(review-time: see section note)`
    - GitHub: `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` `(review-time: see section note)`
@@ -68,6 +70,6 @@ description: "Create a merge request or pull request from the current branch: ve
 - If the repo has a specific MR template, prefer it over the default `(review-time: see section note)`
 - Never reference local Claude artifacts (research notes, plans, session summaries under `.claude/state/`, etc.) in the MR/PR description - they only have value locally and mean nothing to reviewers `(review-time: see section note)`
 - Pass the title, body, and base explicitly so the create command never prompts `(review-time: see section note)`
-- Create the MR/PR without asking. The `/verify-done` pass in step 1 is the checkpoint `(review-time: see section note)`
+- Create the MR/PR without asking. The gate pass in step 1 is the checkpoint `(review-time: see section note)`
 - Never push to `main` or `master`. Every change reaches them through an MR/PR, even when the user approves a direct push `(hook)`
 - Never merge the MR/PR. The user merges `(review-time: see section note)`

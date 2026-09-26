@@ -1,6 +1,10 @@
 #!/bin/bash
-# Pre-push gate: block `git push` if lint/typecheck/knip/test/build/audit fail.
+# Pre-push gate: block a `git push` that the repo's checks would fail.
 # Runs as a PreToolUse hook on Bash(git push *) and Bash(git -C *).
+#
+# Order: a repo whose hooks directory is missing blocks, a repo with its own
+# pre-push hook gates itself, a repo declaring `verify:fast` runs only that,
+# and any other repo gets the guessed lint/typecheck/knip/test/build/audit run.
 # Exit code 2 blocks the action and sends the error message to Claude.
 # Bypass with SKIP_PUSH_GATE=1, in the environment or inline in the command.
 
@@ -39,6 +43,23 @@ esac
 
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
+
+# Husky points the repo-local core.hooksPath at a directory `npm ci` creates. A
+# checkout that never ran it has the setting but not the directory, and git
+# then skips every repo hook without a word, so the push would go out ungated.
+# --type=path expands a leading ~ the way git does.
+HOOKS_PATH=$(git -C "$DIR" config --local --type=path --get core.hooksPath 2>/dev/null)
+if [ -n "$HOOKS_PATH" ]; then
+  TOP=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)
+  case "$HOOKS_PATH" in
+    /*) HOOKS_DIR="$HOOKS_PATH" ;;
+    *) HOOKS_DIR="$TOP/$HOOKS_PATH" ;;
+  esac
+  if [ -n "$TOP" ] && [ ! -d "$HOOKS_DIR" ]; then
+    echo "[pre-push-gate] core.hooksPath is $HOOKS_PATH, but $HOOKS_DIR does not exist, so the repo's own hooks would not run. Run 'npm ci' in $TOP, then push again." >&2
+    exit 2
+  fi
+fi
 
 # Find project root: walk up looking for package.json or *.tf
 PROJECT_ROOT=""
@@ -99,6 +120,12 @@ if [ "$PROJECT_TYPE" = "node" ]; then
   has_script() {
     node -e "const p=require('./package.json'); process.exit(p.scripts?.['$1'] ? 0 : 1)" 2>/dev/null
   }
+  # A repo that declares its fast gate owns the push checks.
+  if has_script "verify:fast"; then
+    run_step "verify:fast" "npm run verify:fast"
+    echo "[pre-push-gate] verify:fast passed." >&2
+    exit 0
+  fi
   has_script lint && run_step "lint" "CI=true npm run lint --silent"
   has_script typecheck && run_step "typecheck" "CI=true npm run typecheck --silent"
   has_script knip && run_step "knip" "CI=true npm run knip --silent"
