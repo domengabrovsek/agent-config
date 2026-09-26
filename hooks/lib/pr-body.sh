@@ -62,16 +62,22 @@ if vals:
 }
 
 # extract_pr_title <command>
-# Prints the --title / -t value, or nothing when the command sets no title.
+# Prints the --title / -t value, or nothing when the command sets no title or
+# sets one only the shell can expand, such as "$TITLE" or "$(cat title.txt)".
 extract_pr_title() {
   printf '%s' "$1" | python3 -c '
 import sys, re
 cmd = sys.stdin.read()
+# A quoted body can mention -t, so drop body values before looking for one.
+cmd = re.sub(r"(?:^|\s)(?:-b|--body)[=\s]+([\x27\"])(.*?)\1", " ", cmd, flags=re.S)
 m = re.search(r"(?:^|\s)(?:-t|--title)[=\s]+([\x27\"])(.*?)\1", cmd, re.S)
-if not m:
-    m = re.search(r"(?:^|\s)(?:-t|--title)[=\s]+([^\s\x27\"]+)", cmd)
-    print(m.group(1) if m else "")
+if m:
+    quote, title = m.group(1), m.group(2)
 else:
-    print(m.group(2))
+    m = re.search(r"(?:^|\s)(?:-t|--title)[=\s]+([^\s\x27\"]+)", cmd)
+    quote, title = "", m.group(1) if m else ""
+if quote != "\x27" and re.search(r"[$`]", title):
+    title = ""
+print(title)
 ' 2>/dev/null
 }

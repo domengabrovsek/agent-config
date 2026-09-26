@@ -90,6 +90,10 @@ assert_gate "a non-conventional title blocks" "$REPO" "$GH_CREATE --title \"Add 
 assert_gate "an unknown type blocks" "$REPO" "$GH_CREATE -t \"feature: add a thing\" --body \"x\"" 2 "conventional commit"
 assert_gate "a breaking-change title passes" "$REPO" "$GH_CREATE --title 'feat(api)!: drop v1' --body \"x\"" 0
 assert_gate "no title flag is left to gh" "$REPO" "$GH_CREATE --fill" 0
+assert_gate "a title the shell expands is left to CI" "$REPO" "$GH_CREATE --title \"\$TITLE\" --body \"x\"" 0
+assert_gate "a command-substitution title is left to CI" "$REPO" "$GH_CREATE --title \"\$(cat title.txt)\" --body \"x\"" 0
+assert_gate "a single-quoted dollar title is still checked" "$REPO" "$GH_CREATE --title 'Add a \$5 fee' --body \"x\"" 2 "conventional commit"
+assert_gate "a -t inside the body is not read as the title" "$REPO" "$GH_CREATE --body \"run it with -t 'x'\" --title \"feat: add a thing\"" 0
 
 echo
 echo "== fallback without verify =="
