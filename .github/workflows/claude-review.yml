@@ -91,6 +91,11 @@ jobs:
             --disallowedTools "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,WebSearch,Read(./.git),Read(./.git/**),Read(//proc/**),Read(/${{ runner.temp }}/**)"
             --json-schema '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"],"additionalProperties":false}'
 
+      # Prints only the error text of a failed run, never the transcript.
+      - name: Show the Claude error
+        if: failure() && steps.review.outcome == 'failure'
+        run: jq -r '[.[] | select(.type == "result" and .is_error)] | last | .result // empty' "$RUNNER_TEMP/claude-execution-output.json" || true
+
       - name: Post the review summary
         if: steps.review.outputs.structured_output != ''
         env:
