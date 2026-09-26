@@ -18,23 +18,6 @@ Agents are good at writing code and bad at knowing when they're done. They start
 
 The cost is a few questions up front. Typos and one-liners skip all of it.
 
-## How it works
-
-```mermaid
-flowchart LR
-  research[Research] --> grill[Grill with you]
-  grill --> spec[Spec: you approve]
-  spec --> build[Build]
-  build --> verify[Verify]
-  verify -- fails --> build
-  verify --> pr[Pull request]
-  pr --> review[CI and review]
-  review -- comments --> build
-  review --> merge([You merge])
-```
-
-Each step is its own skill, listed in the [cheatsheet](CHEATSHEET.md). `/deliver <goal>` runs the loop in one pass once you approve the spec, and still leaves the merge to you.
-
 ## Quick start
 
 ```bash
