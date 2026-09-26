@@ -60,3 +60,18 @@ if vals:
     print("\n".join(vals))
 ' 2>/dev/null
 }
+
+# extract_pr_title <command>
+# Prints the --title / -t value, or nothing when the command sets no title.
+extract_pr_title() {
+  printf '%s' "$1" | python3 -c '
+import sys, re
+cmd = sys.stdin.read()
+m = re.search(r"(?:^|\s)(?:-t|--title)[=\s]+([\x27\"])(.*?)\1", cmd, re.S)
+if not m:
+    m = re.search(r"(?:^|\s)(?:-t|--title)[=\s]+([^\s\x27\"]+)", cmd)
+    print(m.group(1) if m else "")
+else:
+    print(m.group(2))
+' 2>/dev/null
+}
