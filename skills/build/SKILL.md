@@ -26,10 +26,10 @@ For each task in the plan:
 1. **Ask**: "What is the simplest thing that could work?" `(review-time: see section note)`
 2. **Scope**: touch only what the task requires - no drive-by refactors, no "while I'm here" changes `(review-time: see section note)`
 3. **Follow `rules/engineering-principles.md`**: vertical slicing, and change sizing (~100 lines per commit, 300 for a cohesive change, split at 1000+) apply `(review-time: see section note)`
-4. **Compile continuously**: the project must build after every increment. Run typecheck after each file change. `(review-time: see section note)`
+4. **Compile continuously**: the project must build after every increment. The post-edit hook checks each edited file; run the typecheck when a change crosses files `(review-time: see section note)`
 5. **Test alongside**: write tests as part of the increment, not as a separate step afterward `(review-time: see section note)`
 6. **Checkpoint**: after completing each task: `(review-time: see section note)`
-   - Run `/verify-done` (typecheck + lint + tests + build) - do not rely on post-edit hooks alone `(review-time: see section note)`
+   - Run `npm run verify:fast` when package.json declares it. Otherwise run `/verify-done`. Do not rely on post-edit hooks alone `(review-time: see section note)`
    - If all pass, commit with a conventional commit message `(review-time: see section note)`
    - If any fail, fix before moving to the next task - never accumulate errors across tasks `(review-time: see section note)`
 
@@ -63,6 +63,6 @@ If the feature is large and will take multiple sessions:
 
 After all tasks are done:
 
-- Run `/verify-done` one final time `(review-time: see section note)`
+- Run `/verify-done` one final time. With a declared `verify`, that is the one full run for the branch `(review-time: see section note)`
 - Summarize what was built and what changed `(review-time: see section note)`
 - Flag any deferred items or follow-up work as issues `(review-time: see section note)`

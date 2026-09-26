@@ -19,7 +19,7 @@ Watch and address comments on: $ARGUMENTS (default: the current branch's PR)
    - `error|persistent-failure`: report and stop `(review-time: see section note)`
 3. **Read the comment and its thread**: `gh api repos/{owner}/{repo}/pulls/comments/<id>` for inline, `.../pulls/<n>/reviews/<id>` for a review, `.../issues/comments/<id>` for conversation `(review-time: see section note)`
 4. **Judge it against the code**: valid, partly valid, or not applicable. Check the claim in the source before agreeing or disagreeing `(review-time: see section note)`
-5. **Fix valid points**, bot or human: make the change, run `/verify-done`, commit, push. Batch comments that arrive together into one commit when they touch the same code `(review-time: see section note)`
+5. **Fix valid points**, bot or human: make the change, run `npm run verify:fast` once per batch when package.json declares it, otherwise `/verify-done`. Commit, push. Batch comments that arrive together into one commit when they touch the same code `(review-time: see section note)`
 6. **Reply by author type**: `(review-time: see section note)`
    - **Bot**: post the reply yourself. Inline comments get a thread reply: `gh api repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -f body=...`. A review body or conversation comment gets a conversation comment that quotes the line it answers `(review-time: see section note)`
    - **Human**: never post. Add the draft to `.claude/state/runs/<branch-slug>/reply-drafts.md` with the comment URL, and show the user the URL and the draft. `hooks/pre-pr-reply-gate.sh` blocks inline replies to humans `(hook)`

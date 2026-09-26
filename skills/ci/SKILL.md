@@ -36,8 +36,9 @@ description: "Monitor the CI pipeline for the current branch via a background Mo
      d. **Classify the failure as transient or real before proposing any change** - transient = infra outage, rate limit, queued/timed-out runner, auth/network flake, registry or dependency propagation delay; real = a test/lint/type/build/coverage failure caused by the code under change. State the classification `(review-time: see section note)`
      e. **If transient**: re-run the failed job (`gh run rerun <run-id> --failed` / `glab ci retry <job-id>`) and keep monitoring - do NOT edit code for a transient failure. Escalate to the user only if it recurs after a re-run `(review-time: see section note)`
      f. Run `~/.agents/scripts/notify.sh "CI failed - <failure-summary>"`
-     g. **If real, fix it**: make the change, run `/verify-done`, commit with a descriptive message, push, and keep monitoring `(review-time: see section note)`
-     h. Report what failed and what changed in the same message as the next action `(review-time: see section note)`
+     g. **If real, fix it**: make the change, run `npm run verify:fast` when package.json declares it, otherwise `/verify-done`. Commit, push, and keep monitoring. The push hook runs the fast gate again `(review-time: see section note)`
+     h. **Before `gh pr ready`**: with a declared `verify`, the hook needs `<git-dir>/verify-passed` equal to HEAD. Run `npm run verify` once if it is not `(review-time: see section note)`
+     i. Report what failed and what changed in the same message as the next action `(review-time: see section note)`
 
 ## How it works
 
