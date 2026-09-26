@@ -41,8 +41,12 @@ add_worktree() {
   git -C "$repo" worktree add -q "$@" -b "$branch" "$repo.wt/$branch" main
 }
 
+# commit_on <repo> <branch>: one commit adding <branch>.txt. Real content,
+# because the squash-merge check compares trees and an empty commit adds none.
 commit_on() {
-  git -C "$1.wt/$2" commit -q --allow-empty -m "work on $2"
+  printf '%s\n' "$2" > "$1.wt/$2/$2.txt"
+  git -C "$1.wt/$2" add "$2.txt"
+  git -C "$1.wt/$2" commit -q -m "work on $2"
 }
 
 # merge_no_ff <repo> <branch>: land a branch the way GitHub's merge button does.
@@ -94,8 +98,17 @@ build_fixture() {
   # is the part before that space.
   add_worktree "$repo" twin
   git -C "$repo" worktree add -q -b twin-spaced "$wt/twin 2" main
-  git -C "$wt/twin 2" commit -q --allow-empty -m "work on twin-spaced"
+  printf 'twin-spaced\n' > "$wt/twin 2/twin-spaced.txt"
+  git -C "$wt/twin 2" add twin-spaced.txt
+  git -C "$wt/twin 2" commit -q -m "work on twin-spaced"
   merge_no_ff "$repo" twin-spaced
+
+  # A squash merge lands the branch as a new commit, so its tip is not an
+  # ancestor of main.
+  add_worktree "$repo" squashed
+  commit_on "$repo" squashed
+  git -C "$repo" merge -q --squash squashed >/dev/null
+  git -C "$repo" commit -q -m "Squash squashed"
 
   add_worktree "$repo" ff-merged
   commit_on "$repo" ff-merged
@@ -188,6 +201,8 @@ assert_verdict "a branch landed by a merge commit is safe" \
   "$WT/merged" "SAFE merged-into-main"
 assert_verdict "a locked branch landed by a merge commit is safe" \
   "$WT/merged-locked" "SAFE merged-into-main"
+assert_verdict "a squash-merged branch is safe" \
+  "$WT/squashed" "SAFE squash-merged-into-main"
 assert_verdict "a branch whose upstream is gone is safe" \
   "$WT/upstream-gone" "SAFE upstream-gone"
 assert_verdict "an unmerged branch is kept" \
@@ -226,6 +241,8 @@ check "a merged worktree is removed" absent "$WT/merged"
 check "a merged worktree's branch is deleted" no_branch "$REPO" merged
 check "a locked merged worktree is unlocked and removed" absent "$WT/merged-locked"
 check "an upstream-gone worktree is removed" absent "$WT/upstream-gone"
+check "a squash-merged worktree is removed" absent "$WT/squashed"
+check "a squash-merged worktree's branch is deleted" no_branch "$REPO" squashed
 check "a merged worktree with a space in its path is removed" absent "$WT/twin 2"
 check "the worktree at that path's first word survives" test -d "$WT/twin"
 check "a dirty merged worktree stays on disk" test -d "$WT/merged-dirty"
@@ -241,7 +258,7 @@ check "a reason git quotes is restored unchanged" \
   'locked "held by \"agent\" at C:\\tmp, caf\303\251"'
 check "a restored lock prints no warning" output_lacks "left unlocked"
 check "the summary counts the failures apart from removals" \
-  output_has "18 total, 4 removed, 11 kept, 3 failed"
+  output_has "19 total, 5 removed, 11 kept, 3 failed"
 
 printf '\n%s passed; %s failed\n' "$PASSED" "$FAILED"
 [[ "$FAILED" -eq 0 ]]

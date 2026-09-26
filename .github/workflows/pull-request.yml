@@ -91,6 +91,9 @@ jobs:
       - name: Test git hook repo resolution
         run: bash tests/resolve-repo.sh
 
+      - name: Test the worktree prune verdicts
+        run: bash tests/worktree-prune.sh
+
       - name: Test the host-neutral hook dispatcher
         run: bash tests/dispatch.sh
 
@@ -111,9 +114,6 @@ jobs:
 
       - name: Test the PR reply gate
         run: bash tests/pr-reply-gate.sh
-
-      - name: Test the worktree prune verdicts
-        run: bash tests/worktree-prune.sh
 
   # ==============================================
   # Gate

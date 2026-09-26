@@ -1,7 +1,8 @@
 #!/bin/bash
 # SessionEnd hook: opportunistically prune safely-disposable worktrees in
 # the current repo. Conservative - only removes worktrees whose branch is
-# upstream-gone or merged into default. Always exits 0; never blocks.
+# upstream-gone, merged into default, or squash-merged. Always exits 0;
+# never blocks.
 # Disable per-session with CLAUDE_DISABLE_WORKTREE_CLEANUP=1.
 
 set -u

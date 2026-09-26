@@ -23,7 +23,8 @@ Strip the `--all` flag from `$ARGUMENTS` and dispatch:
 A worktree is "safe to remove" only if its branch is:
 
 - **upstream-gone** (the remote branch was deleted, typically after PR merge), OR
-- **merged into the repo's default branch** (`origin/HEAD` or `main`/`master`).
+- **merged into the repo's default branch** (`origin/HEAD` or `main`/`master`), OR
+- **squash-merged**: the branch tip is not an ancestor, but merging it into the default branch produces the default branch unchanged. This catches squash merges that never deleted the remote branch.
 
 Locked worktrees are unlocked iff they pass the safety rule. Default-branch checkouts are never removed. Worktrees with unmerged commits or open PRs are kept.
 
