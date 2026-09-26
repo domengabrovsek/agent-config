@@ -59,7 +59,7 @@ jobs:
 
       # Claude Code refuses to scrub subprocess credentials without bubblewrap.
       - name: Install bubblewrap
-        run: sudo apt-get update -q && sudo apt-get install -y -q bubblewrap
+        run: command -v bwrap >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q bubblewrap; }
 
       # The denied Read paths can hold job credentials.
       - name: Review with Claude
