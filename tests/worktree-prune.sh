@@ -15,6 +15,8 @@ TEST_ROOT=$(cd "$(mktemp -d "$TMP_ROOT/worktree-prune-test.XXXXXX")" && pwd -P)
 PASSED=0
 FAILED=0
 OUT=""
+AGENT_REASON="claude agent agent-a1b2c3 (pid 4242)"
+QUOTED_REASON='held by "agent" at C:\tmp, café'
 
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
@@ -48,6 +50,16 @@ merge_no_ff() {
   git -C "$1" merge -q --no-ff -m "Merge $2" "$2"
 }
 
+# add_merged_dirty <repo> <branch> [option...]: a worktree landed by a merge
+# commit that still holds an untracked file, so git refuses to remove it.
+add_merged_dirty() {
+  local repo="$1" branch="$2"
+  add_worktree "$@"
+  commit_on "$repo" "$branch"
+  merge_no_ff "$repo" "$branch"
+  : > "$repo.wt/$branch/untracked.txt"
+}
+
 # build_fixture <repo>: one repo with a worktree for each verdict. Order
 # matters: fresh is cut before main moves on, and ff-merged is cut right before
 # main fast-forwards onto it.
@@ -72,10 +84,11 @@ build_fixture() {
   add_worktree "$repo" merged-locked --lock
   commit_on "$repo" merged-locked
   merge_no_ff "$repo" merged-locked
-  add_worktree "$repo" merged-dirty
-  commit_on "$repo" merged-dirty
-  merge_no_ff "$repo" merged-dirty
-  : > "$wt/merged-dirty/untracked.txt"
+  add_merged_dirty "$repo" merged-dirty
+  # Agent hosts lock worktrees with a reason. Git's porcelain output C-quotes
+  # the second one because it holds a quote, a backslash, and non-ASCII.
+  add_merged_dirty "$repo" merged-dirty-locked --lock --reason "$AGENT_REASON"
+  add_merged_dirty "$repo" merged-dirty-quoted --lock --reason "$QUOTED_REASON"
 
   # A merged worktree whose path has a space, beside a fresh one whose path
   # is the part before that space.
@@ -147,6 +160,16 @@ is_locked() {
     END { exit !found }'
 }
 
+# lock_line_is <repo> <path> <want>: the worktree's porcelain "locked" line,
+# with the reason as git prints it, equals <want>.
+lock_line_is() {
+  local got
+  got=$(git -C "$1" worktree list --porcelain | awk -v p="$2" '
+    /^worktree / { cur = substr($0, 10) }
+    /^locked/ && cur == p { print }')
+  [[ "$got" == "$3" ]]
+}
+
 echo "== verdicts (dry run) =="
 REPO="$TEST_ROOT/dry-run"
 WT="$REPO.wt"
@@ -176,6 +199,8 @@ assert_verdict "a detached worktree is kept as detached" \
 assert_verdict "a locked detached worktree is kept as detached" \
   "$WT/detached-locked" "KEEP detached-HEAD-no-branch"
 check "a detached worktree lists no branch" output_has "$WT/detached  branch=?  reason="
+assert_verdict "a lock reason git quotes leaves the row intact" \
+  "$WT/merged-dirty-quoted" "SAFE merged-into-main"
 assert_verdict "a second checkout of the default branch is kept" \
   "$WT/on-main" "KEEP default-branch-checkout"
 assert_verdict "a path with a space is read whole" \
@@ -208,8 +233,15 @@ check "a failed removal keeps the branch" has_branch "$REPO" merged-dirty
 check "a failed removal is reported with git's reason" \
   output_has "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
 check "a failed removal is not reported as pruned" output_lacks "pruned (disk gone)"
-check "the summary counts the failure apart from removals" \
-  output_has "16 total, 4 removed, 11 kept, 1 failed"
+check "a dirty locked worktree stays on disk" test -d "$WT/merged-dirty-locked"
+check "a failed removal re-locks with the original reason" \
+  lock_line_is "$REPO" "$WT/merged-dirty-locked" "locked $AGENT_REASON"
+check "a reason git quotes is restored unchanged" \
+  lock_line_is "$REPO" "$WT/merged-dirty-quoted" \
+  'locked "held by \"agent\" at C:\\tmp, caf\303\251"'
+check "a restored lock prints no warning" output_lacks "left unlocked"
+check "the summary counts the failures apart from removals" \
+  output_has "18 total, 4 removed, 11 kept, 3 failed"
 
 printf '\n%s passed; %s failed\n' "$PASSED" "$FAILED"
 [[ "$FAILED" -eq 0 ]]
