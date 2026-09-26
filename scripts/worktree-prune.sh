@@ -56,12 +56,13 @@ default_branch() {
 # Parse `git worktree list --porcelain` into rows separated by \037 (unit
 # separator): path, HEAD, branch, locked(0|1), prunable(0|1). Not TAB: read
 # collapses runs of IFS whitespace, so a detached worktree's empty branch
-# would vanish and shift locked into branch.
+# would vanish and shift locked into branch. The path is everything after
+# "worktree ", since it may hold spaces.
 list_worktrees() {
   local repo="$1"
   git -C "$repo" worktree list --porcelain 2>/dev/null | awk '
     BEGIN        { OFS = "\037" }
-    /^worktree / { if (path) print path, head, branch, locked, prunable; path=$2; head=""; branch=""; locked=0; prunable=0; next }
+    /^worktree / { if (path) print path, head, branch, locked, prunable; path=substr($0, 10); head=""; branch=""; locked=0; prunable=0; next }
     /^HEAD /     { head=$2; next }
     /^branch /   { sub(/^branch /,""); sub(/^refs\/heads\//,""); branch=$0; next }
     /^locked/    { locked=1; next }

@@ -77,6 +77,13 @@ build_fixture() {
   merge_no_ff "$repo" merged-dirty
   : > "$wt/merged-dirty/untracked.txt"
 
+  # A merged worktree whose path has a space, beside a fresh one whose path
+  # is the part before that space.
+  add_worktree "$repo" twin
+  git -C "$repo" worktree add -q -b twin-spaced "$wt/twin 2" main
+  git -C "$wt/twin 2" commit -q --allow-empty -m "work on twin-spaced"
+  merge_no_ff "$repo" twin-spaced
+
   add_worktree "$repo" ff-merged
   commit_on "$repo" ff-merged
   git -C "$repo" merge -q --ff-only ff-merged
@@ -101,8 +108,9 @@ run_prune() {
 }
 
 # verdict_of <path>: "<VERDICT> <reason>" from the last run's line for <path>.
+# Matches the whole path, which may hold spaces, up to the branch= column.
 verdict_of() {
-  awk -v p="$1" '$2 == p { r = $NF; sub(/^reason=/, "", r); print $1, r }' <<< "$OUT"
+  awk -v p="$1" 'index($0, " " p "  branch=") { r = $NF; sub(/^reason=/, "", r); print $1, r }' <<< "$OUT"
 }
 
 assert_verdict() {
@@ -170,6 +178,10 @@ assert_verdict "a locked detached worktree is kept as detached" \
 check "a detached worktree lists no branch" output_has "$WT/detached  branch=?  reason="
 assert_verdict "a second checkout of the default branch is kept" \
   "$WT/on-main" "KEEP default-branch-checkout"
+assert_verdict "a path with a space is read whole" \
+  "$WT/twin 2" "SAFE merged-into-main"
+assert_verdict "the worktree at that path's first word keeps its own verdict" \
+  "$WT/twin" "KEEP no-commits-of-its-own"
 check "a dry run removes nothing" [ "$BEFORE" -eq "$(worktree_count "$REPO")" ]
 
 echo
@@ -189,13 +201,15 @@ check "a merged worktree is removed" absent "$WT/merged"
 check "a merged worktree's branch is deleted" no_branch "$REPO" merged
 check "a locked merged worktree is unlocked and removed" absent "$WT/merged-locked"
 check "an upstream-gone worktree is removed" absent "$WT/upstream-gone"
+check "a merged worktree with a space in its path is removed" absent "$WT/twin 2"
+check "the worktree at that path's first word survives" test -d "$WT/twin"
 check "a dirty merged worktree stays on disk" test -d "$WT/merged-dirty"
 check "a failed removal keeps the branch" has_branch "$REPO" merged-dirty
 check "a failed removal is reported with git's reason" \
   output_has "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
 check "a failed removal is not reported as pruned" output_lacks "pruned (disk gone)"
 check "the summary counts the failure apart from removals" \
-  output_has "14 total, 3 removed, 10 kept, 1 failed"
+  output_has "16 total, 4 removed, 11 kept, 1 failed"
 
 printf '\n%s passed; %s failed\n' "$PASSED" "$FAILED"
 [[ "$FAILED" -eq 0 ]]
