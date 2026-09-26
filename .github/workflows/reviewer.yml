@@ -165,7 +165,7 @@ jobs:
             query($owner: String!, $repo: String!, $pr: Int!) {
               repository(owner: $owner, name: $repo) {
                 pullRequest(number: $pr) {
-                  reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId author { login } } } } }
+                  reviewThreads(first: 100) { nodes { id isResolved comments(first: 100) { nodes { databaseId author { login } } } } }
                 }
               }
             }
@@ -175,18 +175,26 @@ jobs:
           THREADS=$(gh api graphql \
             -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
             -f query="$THREADS_QUERY")
-          jq -c '.replies[]' <<< "$RESULT" | while read -r ENTRY; do
-            ROOT_ID=$(jq -r '.thread_id' <<< "$ENTRY")
-            # Only a thread Claude started on this PR takes a reply.
-            THREAD=$(jq -c --argjson root "$ROOT_ID" '.data.repository.pullRequest.reviewThreads.nodes[]
-              | select(.comments.nodes[0].databaseId == $root and .comments.nodes[0].author.login == "github-actions")' <<< "$THREADS")
-            [ -n "$THREAD" ] || { echo "::warning::No Claude thread found for comment $ROOT_ID"; continue; }
+          # An unmatched follow-up fails the job, which holds the approval.
+          UNMATCHED=0
+          while read -r ENTRY; do
+            COMMENT_ID=$(jq -r '.thread_id' <<< "$ENTRY")
+            # Any comment id in a thread Claude started on this PR finds that thread.
+            THREAD=$(jq -c --argjson cid "$COMMENT_ID" '.data.repository.pullRequest.reviewThreads.nodes[]
+              | select(.comments.nodes[0].author.login == "github-actions" and any(.comments.nodes[]; .databaseId == $cid))' <<< "$THREADS")
+            if [ -z "$THREAD" ]; then
+              echo "::error::No Claude thread holds comment $COMMENT_ID"
+              UNMATCHED=1
+              continue
+            fi
+            ROOT_ID=$(jq -r '.comments.nodes[0].databaseId' <<< "$THREAD")
             jq -r '.reply' <<< "$ENTRY" > reply.md
             gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments/$ROOT_ID/replies" -F body=@reply.md --silent
             if [ "$(jq -r '.isResolved' <<< "$THREAD")" = "true" ]; then
               gh api graphql -f threadId="$(jq -r '.id' <<< "$THREAD")" -f query="$UNRESOLVE_MUTATION" --silent
             fi
-          done
+          done < <(jq -c '.replies[]' <<< "$RESULT")
+          exit "$UNMATCHED"
 
   reply-check:
     name: Reply
