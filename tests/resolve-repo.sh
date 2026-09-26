@@ -94,6 +94,25 @@ case "$OUT" in
   *) echo "    got: $OUT" >&2; fail "pre-git-state-refresh finds the repo and branch" ;;
 esac
 
+# gh reads the branch from its cwd, so this stub answers only when it runs in
+# the payload repo. Run anywhere else, the probe reports the wrong PR state.
+BIN="$TEST_ROOT/bin"
+mkdir -p "$BIN"
+cat > "$BIN/gh" <<'STUB'
+#!/bin/bash
+[ "$(pwd -P)" = "$GH_STUB_DIR" ] || exit 1
+echo '{"state":"MERGED","mergedAt":"2026-01-01T00:00:00Z","url":"https://example.test/pull/1"}'
+STUB
+chmod +x "$BIN/gh"
+git init -q --bare "$TEST_ROOT/origin.git"
+git -C "$REPO" remote add origin "$TEST_ROOT/origin.git"
+OUT=$(GH_STUB_DIR=$(cd "$REPO" && pwd -P) PATH="$BIN:$PATH" \
+  run_hook pre-git-state-refresh.sh "git push origin feature/branch")
+case "$OUT" in
+  *"state=MERGED"*) pass "pre-git-state-refresh asks gh about the payload repo's branch" ;;
+  *) echo "    got: $OUT" >&2; fail "pre-git-state-refresh asks gh about the payload repo's branch" ;;
+esac
+
 # The branch gate must see the payload repo's branch, not the caller's.
 git -C "$REPO" checkout -q -B main
 OUT=$(run_hook pre-commit-branch-gate.sh "git commit -m 'feat: x'")
