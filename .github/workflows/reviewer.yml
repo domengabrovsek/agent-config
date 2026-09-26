@@ -3,9 +3,12 @@
 # ==============================================
 # Claude reviews each new or ready pull request with inline comments, then
 # talks through the repo owner's replies in those threads and resolves a
-# thread once the point is settled. Claude authenticates with a Pro/Max
+# thread once the point is settled. Claude approves the pull request once
+# none of its threads is open, either after a review with no comments or
+# after it resolves its last thread. Claude authenticates with a Pro/Max
 # subscription through the CLAUDE_CODE_OAUTH_TOKEN secret, created with
-# `claude setup-token`.
+# `claude setup-token`. Approving needs the repository setting "Allow GitHub
+# Actions to create and approve pull requests".
 #
 # Fork PRs are skipped: pull_request withholds secrets from them, and
 # pull_request_target would hand the token to untrusted PR content.
@@ -99,6 +102,27 @@ jobs:
             --setting-sources user
             --allowedTools "mcp__github_inline_comment__create_inline_comment"
             --disallowedTools "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,WebSearch,Read(./.git),Read(./.git/**),Read(//proc/**),Read(/${{ runner.temp }}/**)"
+
+      - name: Approve when no thread is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          THREADS_QUERY: >-
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) { nodes { isResolved comments(first: 1) { nodes { author { login } } } } }
+                }
+              }
+            }
+        run: |
+          OPEN=$(gh api graphql \
+            -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
+            -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
+              | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
+          if [ "$OPEN" -eq 0 ]; then
+            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "No open points from the review."
+          fi
 
       # Prints only the error text of a failed run, never the transcript.
       - name: Show the Claude error
@@ -206,7 +230,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Reply and resolve
+      - name: Reply, resolve, and approve
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -216,7 +240,7 @@ jobs:
             query($owner: String!, $repo: String!, $pr: Int!) {
               repository(owner: $owner, name: $repo) {
                 pullRequest(number: $pr) {
-                  reviewThreads(first: 100) { nodes { id comments(first: 1) { nodes { databaseId } } } }
+                  reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId author { login } } } } }
                 }
               }
             }
@@ -226,10 +250,18 @@ jobs:
           jq -r '.reply' <<< "$RESULT" > reply.md
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments/$ROOT_ID/replies" -F body=@reply.md --silent
           if [ "$(jq -r '.decision' <<< "$RESULT")" = "resolve" ]; then
-            THREAD_ID=$(gh api graphql \
+            THREADS=$(gh api graphql \
               -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
-              -f query="$THREADS_QUERY" | jq -r --argjson root "$ROOT_ID" \
-                '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].databaseId == $root) | .id')
+              -f query="$THREADS_QUERY")
+            THREAD_ID=$(jq -r --argjson root "$ROOT_ID" \
+              '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].databaseId == $root) | .id' <<< "$THREADS")
             [ -n "$THREAD_ID" ] || { echo "::warning::No review thread found for comment $ROOT_ID"; exit 0; }
             gh api graphql -f threadId="$THREAD_ID" -f query="$RESOLVE_MUTATION" --silent
+            # The snapshot predates the resolve, so the thread just resolved still reads as open.
+            OPEN=$(jq --arg id "$THREAD_ID" '[.data.repository.pullRequest.reviewThreads.nodes[]
+              | select(.isResolved | not) | select(.id != $id)
+              | select(.comments.nodes[0].author.login == "github-actions")] | length' <<< "$THREADS")
+            if [ "$OPEN" -eq 0 ]; then
+              gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "All review points are settled."
+            fi
           fi
