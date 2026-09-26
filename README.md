@@ -1,94 +1,67 @@
 # Shared Agent Configuration
 
-Shared behavioral configuration for Claude Code, Codex, and Pi. It provides structured workflows, safety boundaries, code standards, and reusable engineering skills from one repo.
+This is my setup for coding agents. The same config runs in Claude Code, Codex, and Pi.
 
-The root `AGENTS.md` is the concise shared instruction source. `skills/`, `rules/`, and the historical `.claude/state/` path are shared across agent hosts. Hooks, permissions, notifications, and teammate mechanics remain host-specific.
+## Why
 
-Claude Code uses selective links under `~/.claude/` plus a second account dir (default `~/.claude-personal`) via `CLAUDE_CONFIG_DIRS`. Codex and Pi link their native instruction paths to `AGENTS.md`.
+Agents are good at writing code and bad at knowing when they're done. They start before they understand the problem, claim things they didn't check, and push work that fails CI. Most of that goes away with a few habits.
 
-Every host also gets `~/.agents/`, the shared root. It holds `skills`, `rules`, `scripts`, `templates`, `references`, `agents`, and the pull request template. A shared skill names `~/.agents/...` so one path resolves on every host.
+**Grill before building.** The agent questions me one decision at a time until we agree. It writes the plan down before it touches code.
+
+**Give it a way to check its work.** It runs the repo's own checks before pushing, and backs every claim with a file, command, or test.
+
+**Enforce with hooks, not prompts.** An agent can forget a rule. It can't skip a hook. Hooks and a deny list block force-pushes, pushes to main, and `rm -rf`.
+
+**Fix mistakes once.** When an agent gets something wrong, the fix lands here as a rule or hook, so every future session has it.
+
+**Bring in specialists.** Expert personas review security, database, cloud, and frontend work.
+
+The cost is a few questions up front. Typos and one-liners skip the questions. The hooks still run.
 
 ## Quick start
 
+You need `git`, `bash`, `jq`, and at least one of Claude Code, Codex, or Pi.
+
+The easiest path is to clone the repo, open your agent in it, and ask:
+
+> Set this repo up for me with `scripts/setup-hosts.sh`. Run `--check` first, and ask me before using `--adopt`.
+
+To do it by hand, clone the repo and link your hosts. These two steps are required:
+
 ```bash
-# Clone the repo - the setup script auto-detects its own location
 git clone git@github.com:domengabrovsek/agent-config.git
 cd agent-config
-
-# Report drift without changing anything
-bash scripts/setup-hosts.sh --check
-
-# Create only missing links and safe Codex config defaults; refuse conflicts
 bash scripts/setup-hosts.sh --apply
-
-# After reviewing conflicts, move them to timestamped backups and link them
-bash scripts/setup-hosts.sh --apply --adopt
-
-# Strip ephemeral state Claude Code and Pi write to settings.json at runtime
-git config filter.strip-ephemeral-state.clean 'jq "del(.feedbackSurveyState, .lastChangelogVersion, .autoMode)" 2>/dev/null || cat'
-git config filter.strip-ephemeral-state.smudge cat
 ```
 
-The filter is per-clone, so a checkout that skips those two commands will commit whatever the host wrote at runtime, including the `autoMode` environment inventory. `scripts/config-integrity.sh` fails the build when that reaches a commit, and prints the two commands to fix it.
+The rest is optional:
 
-`--check` is read-only and exits nonzero when drift exists. `--apply` never replaces a real path or wrong symlink. `--adopt` is the only replacement mode, and it moves every conflict to an adjacent `<path>.bak.<timestamp>` backup instead of deleting it. The existing `scripts/setup-symlinks.sh` command remains a Claude-only compatibility wrapper.
+- `bash scripts/setup-hosts.sh --check` previews what `--apply` changes, without touching anything.
+- `--host claude`, `--host codex`, or `--host pi` sets up one host instead of all.
+- `--apply --adopt` replaces files that already exist, keeping a timestamped backup of each.
+- If you commit changes to this repo, add a filter that keeps runtime state out of `settings.json` commits:
 
-### Machine host scope
+  ```bash
+  git config filter.strip-ephemeral-state.clean 'jq "del(.feedbackSurveyState, .lastChangelogVersion, .autoMode)" 2>/dev/null || cat'
+  git config filter.strip-ephemeral-state.smudge cat
+  ```
 
-A machine that does not use every default dir records its own scope in `~/.agents/hosts.env`, sourced by the bootstrap when present. Entries use the `:=` form, so a real environment variable still wins:
-
-```sh
-: "${CLAUDE_CONFIG_DIRS:=$HOME/.claude}"
-: "${PI_CONFIG_DIRS:=$HOME/.pi/agent}"
-: "${HARNESS_SKIP_HOSTS:=codex}"
-```
-
-`HARNESS_SKIP_HOSTS` applies only under `--host all`; an explicit `--host codex` always runs. `AGENT_HOSTS_ENV` relocates the file.
-
-Without this, an argument-free `--check` re-derives the two-dir defaults and reports permanent drift on dirs the machine never adopted. That matters because the `drift-check` extension calls the script with no arguments and no environment, so the scope has to be a recorded fact rather than a shell prefix someone remembers to type.
-
-For Codex, the bootstrap adds the shared-instruction fallback, the long-context window and its compaction limit, and a built-in TUI status line, each only when absent. It preserves an existing custom status line. It also enables Codex hooks and writes `~/.codex/hooks.json`, which sends every hook event to `hooks/lib/dispatch.sh`. The deny list reaches Codex through `hooks/deny-gate.sh`: it blocks Bash commands matching a Bash rule, edits and shell commands naming a denied path, and denied MCP tools. Like the Pi policy, it is friction, not a sandbox. An existing hooks file of your own needs `--adopt`. Codex asks you to trust the hooks once, and again after each regeneration.
-
-### Pi
-
-Install Pi separately from the host configuration:
-
-```bash
-npm install -g --ignore-scripts @earendil-works/pi-coding-agent
-bash scripts/setup-hosts.sh --apply --host pi
-```
-
-The Pi selector links instructions, `agents/`, `extensions/`, `settings.json`, `models.json`, and `mcp.json` into every configured pi agent dir. `PI_CONFIG_DIRS` defaults to `~/.pi/agent` plus `~/.pi-personal/agent`; `PI_CODING_AGENT_DIR` overrides it. It links shared skills under `~/.agents/skills`. These resources apply in interactive, print, JSON, and RPC modes. See [Pi's usage documentation](https://pi.dev/docs/latest/usage).
-
-The bootstrap does not install or upgrade Pi. It does not manage providers, models, credentials, project trust, tools, or isolation. Pi has no built-in sandbox, so unattended work needs an external boundary. See [Pi's security guidance](https://pi.dev/docs/latest/security). Auto-compaction stays off by choice: a long session is handed off or stopped rather than silently summarized.
-
-The `permission-gate` extension derives pi's permission policy from the deny list in the root `settings.json` (the **Derived policy**): `Read` rules become `path_read` surfaces, `Edit`/`Write` rules `path_write`, `Bash` rules command patterns, and MCP rules are enforced rather than skipped. Mechanical enforcement is the pinned [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system) package; this extension regenerates its `config.json` at every session start and announces a stale policy loudly. Only deny rules are generated - the universal fallback is `allow` - so semantics stay deny-wins and headless sessions never prompt. The bash surface also states its `*: allow` catch-all first, because the package applies the last matching rule and warns when bash inherits the fallback. Rules without a translation fail in tests, not at runtime. It remains friction, not a sandbox: deliberately obfuscated commands still win, so unattended pi work still needs the external boundary above.
-
-The `hook-bridge` extension enforces the same hooks as Claude Code. It sends bash, edit, and write calls through `hooks/lib/dispatch.sh`, blocks a call when a hook exits 2, and appends hook feedback to the tool result. `pi/settings.json` loads it into foreground subagent children through `subagents.defaultSubagentOnlyExtensions`, and it reads the child's persona from the `<active_agent>` tag in its system prompt.
-
-`pi-ollama-cloud` adds the Ollama Cloud provider. Two more pinned packages complete the stack: [`pi-mcp-adapter`](https://pi.dev/packages/pi-mcp-adapter) loads Notion, Slack, and Playwright from `pi/mcp.json`, plus each project's `.mcp.json` (host-specific config discovery stays off), and [`pi-intercom`](https://pi.dev/packages/pi-intercom) lets sessions message each other directly and lets delegated children escalate to their supervisor.
-
-Agent delegation is provided by the [`pi-subagents`](https://pi.dev/packages/pi-subagents) package: shared personas (`agents/` tree) spawn as focused child pi sessions, background runs return control while the child keeps working, and worktree-isolated lanes come back with a managed branch. Its worktrees default to the system temp dir (`pi-parallel-*` branches; retarget with `PI_SUBAGENTS_WORKTREE_DIR`) and `worktree-prune` still sweeps them after merges. Note the shared `agents/` tree is reachable through the links, and agents can author personas into it - review `git status` after unusual runs.
-
-Run `/reload` after installing MCP configuration. Authenticate Notion with `/mcp-auth notion` and Slack with `/mcp-auth slack`; credentials stay outside this repository. Project `.mcp.json` overrides global servers with matching names, and `.pi/mcp.json` has highest precedence. Pi does not import Claude's MCP configuration.
-
-The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensions/`) and are tracked like the claude root files. See [the Pi adapter decision](docs/decisions.md#pi-adapter-under-pi) for the adapter boundary.
+For Pi, a machine that uses only some hosts, or how each host is wired, see [setup](docs/setup.md).
 
 ## What's inside
 
-- **`AGENTS.md`** - concise host-neutral instructions loaded by every supported host. Claude Code has no user-level `AGENTS.md`, so the bootstrap links `~/.claude/CLAUDE.md` to it. See [the host-sharing decision](docs/decisions.md#one-instruction-file-and-skill-library-for-every-host).
-- **`rules/`** - detailed standards loaded directly by Claude Code and through the `rulebook` skill by other hosts.
-- **`agents/`** - expert personas, spawned as Claude Code subagents and as Pi child sessions through `pi-subagents`. Routing is in [`rules/agent-routing.md`](rules/agent-routing.md).
-- **`skills/`** - shared workflows such as `grill-with-docs`, `build`, `debug`, `research`, and `verify-done`.
-- **`hooks/`** - guardrail scripts registered in `settings.json`. Claude Code runs them natively; Codex and Pi run the same registry through `hooks/lib/dispatch.sh`.
-- **`scripts/`** - the multi-host bootstrap, its Claude compatibility wrapper, and utilities used by hooks and skills.
-- **`docs/decisions.md`** - the design decisions still in force, with the reason for each.
-- **`references/`** - long-form checklists (security, testing) loaded by skills on demand.
-- **`templates/`** - boilerplate for new ADRs and docs.
+- `AGENTS.md` - shared instructions for every host
+- `rules/` - detailed standards
+- `skills/` - shared workflows
+- `agents/` - expert personas
+- `hooks/` - guardrail scripts
+- `settings.json` - hook registry and deny list
+- `scripts/` - bootstrap and utilities
 
-## More
+## Docs
 
-- **Security boundaries** - the deny list and Bash restrictions live in [`settings.json`](settings.json).
-- **CI** - `.github/workflows/pull-request.yml` runs six jobs. They cover markdown linting, the rule budget, the prose gate, the pi extension tests, the shell test suites, and config integrity. A single `Gate` check aggregates them.
-- **Reviewer** - `.github/workflows/reviewer.yml` has Claude review each new or ready PR from this repository with inline comments. When the owner replies in a thread, Claude answers or resolves it. It needs the `CLAUDE_CODE_OAUTH_TOKEN` secret from `claude setup-token`.
-- **Local gate** - `scripts/config-budget.sh`, `scripts/config-integrity.sh`, and `scripts/shellcheck-all.sh` each run standalone and are what CI invokes.
+- [Setup](docs/setup.md) - install, hosts, and checks
+- [Decisions](docs/decisions.md) - why it works this way
+- [Agents](docs/agents.md) - persona catalog
+- [Cheatsheet](CHEATSHEET.md) - intent to skill
+- [Context](CONTEXT.md) - glossary
