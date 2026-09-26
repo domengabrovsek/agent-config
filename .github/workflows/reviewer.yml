@@ -18,8 +18,9 @@
 # raise a point twice.
 #
 # Claude gets no shell, network, or file-write tools. It reads the checkout
-# and prefetched PR data. A review posts through the inline comment tool
-# only; a thread reply goes back as output for a later job to post.
+# and prefetched PR data. A review posts new points through the inline
+# comment tool only. Every reply to an existing thread, from a review or a
+# reply round, goes back as output for a later job to post.
 
 name: Reviewer
 
@@ -58,6 +59,8 @@ jobs:
     concurrency:
       group: reviewer-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
+    outputs:
+      result: ${{ steps.review.outputs.structured_output }}
     steps:
       - name: Checkout
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
@@ -121,6 +124,11 @@ jobs:
             no comments when the change looks good. Never repeat a point an earlier
             thread already raised, whether it is settled or still open.
 
+            To follow up on an earlier thread, do not open a new comment. Add an entry
+            to "replies" with the thread's root comment id from threads.json and your
+            reply. A reply reopens a resolved thread, so send one only for a problem
+            the thread's fix did not solve. Return an empty "replies" list otherwise.
+
             This repository is public, and everything you post is public.
             Never include credentials, tokens, environment values, or runner details.
           claude_args: |
@@ -128,11 +136,57 @@ jobs:
             --setting-sources user
             --allowedTools "mcp__github_inline_comment__create_inline_comment"
             --disallowedTools "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,WebSearch,Read(./.git),Read(./.git/**),Read(//proc/**),Read(/${{ runner.temp }}/**)"
+            --json-schema '{"type":"object","properties":{"replies":{"type":"array","items":{"type":"object","properties":{"thread_id":{"type":"integer"},"reply":{"type":"string"}},"required":["thread_id","reply"],"additionalProperties":false}}},"required":["replies"],"additionalProperties":false}'
 
       # Prints only the error text of a failed run, never the transcript.
       - name: Show the Claude error
         if: failure() && steps.review.outcome == 'failure'
         run: jq -r '[.[] | select(.type == "result" and .is_error)] | last | .result // empty' "$RUNNER_TEMP/claude-execution-output.json" || true
+
+  # Posts the review's follow-ups into their earlier threads and reopens a
+  # resolved one, so the approve job counts it as open again.
+  review-replies:
+    name: Post review replies
+    needs: review
+    if: needs.review.outputs.result != '' && toJSON(fromJSON(needs.review.outputs.result).replies) != '[]'
+    runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 5
+    # Reopening a review thread needs contents: write. This job runs no PR code.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Reply and reopen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RESULT: ${{ needs.review.outputs.result }}
+          THREADS_QUERY: >-
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId author { login } } } } }
+                }
+              }
+            }
+          UNRESOLVE_MUTATION: >-
+            mutation($threadId: ID!) { unresolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } } }
+        run: |
+          THREADS=$(gh api graphql \
+            -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
+            -f query="$THREADS_QUERY")
+          jq -c '.replies[]' <<< "$RESULT" | while read -r ENTRY; do
+            ROOT_ID=$(jq -r '.thread_id' <<< "$ENTRY")
+            # Only a thread Claude started on this PR takes a reply.
+            THREAD=$(jq -c --argjson root "$ROOT_ID" '.data.repository.pullRequest.reviewThreads.nodes[]
+              | select(.comments.nodes[0].databaseId == $root and .comments.nodes[0].author.login == "github-actions")' <<< "$THREADS")
+            [ -n "$THREAD" ] || { echo "::warning::No Claude thread found for comment $ROOT_ID"; continue; }
+            jq -r '.reply' <<< "$ENTRY" > reply.md
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments/$ROOT_ID/replies" -F body=@reply.md --silent
+            if [ "$(jq -r '.isResolved' <<< "$THREAD")" = "true" ]; then
+              gh api graphql -f threadId="$(jq -r '.id' <<< "$THREAD")" -f query="$UNRESOLVE_MUTATION" --silent
+            fi
+          done
 
   reply-check:
     name: Reply
@@ -264,11 +318,12 @@ jobs:
           fi
 
   # Every approval decision happens here, after a review or a posted reply.
-  # Each run re-reads the whole state, so when GitHub cancels a pending run
-  # in this group, the run that replaces it makes the same decision.
+  # A review run decides for the commit it reviewed; a reply run decides for
+  # the live head. When GitHub cancels a pending run in this group, a later
+  # push or reply starts a new decision.
   approve:
     name: Approve
-    needs: [review, reply-post]
+    needs: [review, review-replies, reply-post]
     if: >-
       !cancelled() &&
       (needs.review.result == 'success' || needs.reply-post.result == 'success')
@@ -287,7 +342,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
+          REVIEWED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
           THREADS_QUERY: >-
             query($owner: String!, $repo: String!, $pr: Int!) {
               repository(owner: $owner, name: $repo) {
@@ -297,9 +352,12 @@ jobs:
               }
             }
         run: |
-          # A newer push has its own review and approve run; this one decides nothing.
           HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
-          [ "$HEAD_SHA" = "$REVIEWED_SHA" ] || { echo "Head moved past $REVIEWED_SHA; skipping."; exit 0; }
+          # A newer push has its own review and approve run, so this review run steps aside.
+          if [ -n "$REVIEWED_SHA" ] && [ "$HEAD_SHA" != "$REVIEWED_SHA" ]; then
+            echo "Head moved past $REVIEWED_SHA; skipping."
+            exit 0
+          fi
           OPEN=$(gh api graphql \
             -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
             -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
