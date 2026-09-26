@@ -129,7 +129,26 @@ jobs:
             --allowedTools "mcp__github_inline_comment__create_inline_comment"
             --disallowedTools "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,WebSearch,Read(./.git),Read(./.git/**),Read(//proc/**),Read(/${{ runner.temp }}/**)"
 
-      # A reply job can approve while this review is still running, so open
+      # Prints only the error text of a failed run, never the transcript.
+      - name: Show the Claude error
+        if: failure() && steps.review.outcome == 'failure'
+        run: jq -r '[.[] | select(.type == "result" and .is_error)] | last | .result // empty' "$RUNNER_TEMP/claude-execution-output.json" || true
+
+  # Shares the reply job's group, so approval decisions for a PR run one at
+  # a time and two jobs cannot both approve the same commit.
+  approve:
+    name: Approve
+    needs: review
+    runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: reviewer-post-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    steps:
+      # A reply job can approve while the review is still running, so open
       # threads here also withdraw any approval Claude already gave.
       - name: Approve when no thread is open
         env:
@@ -148,7 +167,6 @@ jobs:
             -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
             -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
-          # The reply job may have approved this commit already; one approval is enough.
           HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
           APPROVED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq ".[] | select(.user.login == \"github-actions[bot]\"
             and .state == \"APPROVED\" and .commit_id == \"$HEAD_SHA\") | .id")
@@ -162,11 +180,6 @@ jobs:
                     -f message="New review comments are open." -f event=DISMISS --silent
                 done
           fi
-
-      # Prints only the error text of a failed run, never the transcript.
-      - name: Show the Claude error
-        if: failure() && steps.review.outcome == 'failure'
-        run: jq -r '[.[] | select(.type == "result" and .is_error)] | last | .result // empty' "$RUNNER_TEMP/claude-execution-output.json" || true
 
   reply-check:
     name: Reply
