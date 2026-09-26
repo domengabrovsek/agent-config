@@ -148,9 +148,13 @@ jobs:
             -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
             -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
-          if [ "$OPEN" -eq 0 ]; then
+          # The reply job may have approved this commit already; one approval is enough.
+          HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+          APPROVED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq ".[] | select(.user.login == \"github-actions[bot]\"
+            and .state == \"APPROVED\" and .commit_id == \"$HEAD_SHA\") | .id")
+          if [ "$OPEN" -eq 0 ] && [ -z "$APPROVED" ]; then
             gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "$(shuf -n 1 <<< "$APPROVAL_MESSAGES")"
-          else
+          elif [ "$OPEN" -gt 0 ]; then
             gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" \
               --jq '.[] | select(.user.login == "github-actions[bot]" and .state == "APPROVED") | .id' \
               | while read -r REVIEW_ID; do
@@ -301,7 +305,10 @@ jobs:
               -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
               -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
-            if [ "$OPEN" -eq 0 ]; then
+            HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+            APPROVED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq ".[] | select(.user.login == \"github-actions[bot]\"
+              and .state == \"APPROVED\" and .commit_id == \"$HEAD_SHA\") | .id")
+            if [ "$OPEN" -eq 0 ] && [ -z "$APPROVED" ]; then
               gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "$(shuf -n 1 <<< "$APPROVAL_MESSAGES")"
             fi
           fi
