@@ -107,17 +107,18 @@ if m:
 fi
 
 # A "$(cat <<EOF ... EOF)" body ends with the heredoc close, so unwrap it
-# before checking what the body ends with.
+# before checking what the body ends with. The footer needs a blank line
+# above it, or GitHub renders it inline at the end of the last sentence.
 if ! printf '%s' "$BODY" | python3 -c '
 import re, sys
 body = sys.stdin.read().strip()
 h = re.match(r"\$\(cat <<-?[\x27\"]?(\w+)[\x27\"]?\n(.*)\n\s*\1\s*\)$", body, re.S)
 if h:
     body = h.group(2).strip()
-sys.exit(0 if re.search(r"<sub>Posted by [^<]+ on behalf of @[A-Za-z0-9-]+</sub>$", body) else 1)
+sys.exit(0 if re.search(r"\n[ \t]*\n<sub>Posted by [^<]+ on behalf of @[A-Za-z0-9-]+</sub>$", body) else 1)
 '; then
-  echo "[pre-pr-reply-gate] This comment posts under the user's account without the agent footer." >&2
-  echo "End the body with: <sub>Posted by <agent> on behalf of @<login></sub>" >&2
+  echo "[pre-pr-reply-gate] This comment posts under the user's account without the agent footer on its own line." >&2
+  echo "End the body with a blank line, then: <sub>Posted by <agent> on behalf of @<login></sub>" >&2
   echo "Write the body inline or in a file; a body built from a variable cannot be checked." >&2
   echo "(Bypass: SKIP_REPLY_FOOTER=1)" >&2
   exit 2
