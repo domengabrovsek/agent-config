@@ -14,6 +14,7 @@ Every host reaches these files at `~/.agents/rules/`. Claude Code also has them 
 | Task or context | Read |
 | --- | --- |
 | Any implementation | `rules/engineering-principles.md` |
+| Running a bash or shell command | `rules/shell-commands.md` |
 | Editing code comments | `rules/comments.md` |
 | Editing TypeScript | `rules/typescript.md` |
 | Editing or designing tests | `rules/tests.md` |

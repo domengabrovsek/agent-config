@@ -1,9 +1,10 @@
 #!/bin/bash
 # worktree-prune: identify and (optionally) remove safely-disposable git
 # worktrees. Conservative by default - only removes worktrees whose branch
-# is upstream-gone (PR merged + remote branch deleted) OR merged into the
-# repo's default branch. Locked worktrees are auto-unlocked iff the branch
-# is safely removable.
+# is upstream-gone (PR merged + remote branch deleted), merged into the
+# repo's default branch, or squash-merged (its changes are already in the
+# default branch even though its tip is not an ancestor). Locked worktrees
+# are auto-unlocked iff the branch is safely removable.
 #
 # Usage:
 #   worktree-prune.sh [--apply] [--repo <path>]
@@ -73,6 +74,21 @@ is_branch_merged() {
   git -C "$repo" merge-base --is-ancestor "$branch" "$default_br" 2>/dev/null
 }
 
+# A squash merge rewrites the branch as one commit on the default branch, so
+# the tip is not an ancestor and upstream_gone stays silent while the remote
+# branch survives. Merge the branch into default in memory instead: when the
+# result equals default, the branch adds nothing and is safe to drop. Needs
+# git >= 2.38; older git rejects the flag and the tree is kept.
+is_branch_squash_merged() {
+  local repo="$1" branch="$2" default_br="$3"
+  [ -z "$default_br" ] && return 1
+  local out tree
+  out=$(git -C "$repo" merge-tree --write-tree "$default_br" "$branch" 2>/dev/null) || return 1
+  tree=$(printf '%s\n' "$out" | head -n 1)
+  [ -n "$tree" ] || return 1
+  git -C "$repo" diff --quiet "$default_br" "$tree" 2>/dev/null
+}
+
 upstream_gone() {
   local repo="$1" branch="$2"
   local track
@@ -100,6 +116,9 @@ verdict() {
   fi
   if is_branch_merged "$repo" "$branch" "$default_br"; then
     echo "safe merged-into-$default_br"; return
+  fi
+  if is_branch_squash_merged "$repo" "$branch" "$default_br"; then
+    echo "safe squash-merged-into-$default_br"; return
   fi
   if [ "$locked" = "1" ]; then
     echo "keep locked-and-not-merged"; return
