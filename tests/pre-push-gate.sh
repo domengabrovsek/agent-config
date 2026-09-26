@@ -6,7 +6,10 @@
 # with the committed .env.example, and leaves a checkout with its own env alone.
 #
 # A repo that declares `verify:fast` runs only that, and a checkout whose
-# core.hooksPath directory is missing blocks until `npm ci` creates it.
+# core.hooksPath directory is missing blocks until the install creates it.
+#
+# Node checks run through the repo's package manager. Those cases run the gate
+# under a PATH of stub managers, so no real npm, pnpm, or yarn runs.
 
 set -u
 
@@ -180,6 +183,137 @@ case "$OUT" in
     || { echo "    exit $STATUS" >&2; fail "a Bun repo without bun skips the audit"; } ;;
   *) echo "    got: $OUT" >&2; fail "a Bun repo without bun skips the audit" ;;
 esac
+
+echo ""
+echo "== package manager =="
+
+# Only the tools the gate needs, plus stub managers that log their argv. A
+# stub answers --version with STUB_VERSION and an audit with STUB_AUDIT_EXIT.
+BIN="$TEST_ROOT/bin"
+STUB_LOG="$TEST_ROOT/stub.log"
+mkdir -p "$BIN"
+for TOOL in bash cat dirname git grep head jq ls node sed tail; do
+  TOOL_PATH=$(command -v "$TOOL") || { echo "Missing required tool: $TOOL" >&2; exit 1; }
+  ln -s "$TOOL_PATH" "$BIN/$TOOL"
+done
+
+make_stub() {
+  cat > "$BIN/$1" <<'STUB'
+#!/bin/bash
+echo "${0##*/} $*" >> "$STUB_LOG"
+case " $* " in
+  *" --version "*) echo "${STUB_VERSION:-1.0.0}" ;;
+  *" audit "*) exit "${STUB_AUDIT_EXIT:-0}" ;;
+esac
+exit 0
+STUB
+  chmod +x "$BIN/$1"
+}
+make_stub npm
+make_stub pnpm
+
+PM_MANIFEST='{"scripts":{"lint":"x","build":"x"}}'
+
+# pm_project <name> [package.json]: a repo with node_modules. Prints its path.
+pm_project() {
+  local dir="$TEST_ROOT/pm-$1"
+  mkdir -p "$dir/node_modules"
+  git -C "$dir" init -q
+  printf '%s\n' "${2:-$PM_MANIFEST}" > "$dir/package.json"
+  echo "$dir"
+}
+
+# run_pm_gate <dir>: sets OUT and STATUS, and starts STUB_LOG empty.
+run_pm_gate() {
+  : > "$STUB_LOG"
+  OUT=$(printf '{"cwd":"%s","tool_input":{"command":"git push origin feature/x"}}' "$1" \
+    | (cd "$TEST_ROOT" && PATH="$BIN" STUB_LOG="$STUB_LOG" CLAUDE_PROJECT_DIR="" SKIP_PUSH_GATE="" \
+      bash "$PROJECT_DIR/hooks/pre-push-gate.sh" 2>&1))
+  STATUS=$?
+}
+
+exited() { [ "$STATUS" -eq "$1" ]; }
+says() { case "$OUT" in *"$1"*) return 0 ;; *) return 1 ;; esac; }
+logged() { grep -qxF -- "$1" "$STUB_LOG"; }
+never_ran() { ! grep -q -- "^$1 " "$STUB_LOG"; }
+
+# check <name> <predicate> [args...]
+check() {
+  local name="$1"
+  shift
+  if "$@"; then pass "$name"; else
+    echo "    exit $STATUS, got: $OUT" >&2
+    echo "    calls: $(paste -sd ';' - < "$STUB_LOG")" >&2
+    fail "$name"
+  fi
+}
+
+REPO=$(pm_project pnpm-field '{"packageManager":"pnpm@10.4.1","scripts":{"lint":"x","build":"x"}}')
+run_pm_gate "$REPO"
+check "the packageManager field selects pnpm and passes" exited 0
+check "scripts run through pnpm with --silent before run" logged "pnpm --silent run lint"
+check "the audit uses the pnpm non-JSON form" logged "pnpm audit --audit-level critical"
+check "npm never runs in a pnpm repo" never_ran npm
+
+REPO=$(pm_project pnpm-lock)
+: > "$REPO/pnpm-lock.yaml"
+run_pm_gate "$REPO"
+check "pnpm-lock.yaml selects pnpm" logged "pnpm --silent run build"
+
+REPO=$(pm_project field-wins '{"packageManager":"pnpm@10.4.1","scripts":{}}')
+: > "$REPO/package-lock.json"
+run_pm_gate "$REPO"
+check "the packageManager field beats a stray package-lock.json" \
+  logged "pnpm audit --audit-level critical"
+
+REPO=$(pm_project workspace)
+: > "$REPO/pnpm-lock.yaml"
+mkdir -p "$REPO/apps/web/node_modules"
+echo '{"scripts":{"build":"x"}}' > "$REPO/apps/web/package.json"
+run_pm_gate "$REPO/apps/web"
+check "a push from a workspace package finds the root lockfile" logged "pnpm --silent run build"
+
+REPO=$(pm_project pnpm-critical)
+: > "$REPO/pnpm-lock.yaml"
+STUB_AUDIT_EXIT=1 run_pm_gate "$REPO"
+check "a failing pnpm audit blocks" exited 2
+check "the block names the audit step" says "audit FAILED"
+
+REPO=$(pm_project pnpm-fast '{"packageManager":"pnpm@10.4.1","scripts":{"verify:fast":"x"}}')
+run_pm_gate "$REPO"
+check "verify:fast runs through the repo's manager" logged "pnpm run verify:fast"
+
+REPO=$(pm_project npm-lock)
+: > "$REPO/package-lock.json"
+run_pm_gate "$REPO"
+check "package-lock.json passes" exited 0
+check "scripts run through npm" logged "npm --silent run lint"
+check "the audit uses npm" logged "npm audit --audit-level=critical"
+
+REPO=$(pm_project no-lock)
+run_pm_gate "$REPO"
+check "no field and no lockfile falls back to npm" logged "npm audit --audit-level=critical"
+
+rm "$BIN/pnpm"
+REPO=$(pm_project pnpm-missing)
+: > "$REPO/pnpm-lock.yaml"
+run_pm_gate "$REPO"
+check "a missing package manager blocks" exited 2
+check "the block names the missing manager" says "uses pnpm, which is not on PATH"
+make_stub pnpm
+
+REPO=$(pm_project no-modules)
+: > "$REPO/pnpm-lock.yaml"
+rmdir "$REPO/node_modules"
+run_pm_gate "$REPO"
+check "a missing node_modules blocks" exited 2
+check "the block names the pnpm install" says "run 'pnpm install' there first"
+
+REPO=$(pm_project pnpm-husky)
+: > "$REPO/pnpm-lock.yaml"
+git -C "$REPO" config core.hooksPath .husky/_
+run_pm_gate "$REPO"
+check "a missing hooksPath directory names the pnpm install" says "Run 'pnpm install' in"
 
 echo ""
 echo "$PASSED passed; $FAILED failed"
