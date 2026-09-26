@@ -71,6 +71,10 @@ build_fixture() {
   add_worktree "$repo" merged-locked --lock
   commit_on "$repo" merged-locked
   merge_no_ff "$repo" merged-locked
+  add_worktree "$repo" merged-dirty
+  commit_on "$repo" merged-dirty
+  merge_no_ff "$repo" merged-dirty
+  : > "$wt/merged-dirty/untracked.txt"
 
   add_worktree "$repo" ff-merged
   commit_on "$repo" ff-merged
@@ -120,6 +124,8 @@ check() {
 }
 
 keeps() { [[ "$(verdict_of "$1")" == KEEP* ]]; }
+output_has() { [[ "$OUT" == *"$1"* ]]; }
+output_lacks() { [[ "$OUT" != *"$1"* ]]; }
 absent() { [[ ! -e "$1" ]]; }
 has_branch() { git -C "$1" show-ref --verify --quiet "refs/heads/$2"; }
 no_branch() { ! has_branch "$1" "$2"; }
@@ -178,6 +184,13 @@ check "a merged worktree is removed" absent "$WT/merged"
 check "a merged worktree's branch is deleted" no_branch "$REPO" merged
 check "a locked merged worktree is unlocked and removed" absent "$WT/merged-locked"
 check "an upstream-gone worktree is removed" absent "$WT/upstream-gone"
+check "a dirty merged worktree stays on disk" test -d "$WT/merged-dirty"
+check "a failed removal keeps the branch" has_branch "$REPO" merged-dirty
+check "a failed removal is reported with git's reason" \
+  output_has "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
+check "a failed removal is not reported as pruned" output_lacks "pruned (disk gone)"
+check "the summary counts the failure apart from removals" \
+  output_has "13 total, 3 removed, 9 kept, 1 failed"
 
 printf '\n%s passed; %s failed\n' "$PASSED" "$FAILED"
 [[ "$FAILED" -eq 0 ]]

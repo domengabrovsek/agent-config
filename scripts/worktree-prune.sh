@@ -129,7 +129,7 @@ prune_repo() {
   # Drop disk-gone entries first
   git -C "$repo" worktree prune 2>/dev/null
 
-  local total=0 safe=0 kept=0 acted=0
+  local total=0 safe=0 kept=0 acted=0 failed=0
   local rows
   rows=$(list_worktrees "$repo")
   [ -z "$rows" ] && return 0
@@ -157,7 +157,8 @@ prune_repo() {
         if [ "$locked" = "1" ]; then
           git -C "$repo" worktree unlock "$path" 2>/dev/null
         fi
-        if git -C "$repo" worktree remove "$path" 2>/dev/null; then
+        local err
+        if err=$(git -C "$repo" worktree remove "$path" 2>&1); then
           # Delete the local branch too if not the default and it exists
           if [ -n "$branch" ] && [ "$branch" != "$(default_branch "$repo")" ]; then
             git -C "$repo" branch -D "$branch" >/dev/null 2>&1 || true
@@ -165,10 +166,11 @@ prune_repo() {
           acted=$((acted+1))
           printf '         %s-> removed%s\n' "$C_DIM" "$C_RESET"
         else
-          # Disk-missing, just clean the registry
-          git -C "$repo" worktree prune 2>/dev/null
-          acted=$((acted+1))
-          printf '         %s-> pruned (disk gone)%s\n' "$C_DIM" "$C_RESET"
+          # remove succeeds when the directory is already gone, so a failure
+          # is git refusing, most often over modified or untracked files.
+          err=${err%%$'\n'*}
+          failed=$((failed+1))
+          printf '         %s-> not removed: %s%s\n' "$C_YELLOW" "${err#fatal: }" "$C_RESET"
         fi
       fi
     else
@@ -180,7 +182,7 @@ prune_repo() {
   done <<< "$rows"
 
   if [ "$APPLY" = "1" ]; then
-    printf '  %s%d total, %d removed, %d kept%s\n\n' "$C_DIM" "$total" "$acted" "$kept" "$C_RESET"
+    printf '  %s%d total, %d removed, %d kept, %d failed%s\n\n' "$C_DIM" "$total" "$acted" "$kept" "$failed" "$C_RESET"
   else
     printf '  %s%d total, %d safe-to-remove, %d kept%s\n\n' "$C_DIM" "$total" "$safe" "$kept" "$C_RESET"
   fi
