@@ -59,6 +59,7 @@ build_fixture() {
   add_worktree "$repo" fresh
   add_worktree "$repo" fresh-locked --lock
   git -C "$repo" worktree add -q --detach "$wt/detached" main
+  git -C "$repo" worktree add -q --detach --lock "$wt/detached-locked" main
 
   add_worktree "$repo" unmerged
   commit_on "$repo" unmerged
@@ -123,7 +124,6 @@ check() {
   fi
 }
 
-keeps() { [[ "$(verdict_of "$1")" == KEEP* ]]; }
 output_has() { [[ "$OUT" == *"$1"* ]]; }
 output_lacks() { [[ "$OUT" != *"$1"* ]]; }
 absent() { [[ ! -e "$1" ]]; }
@@ -163,7 +163,11 @@ assert_verdict "an unmerged branch is kept" \
   "$WT/unmerged" "KEEP unmerged-or-active"
 assert_verdict "a locked unmerged branch is kept" \
   "$WT/unmerged-locked" "KEEP locked-and-not-merged"
-check "a detached worktree is kept" keeps "$WT/detached"
+assert_verdict "a detached worktree is kept as detached" \
+  "$WT/detached" "KEEP detached-HEAD-no-branch"
+assert_verdict "a locked detached worktree is kept as detached" \
+  "$WT/detached-locked" "KEEP detached-HEAD-no-branch"
+check "a detached worktree lists no branch" output_has "$WT/detached  branch=?  reason="
 assert_verdict "a second checkout of the default branch is kept" \
   "$WT/on-main" "KEEP default-branch-checkout"
 check "a dry run removes nothing" [ "$BEFORE" -eq "$(worktree_count "$REPO")" ]
@@ -180,6 +184,7 @@ check "a fresh worktree at main's tip survives --apply" test -d "$WT/fresh-at-ti
 check "a fresh locked worktree stays locked" is_locked "$REPO" "$WT/fresh-locked"
 check "an unmerged worktree survives --apply" test -d "$WT/unmerged"
 check "a detached worktree survives --apply" test -d "$WT/detached"
+check "a locked detached worktree stays locked" is_locked "$REPO" "$WT/detached-locked"
 check "a merged worktree is removed" absent "$WT/merged"
 check "a merged worktree's branch is deleted" no_branch "$REPO" merged
 check "a locked merged worktree is unlocked and removed" absent "$WT/merged-locked"
@@ -190,7 +195,7 @@ check "a failed removal is reported with git's reason" \
   output_has "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
 check "a failed removal is not reported as pruned" output_lacks "pruned (disk gone)"
 check "the summary counts the failure apart from removals" \
-  output_has "13 total, 3 removed, 9 kept, 1 failed"
+  output_has "14 total, 3 removed, 10 kept, 1 failed"
 
 printf '\n%s passed; %s failed\n' "$PASSED" "$FAILED"
 [[ "$FAILED" -eq 0 ]]

@@ -53,17 +53,20 @@ default_branch() {
   echo ""
 }
 
-# Parse `git worktree list --porcelain` into TAB-separated rows:
-#   path \t HEAD \t branch \t locked(0|1) \t prunable(0|1)
+# Parse `git worktree list --porcelain` into rows separated by \037 (unit
+# separator): path, HEAD, branch, locked(0|1), prunable(0|1). Not TAB: read
+# collapses runs of IFS whitespace, so a detached worktree's empty branch
+# would vanish and shift locked into branch.
 list_worktrees() {
   local repo="$1"
   git -C "$repo" worktree list --porcelain 2>/dev/null | awk '
-    /^worktree / { if (path) print path"\t"head"\t"branch"\t"locked"\t"prunable; path=$2; head=""; branch=""; locked=0; prunable=0; next }
+    BEGIN        { OFS = "\037" }
+    /^worktree / { if (path) print path, head, branch, locked, prunable; path=$2; head=""; branch=""; locked=0; prunable=0; next }
     /^HEAD /     { head=$2; next }
     /^branch /   { sub(/^branch /,""); sub(/^refs\/heads\//,""); branch=$0; next }
     /^locked/    { locked=1; next }
     /^prunable/  { prunable=1; next }
-    END          { if (path) print path"\t"head"\t"branch"\t"locked"\t"prunable }
+    END          { if (path) print path, head, branch, locked, prunable }
   '
 }
 
@@ -136,7 +139,7 @@ prune_repo() {
 
   printf '%s== %s ==%s\n' "$C_DIM" "$repo" "$C_RESET"
 
-  while IFS=$'\t' read -r path head branch locked prunable; do
+  while IFS=$'\037' read -r path head branch locked prunable; do
     [ -z "$path" ] && continue
     total=$((total+1))
     # Skip the main worktree
