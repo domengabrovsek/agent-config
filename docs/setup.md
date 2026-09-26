@@ -86,4 +86,4 @@ Run `/reload` after installing MCP configuration. Authenticate Notion with `/mcp
 
 - **Local gate:** `scripts/config-budget.sh`, `scripts/config-integrity.sh`, and `scripts/shellcheck-all.sh` each run standalone. CI runs the same scripts.
 - **CI:** `.github/workflows/pull-request.yml` runs the checks, and a single `Gate` check aggregates them.
-- **Reviewer:** `.github/workflows/reviewer.yml` has Claude review each new or ready PR with inline comments. When the owner replies in a thread, Claude answers or resolves it. It needs the `CLAUDE_CODE_OAUTH_TOKEN` secret from `claude setup-token`.
+- **Reviewer:** `.github/workflows/reviewer.yml` has Claude review each new or ready PR with inline comments. When the owner replies in a thread, Claude answers or resolves it. A fork PR gets one review each time the owner adds the `safe-to-review` label, with no approval or reply rounds. It needs the `CLAUDE_CODE_OAUTH_TOKEN` secret from `claude setup-token`.
