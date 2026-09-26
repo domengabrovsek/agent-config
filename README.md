@@ -16,24 +16,37 @@ Agents are good at writing code and bad at knowing when they're done. They start
 
 **Bring in specialists.** Expert personas review security, database, cloud, and frontend work.
 
-The cost is a few questions up front. Typos and one-liners skip all of it.
+The cost is a few questions up front. Typos and one-liners skip the questions. The hooks still run.
 
 ## Quick start
+
+You need `git`, `bash`, `jq`, and at least one of Claude Code, Codex, or Pi.
+
+The easiest path is to clone the repo, open your agent in it, and ask:
+
+> Set this repo up for me with `scripts/setup-hosts.sh`. Run `--check` first, and ask me before using `--adopt`.
+
+To do it by hand, clone the repo and link your hosts. These two steps are required:
 
 ```bash
 git clone git@github.com:domengabrovsek/agent-config.git
 cd agent-config
-
-# Report drift, then link every host to this checkout
-bash scripts/setup-hosts.sh --check
 bash scripts/setup-hosts.sh --apply
-
-# Keep the runtime state hosts write to settings.json out of commits
-git config filter.strip-ephemeral-state.clean 'jq "del(.feedbackSurveyState, .lastChangelogVersion, .autoMode)" 2>/dev/null || cat'
-git config filter.strip-ephemeral-state.smudge cat
 ```
 
-For conflicts, Pi, or a machine that uses only some hosts, see [setup](docs/setup.md).
+The rest is optional:
+
+- `bash scripts/setup-hosts.sh --check` previews what `--apply` changes, without touching anything.
+- `--host claude`, `--host codex`, or `--host pi` sets up one host instead of all.
+- `--apply --adopt` replaces files that already exist, keeping a timestamped backup of each.
+- If you commit changes to this repo, add a filter that keeps runtime state out of `settings.json` commits:
+
+  ```bash
+  git config filter.strip-ephemeral-state.clean 'jq "del(.feedbackSurveyState, .lastChangelogVersion, .autoMode)" 2>/dev/null || cat'
+  git config filter.strip-ephemeral-state.smudge cat
+  ```
+
+For Pi, a machine that uses only some hosts, or how each host is wired, see [setup](docs/setup.md).
 
 ## What's inside
 
