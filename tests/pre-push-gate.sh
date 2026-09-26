@@ -115,6 +115,16 @@ case "$OUT" in
   *) echo "    got: $OUT" >&2; fail "a missing hooksPath directory blocks the push" ;;
 esac
 
+# A global hooksPath is not the repo's own setting, and git expands its ~.
+GLOBALHOOKS="$TEST_ROOT/globalhooks"
+make_project "$GLOBALHOOKS"
+printf '[core]\n\thooksPath = ~/.githooks-missing\n' > "$TEST_ROOT/global.gitconfig"
+OUT=$(GIT_CONFIG_GLOBAL="$TEST_ROOT/global.gitconfig" run_gate_cmd "$GLOBALHOOKS" "git push origin feature/x")
+case "$OUT" in
+  *"Run 'npm ci'"*) echo "    got: $OUT" >&2; fail "a global ~ hooksPath does not block the push" ;;
+  *) pass "a global ~ hooksPath does not block the push" ;;
+esac
+
 # verify:fast fails unless it runs, so a pass proves it ran and nothing else did.
 FAST="$TEST_ROOT/fast"
 make_project "$FAST"

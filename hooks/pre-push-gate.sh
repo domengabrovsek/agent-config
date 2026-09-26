@@ -44,10 +44,11 @@ esac
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
 
-# Husky points core.hooksPath at a directory `npm ci` creates. A checkout that
-# never ran it has the setting but not the directory, and git then skips every
-# repo hook without a word, so the push would go out ungated.
-HOOKS_PATH=$(git -C "$DIR" config --get core.hooksPath 2>/dev/null)
+# Husky points the repo-local core.hooksPath at a directory `npm ci` creates. A
+# checkout that never ran it has the setting but not the directory, and git
+# then skips every repo hook without a word, so the push would go out ungated.
+# --type=path expands a leading ~ the way git does.
+HOOKS_PATH=$(git -C "$DIR" config --local --type=path --get core.hooksPath 2>/dev/null)
 if [ -n "$HOOKS_PATH" ]; then
   TOP=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)
   case "$HOOKS_PATH" in
