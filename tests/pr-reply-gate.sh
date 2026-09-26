@@ -54,7 +54,8 @@ assert_gate() {
 GH_API="gh ""api"
 GH_PR_COMMENT="gh ""pr comment"
 GH_ISSUE_COMMENT="gh ""issue comment"
-FOOTER="<sub>Posted by Claude Code on behalf of @owner</sub>"
+SIGNATURE="<sub>Posted by Claude Code on behalf of @owner</sub>"
+FOOTER=$'\n\n'"$SIGNATURE"
 
 echo "== human replies =="
 assert_gate "a reply to a bot passes" \
@@ -101,6 +102,11 @@ assert_gate "help is not gated" \
   "$GH_PR_COMMENT --help" 0
 assert_gate "a footer outside the body does not count" \
   "echo \"$FOOTER\" && $GH_PR_COMMENT 7 --body \"Done.\"" 2
+assert_gate "a footer on the same line as the text is blocked" \
+  "$GH_PR_COMMENT 7 --body \"Done. $SIGNATURE\"" 2
+assert_gate "a footer on the next line without a blank line is blocked" \
+  "$GH_PR_COMMENT 7 --body \"Done.
+$SIGNATURE\"" 2
 assert_gate "a footer before the end does not count" \
   "$GH_PR_COMMENT 7 --body \"$FOOTER Done.\"" 2
 assert_gate "a heredoc body ending in the footer passes" \
