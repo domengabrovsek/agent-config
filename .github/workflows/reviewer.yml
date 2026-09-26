@@ -328,7 +328,8 @@ jobs:
     needs: [review, review-replies, reply-post]
     if: >-
       !cancelled() &&
-      (needs.review.result == 'success' && needs.review-replies.result != 'failure' ||
+      (needs.review.result == 'success' &&
+       (needs.review-replies.result == 'success' || needs.review-replies.result == 'skipped') ||
        needs.reply-post.result == 'success')
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 5
