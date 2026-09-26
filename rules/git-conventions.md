@@ -7,7 +7,7 @@
 Hooks and deny rules back these. Know them to avoid hitting the gate.
 
 - Conventional commit format. Scope optional: `feat(auth): add token refresh` `(hook)`
-- No AI attribution anywhere: no Co-Authored-By, no "Generated with" footer, in commits, PR titles, or PR bodies `(hook)`
+- No AI attribution in commits, PR titles, PR bodies, or issues: no Co-Authored-By, no "Generated with" footer `(hook)`
 - Comments you post end with the agent footer from `pr-comments` `(hook)`
 - Check the branch with `git branch --show-current` before committing. Never commit or push to main/master, even when the user approves it. Every change lands through a PR `(hook)`
 - Rebase onto the target branch (`git fetch origin main && git rebase origin/main`) before opening a PR. Update an open PR with `gh pr update-branch --rebase`, never a force-push `(review-time: no hook checks this)`
