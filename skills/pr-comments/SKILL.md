@@ -31,13 +31,20 @@ Write as the engineer who owns the PR.
 
 - One to three sentences. Name the change and its commit, or the reason for leaving the code as it is `(review-time: see section note)`
 - No thanks-openers, no "Great catch", no "You're right", no apologies, no emoji `(review-time: see section note)`
-- End every reply you post with `<sub>Posted by <agent> on behalf of @<login></sub>`. Name your host (Claude Code, Codex, pi), and take the login from `gh api user --jq .login`. Mention the agent nowhere else, and leave the footer off drafts the user posts. `hooks/pre-pr-reply-gate.sh` blocks a posted comment without it `(hook)`
+- End every reply you post with a blank line, then `<sub>Posted by <agent> on behalf of @<login></sub>` on its own line. Name your host (Claude Code, Codex, pi), and take the login from `gh api user --jq .login`. Mention the agent nowhere else, and leave the footer off drafts the user posts. `hooks/pre-pr-reply-gate.sh` blocks a posted comment without it `(hook)`
 - Disagree with evidence: the file and line, or the test that covers the case `(review-time: see section note)`
 - Run `write-plain` on each reply before posting or drafting `(review-time: see section note)`
 
 Examples:
 
-- "Fixed in a1b2c3d. The retry now stops after the third attempt. <sub>Posted by Claude Code on behalf of @octocat</sub>"
+- A fix, with the footer on its own line:
+
+  ```markdown
+  Fixed in a1b2c3d. The retry now stops after the third attempt.
+
+  <sub>Posted by Claude Code on behalf of @octocat</sub>
+  ```
+
 - "Leaving this as is. `parseDate` already rejects empty input, see `src/date.ts:42` and the test in `date.test.ts`."
 
 ## Rules
