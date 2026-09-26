@@ -230,5 +230,6 @@ jobs:
               -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
               -f query="$THREADS_QUERY" | jq -r --argjson root "$ROOT_ID" \
                 '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].databaseId == $root) | .id')
+            [ -n "$THREAD_ID" ] || { echo "::warning::No review thread found for comment $ROOT_ID"; exit 0; }
             gh api graphql -f threadId="$THREAD_ID" -f query="$RESOLVE_MUTATION" --silent
           fi
