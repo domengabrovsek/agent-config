@@ -5,7 +5,9 @@
 # talks through the repo owner's replies in those threads and resolves a
 # thread once the point is settled. Claude authenticates with a Pro/Max
 # subscription through the CLAUDE_CODE_OAUTH_TOKEN secret, created with
-# `claude setup-token`.
+# `claude setup-token`. Comments post as a GitHub App through the
+# REVIEWER_CLIENT_ID variable and the REVIEWER_PRIVATE_KEY secret, and each
+# job mints a short-lived token with only the permissions it needs.
 #
 # Fork PRs are skipped: pull_request withholds secrets from them, and
 # pull_request_target would hand the token to untrusted PR content.
@@ -42,7 +44,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: read
     concurrency:
       group: reviewer-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -69,13 +71,22 @@ jobs:
       - name: Install bubblewrap
         run: command -v bwrap >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q bubblewrap; }
 
+      - name: Mint the reviewer token
+        id: app
+        uses: domengabrovsek/github-actions/.github/actions/github-app-token@main
+        with:
+          client-id: ${{ vars.REVIEWER_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEWER_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+
       # The denied Read paths can hold job credentials.
       - name: Review with Claude
         id: review
         uses: domengabrovsek/github-actions/.github/actions/claude-code@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.app.outputs.token }}
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -128,6 +139,16 @@ jobs:
         with:
           persist-credentials: 'false'
 
+      # Read-only: this job only needs the App's bot login to find its threads.
+      - name: Mint the reviewer token
+        id: app
+        uses: domengabrovsek/github-actions/.github/actions/github-app-token@main
+        with:
+          client-id: ${{ vars.REVIEWER_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEWER_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: read
+
       # Keeps only the owner's and Claude's comments, so text from anyone else
       # never reaches Claude. Five Claude replies end the conversation, which
       # stops an automated reply loop.
@@ -138,18 +159,19 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           ROOT_ID: ${{ github.event.comment.in_reply_to_id }}
           OWNER: ${{ github.repository_owner }}
+          BOT: ${{ steps.app.outputs.app-slug }}[bot]
         run: |
           mkdir -p .pr-review
           gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --jq '.[]' \
-            | jq -s --argjson root "$ROOT_ID" --arg owner "$OWNER" '
+            | jq -s --argjson root "$ROOT_ID" --arg owner "$OWNER" --arg bot "$BOT" '
                 [.[]
                  | select(.id == $root or .in_reply_to_id == $root)
-                 | select(.user.login == $owner or .user.login == "github-actions[bot]")
+                 | select(.user.login == $owner or .user.login == $bot)
                  | {id, author: .user.login, path, line, diff_hunk, body, created_at}]
                 | sort_by(.created_at)' > .pr-review/thread.json
           ROOT_AUTHOR=$(jq -r --argjson root "$ROOT_ID" '.[] | select(.id == $root) | .author' .pr-review/thread.json)
-          CLAUDE_REPLIES=$(jq --argjson root "$ROOT_ID" '[.[] | select(.id != $root and .author == "github-actions[bot]")] | length' .pr-review/thread.json)
-          if [ "$ROOT_AUTHOR" = "github-actions[bot]" ] && [ "$CLAUDE_REPLIES" -lt 5 ]; then
+          CLAUDE_REPLIES=$(jq --argjson root "$ROOT_ID" --arg bot "$BOT" '[.[] | select(.id != $root and .author == $bot)] | length' .pr-review/thread.json)
+          if [ "$ROOT_AUTHOR" = "$BOT" ] && [ "$CLAUDE_REPLIES" -lt 5 ]; then
             echo "respond=true" >> "$GITHUB_OUTPUT"
             gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > .pr-review/pr.diff
           fi
@@ -201,14 +223,22 @@ jobs:
     if: needs.reply-check.outputs.result != ''
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 5
-    # Resolving a review thread needs contents: write. This job runs no PR code.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
+      # Resolving a review thread needs contents: write. This job runs no PR code.
+      - name: Mint the reviewer token
+        id: app
+        uses: domengabrovsek/github-actions/.github/actions/github-app-token@main
+        with:
+          client-id: ${{ vars.REVIEWER_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEWER_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Reply and resolve
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           ROOT_ID: ${{ github.event.comment.in_reply_to_id }}
           RESULT: ${{ needs.reply-check.outputs.result }}

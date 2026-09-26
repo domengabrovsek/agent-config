@@ -90,5 +90,5 @@ The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensi
 
 - **Security boundaries** - the deny list and Bash restrictions live in [`settings.json`](settings.json).
 - **CI** - `.github/workflows/pull-request.yml` runs six jobs. They cover markdown linting, the rule budget, the prose gate, the pi extension tests, the shell test suites, and config integrity. A single `Gate` check aggregates them.
-- **Reviewer** - `.github/workflows/reviewer.yml` has Claude review each new or ready PR from this repository with inline comments. When the owner replies in a thread, Claude answers or resolves it. It needs the `CLAUDE_CODE_OAUTH_TOKEN` secret from `claude setup-token`.
+- **Reviewer** - `.github/workflows/reviewer.yml` has Claude review each new or ready PR from this repository with inline comments. When the owner replies in a thread, Claude answers or resolves it. It needs the `CLAUDE_CODE_OAUTH_TOKEN` secret from `claude setup-token`, and a GitHub App to post as, set in the `REVIEWER_CLIENT_ID` variable and the `REVIEWER_PRIVATE_KEY` secret.
 - **Local gate** - `scripts/config-budget.sh`, `scripts/config-integrity.sh`, and `scripts/shellcheck-all.sh` each run standalone and are what CI invokes.
