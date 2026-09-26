@@ -62,6 +62,20 @@ done
 
 cd "$PROJECT_ROOT" || exit 0
 
+# A repo with its own pre-push hook runs its own full gate on this push, so
+# running ours as well repeats every check. `--no-verify` skips the repo hook,
+# so ours stays in force then.
+case "$COMMAND" in
+  *"--no-verify"*) ;;
+  *)
+    REPO_HOOK=$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-path hooks/pre-push 2>/dev/null)
+    if [ -n "$REPO_HOOK" ] && [ -x "$REPO_HOOK" ]; then
+      echo "[pre-push-gate] $PROJECT_ROOT has its own pre-push hook, which gates this push." >&2
+      exit 0
+    fi
+    ;;
+esac
+
 run_step() {
   local label="$1"
   local cmd="$2"

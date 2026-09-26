@@ -66,6 +66,42 @@ case "$OUT" in
   *) echo "    got: $OUT" >&2; fail "a checkout with .env does not load the template" ;;
 esac
 
+run_gate_cmd() {
+  local dir="$1" cmd="$2"
+  printf '{"cwd":"%s","tool_input":{"command":"%s"}}' "$dir" "$cmd" \
+    | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" SKIP_PUSH_GATE="" bash "$PROJECT_DIR/hooks/pre-push-gate.sh" 2>&1)
+}
+
+HOOKED="$TEST_ROOT/hooked"
+make_project "$HOOKED"
+mkdir -p "$HOOKED/.git/hooks"
+printf '#!/bin/sh\nexit 0\n' > "$HOOKED/.git/hooks/pre-push"
+chmod +x "$HOOKED/.git/hooks/pre-push"
+OUT=$(run_gate_cmd "$HOOKED" "git push origin feature/x")
+case "$OUT" in
+  *"has its own pre-push hook"*) pass "a repo with its own pre-push hook is not gated twice" ;;
+  *) echo "    got: $OUT" >&2; fail "a repo with its own pre-push hook is not gated twice" ;;
+esac
+
+OUT=$(run_gate_cmd "$HOOKED" "git push --no-verify origin feature/x")
+case "$OUT" in
+  *"has its own pre-push hook"*) echo "    got: $OUT" >&2; fail "--no-verify keeps the gate in force" ;;
+  *"build (env from .env.example)..."*) pass "--no-verify keeps the gate in force" ;;
+  *) echo "    got: $OUT" >&2; fail "--no-verify keeps the gate in force" ;;
+esac
+
+HUSKY="$TEST_ROOT/husky"
+make_project "$HUSKY"
+mkdir -p "$HUSKY/.husky/_"
+printf '#!/bin/sh\nexit 0\n' > "$HUSKY/.husky/_/pre-push"
+chmod +x "$HUSKY/.husky/_/pre-push"
+git -C "$HUSKY" config core.hooksPath .husky/_
+OUT=$(run_gate_cmd "$HUSKY" "git push origin feature/x")
+case "$OUT" in
+  *"has its own pre-push hook"*) pass "a husky hooksPath hook counts as the repo's own gate" ;;
+  *) echo "    got: $OUT" >&2; fail "a husky hooksPath hook counts as the repo's own gate" ;;
+esac
+
 echo ""
 echo "$PASSED passed; $FAILED failed"
 [ "$FAILED" -eq 0 ]
