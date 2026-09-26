@@ -99,6 +99,40 @@ else
 fi
 assert_gate "help is not gated" \
   "$GH_PR_COMMENT --help" 0
+assert_gate "a footer outside the body does not count" \
+  "echo \"$FOOTER\" && $GH_PR_COMMENT 7 --body \"Done.\"" 2
+assert_gate "a footer before the end does not count" \
+  "$GH_PR_COMMENT 7 --body \"$FOOTER Done.\"" 2
+assert_gate "a heredoc body ending in the footer passes" \
+  "$GH_PR_COMMENT 7 --body \"\$(cat <<'EOF'
+Done.
+
+$FOOTER
+EOF
+)\"" 0
+assert_gate "an unparsed body flag is checked, not skipped" \
+  "$GH_PR_COMMENT 7 --body Done" 2
+assert_gate "a -F body file with the footer passes" \
+  "$GH_PR_COMMENT 7 -F reply.md" 0
+
+echo
+echo "== reviews =="
+GH_PR_REVIEW="gh ""pr review"
+assert_gate "a review comment without the footer is blocked" \
+  "$GH_PR_REVIEW 7 --comment -b \"Looks off.\"" 2
+assert_gate "a review comment with the footer passes" \
+  "$GH_PR_REVIEW 7 --request-changes -b \"Looks off. $FOOTER\"" 0
+assert_gate "an approval without a body passes" \
+  "$GH_PR_REVIEW 7 --approve" 0
+
+echo
+echo "== bodies that are not comments =="
+assert_gate "a PR body posted through gh api passes" \
+  "$GH_API repos/acme/app/pulls -f title=\"feat: x\" -f body=\"Adds x.\"" 0
+assert_gate "a PR body edit through gh api passes" \
+  "$GH_API -X PATCH repos/acme/app/pulls/7 -f body=\"Adds x.\"" 0
+assert_gate "a release body passes" \
+  "$GH_API repos/acme/app/releases -f tag_name=v1 -f body=\"Notes.\"" 0
 
 echo
 echo "$PASSED passed, $FAILED failed"

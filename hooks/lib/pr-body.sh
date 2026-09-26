@@ -10,12 +10,13 @@
 # nothing, which every caller already treats as "nothing to check".
 
 # pr_body_file <command>
-# Prints the --body-file path, or nothing when the command uses no such flag.
+# Prints the --body-file / -F path, or nothing when the command uses no such
+# flag. Every gh pr and gh issue subcommand spells --body-file as -F.
 pr_body_file() {
   printf '%s' "$1" | python3 -c '
 import sys, re
 cmd = sys.stdin.read()
-m = re.search(r"--body-file[=\s]+[\x27\"]?([^\x27\"\s]+)", cmd)
+m = re.search(r"(?:^|\s)(?:--body-file|-F)[=\s]+[\x27\"]?([^\x27\"\s]+)", cmd)
 print(m.group(1) if m else "")
 ' 2>/dev/null
 }

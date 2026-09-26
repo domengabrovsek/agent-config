@@ -258,6 +258,12 @@
           {
             "type": "command",
             "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(gh pr review *)",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh issue comment *)",
             "timeout": 15
           }
