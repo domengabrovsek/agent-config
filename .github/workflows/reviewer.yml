@@ -34,6 +34,13 @@ permissions:
 
 env:
   CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+  # An approval picks one line at random.
+  APPROVAL_MESSAGES: |-
+    LGTM, ship it 🚢
+    Looks good to me. Ship it 🚢
+    Nothing left to flag. Ship it 🚢
+    All clear, ship it 🚢
+    Good to go 🚢
 
 jobs:
   review:
@@ -122,7 +129,7 @@ jobs:
             -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
           if [ "$OPEN" -eq 0 ]; then
-            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "LGTM, ship it"
+            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "$(shuf -n 1 <<< "$APPROVAL_MESSAGES")"
           fi
 
       # Prints only the error text of a failed run, never the transcript.
@@ -268,6 +275,6 @@ jobs:
               -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
             if [ "$OPEN" -eq 0 ]; then
-              gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "LGTM, ship it"
+              gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "$(shuf -n 1 <<< "$APPROVAL_MESSAGES")"
             fi
           fi
