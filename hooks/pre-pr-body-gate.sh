@@ -1,10 +1,11 @@
 #!/bin/bash
-# Pre-PR body gate: blocks a PR whose title or body breaks
+# Pre-PR body gate: blocks a PR or issue whose title or body breaks
 # rules/git-conventions.md.
 #
-# PreToolUse hook on Bash(gh pr create *) and Bash(gh pr edit *). It covers the
-# PR surface; hooks/pre-commit-coauthor-gate.sh covers commits. The PR title and
-# body are where a "Generated with" footer or a local state path reach a reviewer.
+# PreToolUse hook on Bash(gh pr create *), Bash(gh pr edit *),
+# Bash(gh issue create *), and Bash(gh issue edit *). It covers the PR and issue
+# surface; hooks/pre-commit-coauthor-gate.sh covers commits. The title and body
+# are where a "Generated with" footer or a local state path reach a reader.
 #
 # Two checks:
 #   attribution  no Co-Authored-By trailer, no AI "Generated with" footer
@@ -22,7 +23,9 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 case "$COMMAND" in
   *"gh pr create --help"*|*"gh pr create -h"*) exit 0 ;;
   *"gh pr edit --help"*|*"gh pr edit -h"*) exit 0 ;;
-  *"gh pr create"*|*"gh pr edit"*) ;;
+  *"gh issue create --help"*|*"gh issue create -h"*) exit 0 ;;
+  *"gh issue edit --help"*|*"gh issue edit -h"*) exit 0 ;;
+  *"gh pr create"*|*"gh pr edit"*|*"gh issue create"*|*"gh issue edit"*) ;;
   *) exit 0 ;;
 esac
 
@@ -36,7 +39,7 @@ HAYSTACK=$(printf '%s\n%s' "$COMMAND" "$BODY")
 FAILED=0
 
 report() {
-  [ "$FAILED" -eq 0 ] && echo "[pre-pr-body-gate] Refusing to write this PR." >&2
+  [ "$FAILED" -eq 0 ] && echo "[pre-pr-body-gate] Refusing to write this PR or issue." >&2
   FAILED=1
   echo "  $1" >&2
 }

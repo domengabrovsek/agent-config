@@ -90,6 +90,12 @@ assert_gate "attribution in the title blocks" "$BODY" \
   "$GH_CREATE --title \"fix: a subject (Generated with Claude)\" --body \"Adds one check.\"" 2
 assert_gate "a build tool that generates output passes" "$BODY" \
   "$GH_CREATE --body \"The policy file is generated with a script.\"" 0
+assert_gate "an attribution footer in an issue blocks" "$BODY" \
+  "gh ""issue create --title \"Bug\" --body \"Steps. Generated with Claude Code\"" 2
+assert_gate "an attribution footer in an issue edit blocks" "$BODY" \
+  "gh ""issue edit 7 --body \"Steps. Generated with Codex\"" 2
+assert_gate "a clean issue passes" "$BODY" \
+  "gh ""issue create --title \"Bug\" --body \"Steps to reproduce.\"" 0
 
 echo
 echo "== body gate, local state paths =="
