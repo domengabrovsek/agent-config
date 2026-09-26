@@ -2,7 +2,7 @@
 
 Intent → skill. Claude Code accepts the `/name` notation shown below. In Codex or Pi, invoke the same shared skill by name; host-specific notation in a skill maps to the equivalent available capability.
 
-For full descriptions of each tool see the [README](README.md).
+For the full description of a skill, see its `skills/<name>/SKILL.md`.
 
 ## "I want to..."
 
