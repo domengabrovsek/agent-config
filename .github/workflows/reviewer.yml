@@ -154,6 +154,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEWED_SHA: ${{ github.event.pull_request.head.sha }}
           THREADS_QUERY: >-
             query($owner: String!, $repo: String!, $pr: Int!) {
               repository(owner: $owner, name: $repo) {
@@ -163,11 +164,13 @@ jobs:
               }
             }
         run: |
+          # A newer push has its own review and approve run; this one decides nothing.
+          HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+          [ "$HEAD_SHA" = "$REVIEWED_SHA" ] || { echo "Head moved past $REVIEWED_SHA; skipping."; exit 0; }
           OPEN=$(gh api graphql \
             -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
             -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
-          HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
           APPROVED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --jq ".[] | select(.user.login == \"github-actions[bot]\"
             and .state == \"APPROVED\" and .commit_id == \"$HEAD_SHA\") | .id")
           if [ "$OPEN" -eq 0 ] && [ -z "$APPROVED" ]; then
