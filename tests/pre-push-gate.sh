@@ -315,6 +315,30 @@ git -C "$REPO" config core.hooksPath .husky/_
 run_pm_gate "$REPO"
 check "a missing hooksPath directory names the pnpm install" says "Run 'pnpm install' in"
 
+make_stub yarn
+
+REPO=$(pm_project yarn-classic)
+: > "$REPO/yarn.lock"
+STUB_VERSION=1.22.22 run_pm_gate "$REPO"
+check "yarn.lock with Yarn Classic passes" exited 0
+check "scripts run through yarn run" logged "yarn run lint"
+check "Yarn Classic audits with yarn audit" logged "yarn audit --level critical"
+
+STUB_VERSION=1.22.22 STUB_AUDIT_EXIT=12 run_pm_gate "$REPO"
+check "Yarn Classic high and moderate findings (mask 12) pass" exited 0
+
+STUB_VERSION=1.22.22 STUB_AUDIT_EXIT=17 run_pm_gate "$REPO"
+check "Yarn Classic critical findings (mask 17) block" exited 2
+
+REPO=$(pm_project yarn-berry '{"packageManager":"yarn@4.5.0","scripts":{"build":"x"}}')
+STUB_VERSION=4.5.0 run_pm_gate "$REPO"
+check "the packageManager field selects Yarn Berry and passes" exited 0
+check "Yarn Berry audits every workspace and transitive dep" \
+  logged "yarn npm audit --all --recursive --severity critical"
+
+STUB_VERSION=4.5.0 STUB_AUDIT_EXIT=1 run_pm_gate "$REPO"
+check "a failing Yarn Berry audit blocks" exited 2
+
 echo ""
 echo "$PASSED passed; $FAILED failed"
 [ "$FAILED" -eq 0 ]

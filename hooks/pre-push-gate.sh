@@ -23,10 +23,11 @@ detect_package_manager() {
     if [ -f "$dir/package.json" ]; then
       field=$(jq -r '.packageManager // empty' "$dir/package.json" 2>/dev/null)
       case "${field%%@*}" in
-        npm|pnpm) echo "${field%%@*}"; return ;;
+        npm|pnpm|yarn) echo "${field%%@*}"; return ;;
       esac
     fi
     if [ -f "$dir/pnpm-lock.yaml" ]; then echo pnpm; return; fi
+    if [ -f "$dir/yarn.lock" ]; then echo yarn; return; fi
     if [ -f "$dir/package-lock.json" ]; then echo npm; return; fi
     if [ "$dir" = "$top" ] || [ "$dir" = "/" ]; then break; fi
     dir=$(dirname "$dir")
@@ -155,8 +156,11 @@ if [ "$PROJECT_TYPE" = "node" ]; then
     exit 2
   fi
   # pnpm hands flags after the script name to the script, so --silent goes
-  # before `run`.
-  RUN="$PM --silent run"
+  # before `run`. Yarn Berry has no --silent.
+  case "$PM" in
+    yarn) RUN="yarn run" ;;
+    *) RUN="$PM --silent run" ;;
+  esac
   has_script() {
     node -e "const p=require('./package.json'); process.exit(p.scripts?.['$1'] ? 0 : 1)" 2>/dev/null
   }
@@ -193,6 +197,15 @@ if [ "$PROJECT_TYPE" = "node" ]; then
       npm) run_step "audit" "npm audit --audit-level=critical" ;;
       # Not --json: that form exits 1 on a finding of any severity.
       pnpm) run_step "audit" "pnpm audit --audit-level critical" ;;
+      # Yarn Classic ignores --level for its exit code, a severity bitmask where
+      # 16 is critical. Without --all --recursive, Yarn Berry audits only the
+      # current workspace's direct deps.
+      yarn)
+        case "$(yarn --version 2>/dev/null)" in
+          1.*) run_step "audit" 'yarn audit --level critical; [ $(( $? & 16 )) -eq 0 ]' ;;
+          *) run_step "audit" "yarn npm audit --all --recursive --severity critical" ;;
+        esac
+        ;;
     esac
   fi
 fi
