@@ -112,6 +112,12 @@ jobs:
       - name: Test the PR gates
         run: bash tests/pr-gates.sh
 
+      - name: Test the PR test gate
+        run: bash tests/pre-pr-test-gate.sh
+
+      - name: Test the per-edit hooks
+        run: bash tests/post-edit-hooks.sh
+
       - name: Test the PR reply gate
         run: bash tests/pr-reply-gate.sh
 

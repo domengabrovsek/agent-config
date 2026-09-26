@@ -1,6 +1,6 @@
 #!/bin/bash
 # Auto-format files after Write/Edit tool use.
-# Detects project formatter (Biome > Prettier) and formats accordingly.
+# Formats with Prettier; a Biome project is formatted by post-edit-typecheck.sh.
 # Exits 0 always (non-blocking) - formatting failure should not block edits.
 
 FILE=$(jq -r '.tool_input.file_path // empty' 2>/dev/null)
@@ -30,9 +30,10 @@ done
 
 cd "$PROJECT_ROOT" || exit 0
 
-# Try Biome first (if configured)
+# hooks/post-edit-typecheck.sh runs `biome check --write` on the same file.
+# Both hooks run at once, so formatting here too would race its write.
 if [ -f "biome.json" ] || [ -f "biome.jsonc" ]; then
-  npx biome format --write "$FILE" 2>/dev/null && exit 0
+  exit 0
 fi
 
 # Try Prettier (if configured or available)
