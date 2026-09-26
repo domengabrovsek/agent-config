@@ -169,6 +169,18 @@ else
   echo "    exit $STATUS, got: $OUT" >&2; fail "a Bun repo audits with bun audit"
 fi
 
+# A PATH holding only the tools the gate needs leaves bun out.
+mkdir -p "$TEST_ROOT/nobun"
+for tool in bash sh env cat dirname ls grep tail jq git node npm; do
+  ln -s "$(command -v "$tool")" "$TEST_ROOT/nobun/$tool"
+done
+OUT=$(PATH="$TEST_ROOT/nobun" run_gate_cmd "$BUNREPO" "git push origin feature/x"); STATUS=$?
+case "$OUT" in
+  *"audit skipped: bun is not installed"*) [ "$STATUS" -eq 0 ] && pass "a Bun repo without bun skips the audit" \
+    || { echo "    exit $STATUS" >&2; fail "a Bun repo without bun skips the audit"; } ;;
+  *) echo "    got: $OUT" >&2; fail "a Bun repo without bun skips the audit" ;;
+esac
+
 echo ""
 echo "$PASSED passed; $FAILED failed"
 [ "$FAILED" -eq 0 ]

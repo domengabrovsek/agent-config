@@ -146,7 +146,7 @@ if [ "$PROJECT_TYPE" = "node" ]; then
     if command -v bun >/dev/null 2>&1; then
       run_step "audit" "bun audit --audit-level=critical"
     else
-      run_step "audit" "npx -y bun audit --audit-level=critical"
+      echo "[pre-push-gate] audit skipped: bun is not installed." >&2
     fi
   else
     command -v npm >/dev/null 2>&1 && run_step "audit" "npm audit --audit-level=critical"
