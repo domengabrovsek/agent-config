@@ -52,6 +52,10 @@ jobs:
             > .pr-review/pr.json
           gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > .pr-review/pr.diff
 
+      # Claude Code refuses to scrub subprocess credentials without bubblewrap.
+      - name: Install bubblewrap
+        run: sudo apt-get update -q && sudo apt-get install -y -q bubblewrap
+
       - name: Review with Claude
         uses: anthropics/claude-code-action@756cc22e19660d20e8cc9496b4f242475a7f7790 # v1.0.235
         with:
