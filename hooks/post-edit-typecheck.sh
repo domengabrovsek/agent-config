@@ -11,6 +11,9 @@
 #
 # Bypass: SKIP_POST_EDIT_TYPECHECK=1.
 
+# shellcheck source=lib/find-up.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/find-up.sh"
+
 INPUT=$(cat)
 FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
@@ -42,11 +45,14 @@ done
 [ -z "$PROJECT_ROOT" ] && exit 0
 cd "$PROJECT_ROOT" || exit 0
 
-[ -f biome.json ] || [ -f biome.jsonc ] || exit 0
+# A workspace package inherits the Biome config at the monorepo root, and npm
+# and yarn workspaces install the biome binary there too.
+find_up "$PROJECT_ROOT" biome.json biome.jsonc >/dev/null || exit 0
 # A bare `npx biome` would download a biome the project never pinned.
-[ -x node_modules/.bin/biome ] || exit 0
+BIOME=$(find_up "$PROJECT_ROOT" node_modules/.bin/biome) || exit 0
+[ -x "$BIOME" ] || exit 0
 
-OUT=$(node_modules/.bin/biome check --write --no-errors-on-unmatched \
+OUT=$("$BIOME" check --write --no-errors-on-unmatched \
   --files-ignore-unknown=true "$FILE" 2>&1)
 if [ $? -ne 0 ]; then
   echo "[post-edit-typecheck] biome check failed for $FILE" >&2
