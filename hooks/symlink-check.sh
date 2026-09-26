@@ -15,19 +15,30 @@
 
 [ "$SKIP_SYMLINK_CHECK" = "1" ] && exit 0
 
-REPO="${AGENT_CONFIG_REPO:-${CLAUDE_DOTFILES_REPO:-$HOME/dev/personal/agent-config}}"
+LIVE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+[ -d "$LIVE_DIR" ] || exit 0
+
+# Without an override, audit the checkout this dir's hooks link points into,
+# read as the bootstrap wrote it. The hook's own path would name a second
+# clone whenever a session runs the copy under CLAUDE_PROJECT_DIR.
+REPO="${AGENT_CONFIG_REPO:-$CLAUDE_DOTFILES_REPO}"
+if [ -z "$REPO" ]; then
+  HOOKS_LINK=$(readlink "$LIVE_DIR/hooks" 2>/dev/null)
+  case "$HOOKS_LINK" in
+    /*) [ -f "${HOOKS_LINK%/hooks}/scripts/setup-hosts.sh" ] && REPO="${HOOKS_LINK%/hooks}" ;;
+  esac
+  REPO="${REPO:-$HOME/dev/personal/agent-config}"
+fi
 [ -d "$REPO" ] || exit 0
 
 SETUP="$REPO/scripts/setup-hosts.sh"
 [ -f "$SETUP" ] || exit 0
 
-LIVE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-[ -d "$LIVE_DIR" ] || exit 0
-
 # Scope the oracle to this one dir and this one host. An explicit --host wins
 # over a HARNESS_SKIP_HOSTS entry in the machine scope file, which is what we
 # want: a session running from this dir always audits the dir it runs from.
-if OUTPUT=$(CLAUDE_CONFIG_DIRS="$LIVE_DIR" bash "$SETUP" --check --host claude 2>/dev/null); then
+if OUTPUT=$(CLAUDE_CONFIG_DIRS="$LIVE_DIR" AGENT_CONFIG_REPO="$REPO" \
+  bash "$SETUP" --check --host claude 2>/dev/null); then
   exit 0
 fi
 

@@ -76,8 +76,9 @@ EOF
 run_hook() {
   # HOME is sandboxed too: the bootstrap resolves the shared root from it, and
   # without this the hook would audit the caller's real ~/.agents.
+  # REPO_OVERRIDE="" runs the hook with no repo location set.
   HOME="$TEST_HOME" \
-  AGENT_CONFIG_REPO="$FAKE_REPO" \
+  AGENT_CONFIG_REPO="${REPO_OVERRIDE-$FAKE_REPO}" \
   CLAUDE_DOTFILES_REPO="" \
   CLAUDE_CONFIG_DIR="$1" \
   SKIP_SYMLINK_CHECK="${SKIP:-}" \
@@ -138,6 +139,11 @@ assert_reports "real path conflict is reported" "$REAL" "CONFLICT"
 
 # The convergence hint names the bootstrap rather than raw ln commands.
 assert_reports "drift output names the bootstrap" "$WRONG" "setup-hosts.sh --apply --host claude"
+
+# The sandboxed HOME has no checkout at the default path, so only the dir's
+# hooks link can lead the hook to the fake checkout.
+REPO_OVERRIDE="" assert_reports "with no repo location, the linked checkout is audited" \
+  "$WRONG" "WRONG-LINK"
 
 # Escape hatches stay quiet.
 SKIP=1 assert_silent "SKIP_SYMLINK_CHECK=1 silences the check" "$WRONG"
