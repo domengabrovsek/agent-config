@@ -88,7 +88,7 @@ jobs:
             --model opus
             --setting-sources user
             --allowedTools "mcp__github_inline_comment__create_inline_comment"
-            --disallowedTools "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,WebSearch,Read(./.git/**),Read(//proc/**),Read(/${{ runner.temp }}/**)"
+            --disallowedTools "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,WebSearch,Read(./.git),Read(./.git/**),Read(//proc/**),Read(/${{ runner.temp }}/**)"
             --json-schema '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"],"additionalProperties":false}'
 
       - name: Post the review summary
