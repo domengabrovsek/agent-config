@@ -4,7 +4,7 @@
 # is upstream-gone (PR merged + remote branch deleted), merged into the
 # repo's default branch, or squash-merged (its changes are already in the
 # default branch even though its tip is not an ancestor). Locked worktrees
-# are auto-unlocked iff the branch is safely removable.
+# are auto-unlocked iff safely removable and re-locked if removal fails.
 #
 # Usage:
 #   worktree-prune.sh [--apply] [--repo <path>]
@@ -54,24 +54,54 @@ default_branch() {
   echo ""
 }
 
-# Parse `git worktree list --porcelain` into TAB-separated rows:
-#   path \t HEAD \t branch \t locked(0|1) \t prunable(0|1)
+# Parse `git worktree list --porcelain` into rows separated by \037 (unit
+# separator): path, HEAD, branch, locked(0|1), prunable(0|1), lock reason. Not
+# TAB: read collapses runs of IFS whitespace, so a detached worktree's empty
+# branch would vanish and shift locked into branch. The path is everything
+# after "worktree ", since it may hold spaces. The lock reason stays as git
+# prints it, C-quoted when it holds control bytes, so a row stays one line.
 list_worktrees() {
   local repo="$1"
   git -C "$repo" worktree list --porcelain 2>/dev/null | awk '
-    /^worktree / { if (path) print path"\t"head"\t"branch"\t"locked"\t"prunable; path=$2; head=""; branch=""; locked=0; prunable=0; next }
+    BEGIN        { OFS = "\037" }
+    /^worktree / { if (path) print path, head, branch, locked, prunable, lock; path=substr($0, 10); head=""; branch=""; locked=0; prunable=0; lock=""; next }
     /^HEAD /     { head=$2; next }
     /^branch /   { sub(/^branch /,""); sub(/^refs\/heads\//,""); branch=$0; next }
-    /^locked/    { locked=1; next }
+    /^locked/    { locked=1; lock=substr($0, 8); next }
     /^prunable/  { prunable=1; next }
-    END          { if (path) print path"\t"head"\t"branch"\t"locked"\t"prunable }
+    END          { if (path) print path, head, branch, locked, prunable, lock }
   '
+}
+
+# Undo git's C-style quoting of a porcelain field. Git wraps the field in
+# double quotes only when it holds a quote, backslash, control byte, or
+# non-ASCII byte, and escapes those as \" \\ \t \n or 3-digit octal, all of
+# which printf %b decodes except \".
+unquote_c() {
+  local s="$1"
+  case "$s" in
+    \"*\")
+      s=${s#\"}; s=${s%\"}
+      s=${s//\\\"/\"}
+      printf '%b' "$s"
+      ;;
+    *) printf '%s' "$s" ;;
+  esac
 }
 
 is_branch_merged() {
   local repo="$1" branch="$2" default_br="$3"
   [ -z "$default_br" ] && return 1
   git -C "$repo" merge-base --is-ancestor "$branch" "$default_br" 2>/dev/null
+}
+
+# A merge commit puts a merged branch's tip on its second-parent side. A tip on
+# the default branch's first-parent line means the branch was cut from it and
+# has no commits of its own, like a fresh session worktree. A fast-forward
+# merge looks the same, so it is kept too.
+has_no_own_commits() {
+  local repo="$1" tip="$2" default_br="$3"
+  git -C "$repo" rev-list --first-parent "$default_br" 2>/dev/null | grep -qxF "$tip"
 }
 
 # A squash merge rewrites the branch as one commit on the default branch, so
@@ -98,7 +128,7 @@ upstream_gone() {
 
 # Verdict per worktree: "safe" or "keep". Echos verdict + reason on stdout.
 verdict() {
-  local repo="$1" path="$2" branch="$3" locked="$4" prunable="$5"
+  local repo="$1" path="$2" head="$3" branch="$4" locked="$5" prunable="$6"
   local default_br
   default_br=$(default_branch "$repo")
 
@@ -115,6 +145,9 @@ verdict() {
     echo "safe upstream-gone"; return
   fi
   if is_branch_merged "$repo" "$branch" "$default_br"; then
+    if has_no_own_commits "$repo" "$head" "$default_br"; then
+      echo "keep no-commits-of-its-own"; return
+    fi
     echo "safe merged-into-$default_br"; return
   fi
   if is_branch_squash_merged "$repo" "$branch" "$default_br"; then
@@ -136,15 +169,14 @@ prune_repo() {
   # Drop disk-gone entries first
   git -C "$repo" worktree prune 2>/dev/null
 
-  local total=0 safe=0 kept=0 acted=0
+  local total=0 safe=0 kept=0 acted=0 failed=0
   local rows
   rows=$(list_worktrees "$repo")
   [ -z "$rows" ] && return 0
 
   printf '%s== %s ==%s\n' "$C_DIM" "$repo" "$C_RESET"
 
-  # shellcheck disable=SC2034  # head is a positional field, read but unused
-  while IFS=$'\t' read -r path head branch locked prunable; do
+  while IFS=$'\037' read -r path head branch locked prunable lock_reason; do
     [ -z "$path" ] && continue
     total=$((total+1))
     # Skip the main worktree
@@ -154,7 +186,7 @@ prune_repo() {
     fi
 
     local v reason
-    v=$(verdict "$repo" "$path" "$branch" "$locked" "$prunable")
+    v=$(verdict "$repo" "$path" "$head" "$branch" "$locked" "$prunable")
     reason=${v#* }
     v=${v%% *}
 
@@ -162,10 +194,12 @@ prune_repo() {
       safe=$((safe+1))
       printf '  %sSAFE%s   %s  branch=%s  reason=%s\n' "$C_GREEN" "$C_RESET" "$path" "${branch:-?}" "$reason"
       if [ "$APPLY" = "1" ]; then
-        if [ "$locked" = "1" ]; then
-          git -C "$repo" worktree unlock "$path" 2>/dev/null
+        local unlocked=0
+        if [ "$locked" = "1" ] && git -C "$repo" worktree unlock "$path" 2>/dev/null; then
+          unlocked=1
         fi
-        if git -C "$repo" worktree remove "$path" 2>/dev/null; then
+        local err
+        if err=$(git -C "$repo" worktree remove "$path" 2>&1); then
           # Delete the local branch too if not the default and it exists
           if [ -n "$branch" ] && [ "$branch" != "$(default_branch "$repo")" ]; then
             git -C "$repo" branch -D "$branch" >/dev/null 2>&1 || true
@@ -173,10 +207,16 @@ prune_repo() {
           acted=$((acted+1))
           printf '         %s-> removed%s\n' "$C_DIM" "$C_RESET"
         else
-          # Disk-missing, just clean the registry
-          git -C "$repo" worktree prune 2>/dev/null
-          acted=$((acted+1))
-          printf '         %s-> pruned (disk gone)%s\n' "$C_DIM" "$C_RESET"
+          # remove succeeds when the directory is already gone, so a failure
+          # is git refusing, most often over modified or untracked files.
+          err=${err%%$'\n'*}
+          failed=$((failed+1))
+          printf '         %s-> not removed: %s%s\n' "$C_YELLOW" "${err#fatal: }" "$C_RESET"
+          # The tree stays on disk, so it keeps the lock its host set.
+          if [ "$unlocked" = "1" ] && ! err=$(git -C "$repo" worktree lock --reason "$(unquote_c "$lock_reason")" "$path" 2>&1); then
+            err=${err%%$'\n'*}
+            printf '         %s-> left unlocked: %s%s\n' "$C_YELLOW" "${err#fatal: }" "$C_RESET"
+          fi
         fi
       fi
     else
@@ -188,7 +228,7 @@ prune_repo() {
   done <<< "$rows"
 
   if [ "$APPLY" = "1" ]; then
-    printf '  %s%d total, %d removed, %d kept%s\n\n' "$C_DIM" "$total" "$acted" "$kept" "$C_RESET"
+    printf '  %s%d total, %d removed, %d kept, %d failed%s\n\n' "$C_DIM" "$total" "$acted" "$kept" "$failed" "$C_RESET"
   else
     printf '  %s%d total, %d safe-to-remove, %d kept%s\n\n' "$C_DIM" "$total" "$safe" "$kept" "$C_RESET"
   fi
