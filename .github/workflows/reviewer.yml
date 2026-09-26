@@ -8,7 +8,8 @@
 # after it resolves its last thread. Claude authenticates with a Pro/Max
 # subscription through the CLAUDE_CODE_OAUTH_TOKEN secret, created with
 # `claude setup-token`. Approving needs the repository setting "Allow GitHub
-# Actions to create and approve pull requests".
+# Actions to create and approve pull requests". Branch protection dismisses
+# stale approvals, so a push after the approval clears it.
 #
 # Fork PRs are skipped: pull_request withholds secrets from them, and
 # pull_request_target would hand the token to untrusted PR content.
@@ -225,6 +226,11 @@ jobs:
     if: needs.reply-check.outputs.result != ''
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 5
+    # One run per PR at a time, so two threads settled together cannot each
+    # see the other as open and both skip the approval.
+    concurrency:
+      group: reviewer-post-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     # Resolving a review thread needs contents: write. This job runs no PR code.
     permissions:
       contents: write
@@ -257,10 +263,10 @@ jobs:
               '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].databaseId == $root) | .id' <<< "$THREADS")
             [ -n "$THREAD_ID" ] || { echo "::warning::No review thread found for comment $ROOT_ID"; exit 0; }
             gh api graphql -f threadId="$THREAD_ID" -f query="$RESOLVE_MUTATION" --silent
-            # The snapshot predates the resolve, so the thread just resolved still reads as open.
-            OPEN=$(jq --arg id "$THREAD_ID" '[.data.repository.pullRequest.reviewThreads.nodes[]
-              | select(.isResolved | not) | select(.id != $id)
-              | select(.comments.nodes[0].author.login == "github-actions")] | length' <<< "$THREADS")
+            OPEN=$(gh api graphql \
+              -f owner="${GITHUB_REPOSITORY%/*}" -f repo="${GITHUB_REPOSITORY#*/}" -F pr="$PR_NUMBER" \
+              -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
+              | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
             if [ "$OPEN" -eq 0 ]; then
               gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "All review points are settled."
             fi
