@@ -90,5 +90,5 @@ The pi resources themselves live in `pi/` (`settings.json`, `mcp.json`, `extensi
 
 - **Security boundaries** - the deny list and Bash restrictions live in [`settings.json`](settings.json).
 - **CI** - `.github/workflows/pull-request.yml` runs six jobs. They cover markdown linting, the rule budget, the prose gate, the pi extension tests, the shell test suites, and config integrity. A single `Gate` check aggregates them.
-- **Claude review** - `.github/workflows/claude-review.yml` posts a Claude review on each new or ready PR from this repository. It needs the `CLAUDE_CODE_OAUTH_TOKEN` secret from `claude setup-token`.
+- **Claude review** - `.github/workflows/claude-review.yml` posts a Claude review on each new or ready PR from this repository. When the owner replies in a review thread, Claude re-checks the finding and replies or resolves the thread. It needs the `CLAUDE_CODE_OAUTH_TOKEN` secret from `claude setup-token`.
 - **Local gate** - `scripts/config-budget.sh`, `scripts/config-integrity.sh`, and `scripts/shellcheck-all.sh` each run standalone and are what CI invokes.
