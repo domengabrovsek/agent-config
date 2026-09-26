@@ -1,15 +1,15 @@
 # ==============================================
 # Reviewer
 # ==============================================
-# Claude reviews each new, ready, or updated pull request with inline comments, then
-# talks through the repo owner's replies in those threads and resolves a
-# thread once the point is settled. Claude approves the pull request once
-# none of its threads is open, either after a review with no comments or
-# after it resolves its last thread. Claude authenticates with a Pro/Max
-# subscription through the CLAUDE_CODE_OAUTH_TOKEN secret, created with
-# `claude setup-token`. Approving needs the repository setting "Allow GitHub
-# Actions to create and approve pull requests". Branch protection dismisses
-# stale approvals, so a push after the approval clears it.
+# Claude reviews each new, ready, or updated pull request with inline
+# comments, then talks through the repo owner's replies in those threads and
+# resolves a thread once the point is settled. Claude approves the pull
+# request once none of its threads is open, either after a review with no
+# comments or after it resolves its last thread. Claude authenticates with a
+# Pro/Max subscription through the CLAUDE_CODE_OAUTH_TOKEN secret, created
+# with `claude setup-token`. Approving needs the repository setting "Allow
+# GitHub Actions to create and approve pull requests". Branch protection
+# dismisses stale approvals, so a push after the approval clears it.
 #
 # Fork PRs are skipped: pull_request withholds secrets from them, and
 # pull_request_target would hand the token to untrusted PR content.
@@ -89,7 +89,7 @@ jobs:
             | jq -s --arg owner "$OWNER" '
                 [.[]
                  | select(.user.login == $owner or .user.login == "github-actions[bot]")
-                 | {id, in_reply_to_id, author: .user.login, path, line, body, created_at}]
+                 | {id, in_reply_to_id, author: .user.login, path, line, original_line, diff_hunk, body, created_at}]
                 | sort_by(.created_at)' > .pr-review/threads.json
 
       # Claude Code refuses to scrub subprocess credentials without bubblewrap.
