@@ -50,8 +50,10 @@ ISSUES=$(printf '%s\n' "$OUTPUT" | grep -E '[[:space:]](MISSING|MISSING-SRC|CONF
 echo "[symlink-check] $LIVE_DIR has drifted from $REPO:" >&2
 printf '%s\n' "$ISSUES" | sed 's/^/  - /' >&2
 echo "" >&2
+# The fix carries the check's scope. Unscoped, it would also link the default
+# second-account dir, which a single-account machine never adopted.
 echo "Converge with:" >&2
-echo "  bash $SETUP --apply --host claude" >&2
+echo "  CLAUDE_CONFIG_DIRS=$LIVE_DIR bash $SETUP --apply --host claude" >&2
 echo "  (add --adopt to move a conflicting real path to a timestamped backup)" >&2
 echo "" >&2
 echo "(Override repo location: AGENT_CONFIG_REPO=/path/to/repo. Override config dir: CLAUDE_CONFIG_DIR=/path/to/dir. Bypass this check: SKIP_SYMLINK_CHECK=1.)" >&2

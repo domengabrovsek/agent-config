@@ -140,6 +140,10 @@ assert_reports "real path conflict is reported" "$REAL" "CONFLICT"
 # The convergence hint names the bootstrap rather than raw ln commands.
 assert_reports "drift output names the bootstrap" "$WRONG" "setup-hosts.sh --apply --host claude"
 
+# Unscoped, the fix would also link the default second-account dir.
+assert_reports "the convergence hint is scoped to the audited dir" "$WRONG" \
+  "CLAUDE_CONFIG_DIRS=$WRONG bash "
+
 # The sandboxed HOME has no checkout at the default path, so only the dir's
 # hooks link can lead the hook to the fake checkout.
 REPO_OVERRIDE="" assert_reports "with no repo location, the linked checkout is audited" \
