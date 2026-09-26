@@ -155,6 +155,20 @@ case "$OUT" in
   *) echo "    got: $OUT" >&2; fail "a failing verify:fast blocks the push" ;;
 esac
 
+# A stub bun records its arguments, so a pass proves the audit ran through Bun.
+BUNREPO="$TEST_ROOT/bunrepo"
+make_project "$BUNREPO"
+touch "$BUNREPO/bun.lock"
+mkdir -p "$TEST_ROOT/stubbin"
+printf '#!/bin/sh\necho "$@" > "%s/bun-args"\n' "$BUNREPO" > "$TEST_ROOT/stubbin/bun"
+chmod +x "$TEST_ROOT/stubbin/bun"
+OUT=$(PATH="$TEST_ROOT/stubbin:$PATH" run_gate_cmd "$BUNREPO" "git push origin feature/x"); STATUS=$?
+if [ "$STATUS" -eq 0 ] && [ "$(cat "$BUNREPO/bun-args" 2>/dev/null)" = "audit --audit-level=critical" ]; then
+  pass "a Bun repo audits with bun audit"
+else
+  echo "    exit $STATUS, got: $OUT" >&2; fail "a Bun repo audits with bun audit"
+fi
+
 echo ""
 echo "$PASSED passed; $FAILED failed"
 [ "$FAILED" -eq 0 ]

@@ -141,7 +141,16 @@ if [ "$PROJECT_TYPE" = "node" ]; then
   fi
   # Only critical advisories block: pre-existing high/moderate transitive CVEs are
   # Dependabot's job, not a push gate's, and would otherwise block unrelated work.
-  command -v npm >/dev/null 2>&1 && run_step "audit" "npm audit --audit-level=critical"
+  # npm audit needs package-lock.json, so a Bun repo audits its bun.lock with Bun.
+  if [ -f bun.lock ] || [ -f bun.lockb ]; then
+    if command -v bun >/dev/null 2>&1; then
+      run_step "audit" "bun audit --audit-level=critical"
+    else
+      run_step "audit" "npx -y bun audit --audit-level=critical"
+    fi
+  else
+    command -v npm >/dev/null 2>&1 && run_step "audit" "npm audit --audit-level=critical"
+  fi
 fi
 
 if [ "$PROJECT_TYPE" = "terraform" ]; then
