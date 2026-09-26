@@ -122,7 +122,7 @@ jobs:
             -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
           if [ "$OPEN" -eq 0 ]; then
-            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "No open points from the review."
+            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "LGTM, ship it"
           fi
 
       # Prints only the error text of a failed run, never the transcript.
@@ -268,6 +268,6 @@ jobs:
               -f query="$THREADS_QUERY" | jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved | not) | select(.comments.nodes[0].author.login == "github-actions")] | length')
             if [ "$OPEN" -eq 0 ]; then
-              gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "All review points are settled."
+              gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve --body "LGTM, ship it"
             fi
           fi
