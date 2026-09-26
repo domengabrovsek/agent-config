@@ -10,7 +10,7 @@ Hooks and deny rules back these. Know them to avoid hitting the gate.
 - No AI attribution anywhere: no Co-Authored-By, no "Generated with" footer, in commits, PR titles, or PR bodies `(hook)`
 - Same for issues and comments `(review-time: no hook covers them)`
 - Check the branch with `git branch --show-current` before committing. Never commit or push to main/master, even when the user approves it. Every change lands through a PR `(hook)`
-- Rebase onto the target branch (`git fetch origin main && git rebase origin/main`) before opening a PR. Update an open PR with `gh pr update-branch`, never a force-push `(review-time: no hook checks this)`
+- Rebase onto the target branch (`git fetch origin main && git rebase origin/main`) before opening a PR. Update an open PR with `gh pr update-branch --rebase`, never a force-push `(review-time: no hook checks this)`
 - Pushes run the repo's `verify:fast` when declared. Open or ready a PR only after `npm run verify` passes at HEAD `(hook)`
 
 ## Judgment calls
