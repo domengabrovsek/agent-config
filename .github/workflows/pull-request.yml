@@ -51,7 +51,6 @@ jobs:
       - name: Check out and set up Node
         uses: domengabrovsek/github-actions/.github/actions/setup-node-npm@main
         with:
-          node-version: 24
           install: 'false'
 
       - name: Run pi extension tests
