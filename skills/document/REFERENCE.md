@@ -110,7 +110,7 @@ Sensitive paths no subcommand reads and `check` never diffs: `.env*`, `*.pem`, `
 
 ## audit: report template
 
-One row per doc, finding type and shared evidence, with the full doc path and every line on it. A row names exactly one file, never a glob, a directory or a count of docs. Quote a link target as written. Write "None" under an empty heading.
+One row per doc, finding type and shared evidence, with the full doc path and every line on it. The first column of a finding row names exactly one doc, never a glob, a directory or a count of docs. Evidence columns may cite other files. Only "Not verified" rows may name an area. Quote a link target as written. Write "None" under an empty heading.
 
 ```markdown
 ## Docs audit: <repo> at <sha>
