@@ -65,7 +65,7 @@ Every agent follows the same 5-section skeleton ([decision](decisions.md#lean-pe
 4. **Red Flags** - concrete, easy-to-miss patterns that trigger investigation
 5. **Output format** - the exact shape of the returned summary (severity buckets + verdict for advisory personas; changed/verified/concerns for writer personas)
 
-Two kinds of persona (see CONTEXT.md glossary):
+Two kinds of persona (see CONTEXT.md glossary), plus Doc Reader, which fits neither:
 
 - **Advisory personas** drop the editing tools via `tools:` frontmatter (no Edit/Write/NotebookEdit): PR Reviewer, Spec Verifier, Cybersecurity Expert, GDPR Expert, Product Manager, UX Expert. They keep Bash, which they need for `git diff` and `gh`, so a write is still reachable through a shell command; the frontmatter removes the one-call edit and the brief does the rest. They are not lane-mode writers.
 - **Writer personas** (the other 11) omit `tools:` and keep full access for lane-mode implementation work.
