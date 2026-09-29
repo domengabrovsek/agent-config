@@ -146,6 +146,25 @@ Checks run: <commands, or "not run" and why>
 | Doc or area | Why it was left |
 ```
 
+## review: report template
+
+```markdown
+## Doc review: <doc path>
+
+### Reader test
+| Question | Result (answered, partly answered, not answered, or skipped) | What the reader lacked |
+
+### Prune candidates
+| Lines | Reason (restates the code, history, filler, or duplicates <doc>) | Note |
+
+### Diagram verdict
+<needed and missing | present and current | present and stale | not needed>: <the relationship behind the verdict>
+| Node or edge | What the code says |
+
+### Consistency with repo conventions
+| Line | Finding | Rule broken (quoted) |
+```
+
 ## ADR files
 
 For repos that keep one file per decision. With an existing scheme, follow its directory, numbering, headings, statuses and index, and skip the steps below.
