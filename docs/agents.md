@@ -1,6 +1,6 @@
 # Expert Agents
 
-17 expert agent personas: lean spawn-time briefs with repo-specific guardrails, red-flag detection, and explicit output contracts. Each agent is spawned as a subagent when a task matches its domain via the routing table in [`rules/agent-routing.md`](../rules/agent-routing.md) (see [decisions](decisions.md#agents)).
+18 agent personas: lean spawn-time briefs with repo-specific guardrails, red-flag detection, and explicit output contracts. Each agent is spawned as a subagent when a task matches its domain via the routing table in [`rules/agent-routing.md`](../rules/agent-routing.md) (see [decisions](decisions.md#agents)).
 
 ## Engineering
 
@@ -49,6 +49,12 @@
 | PR Reviewer | [`pr-reviewer.md`](../agents/pr-reviewer.md) | Structured severity-based code reviews, TypeScript/Node.js, GraphQL, database, security |
 | Spec Verifier | [`spec-verifier.md`](../agents/spec-verifier.md) | Runs each acceptance criterion's check at HEAD and writes the evidence ledger |
 
+## Documentation
+
+| Agent | File | Focus |
+| --- | --- | --- |
+| Doc Reader | [`doc-reader.md`](../agents/doc-reader.md) | Answers questions from one document's text alone, for the reader test in `/document review` |
+
 ## Agent Structure
 
 Every agent follows the same 5-section skeleton ([decision](decisions.md#lean-personas-that-inherit-the-rules)):
@@ -63,6 +69,7 @@ Two kinds of persona (see CONTEXT.md glossary):
 
 - **Advisory personas** drop the editing tools via `tools:` frontmatter (no Edit/Write/NotebookEdit): PR Reviewer, Spec Verifier, Cybersecurity Expert, GDPR Expert, Product Manager, UX Expert. They keep Bash, which they need for `git diff` and `gh`, so a write is still reachable through a shell command; the frontmatter removes the one-call edit and the brief does the rest. They are not lane-mode writers.
 - **Writer personas** (the other 11) omit `tools:` and keep full access for lane-mode implementation work.
+- **Doc Reader** holds only Read, and its brief leaves that unused. It reads untrusted document text, so it gets no shell and no web. `/document review` spawns it directly; the routing table does not list it.
 
 ## Routing
 
