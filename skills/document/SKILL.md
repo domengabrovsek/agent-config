@@ -89,27 +89,37 @@ This subcommand is the only path that creates an ADR file. No other workflow pro
 
 Edit nothing. The user runs `check`, `review` or `write` to fix what the report finds.
 
-1. Read the docs scope from Step 0 plus the instruction files. With more than about 40 docs, give each top-level docs directory to a read-only teammate when the host supports one. `(review-time: see section note)`
-2. Check every relative link and anchor. `(review-time: see section note)`
-3. Check each `github.com` link in the docs scope and the instruction files with `gh api`, after checking its owner, repo and path for unsafe characters. List other external links as unchecked, and never fetch them. `(review-time: see section note)`
-4. Check that each cited source path and symbol exists. `(review-time: see section note)`
-5. Compare reference tables, such as env vars, roles, enums and config keys, with the code they describe. `(review-time: see section note)`
-6. Check each doc against the repo's stated rules, and quote the rule a finding breaks. Prose that narrates past changes breaks a rule that history lives in git. `(review-time: see section note)`
-7. Flag docs over the repo's length cap. A repo with no cap gets the 300-line skill default, and that is the only skill default audit applies where the repo has conventions. `(review-time: see section note)`
-8. Flag docs the docs index does not reach. `(review-time: see section note)`
-9. Check decision records against the repo's own scheme. Never flag a missing `docs/adr/`, or numbered decision anchors, in a repo that records decisions another way. `(review-time: see section note)`
-10. Report with the audit template in [REFERENCE.md](REFERENCE.md). Use its headings verbatim and write "None" under an empty one. `(review-time: see section note)`
-11. Give each finding its own row with one doc and line. Never group findings or give one example for many. `(review-time: see section note)`
+1. Read the docs scope from Step 0 plus the instruction files. `(review-time: see section note)`
+2. With more than about 40 docs, split the tree across at most five read-only teammates, one or more top-level directories each. `(review-time: see section note)`
+3. Brief each teammate with the Step 0 rules verbatim. Give it no shell when the host allows that; otherwise tell it to run no commands. `(review-time: see section note)`
+4. Before a teammate row enters the report, check it against its cited file and line. Check every access, security or secret row, and a sample of the rest. `(review-time: see section note)`
+5. Check every relative link and anchor. `(review-time: see section note)`
+6. Check each `github.com` link in the docs scope and the instruction files. Reject `.` and `..` path segments, then call `gh api --method GET repos/<owner>/<repo>/contents/<path>` with no `-f` or `-F`, and keep only the status. `(review-time: see section note)`
+7. List other real external links as unchecked, without userinfo or query strings, and never fetch them. Skip localhost, placeholder and example URLs. `(review-time: see section note)`
+8. Check that each cited source path and symbol exists. Compare reference tables, such as env vars, roles, enums and config keys, with the code they describe. `(review-time: see section note)`
+9. Check each doc against the repo's stated rules, and quote the rule a finding breaks. When the repo says history lives in git, prose that narrates past changes breaks that rule. `(review-time: see section note)`
+10. Flag docs over the repo's length cap. A repo with no cap gets the 300-line skill default, and that is the only skill default audit applies where the repo has conventions. `(review-time: see section note)`
+11. Flag docs the docs index does not reach. `(review-time: see section note)`
+12. Check decision records against the repo's own scheme. Never flag a missing `docs/adr/`, or numbered decision anchors, in a repo that records decisions another way. `(review-time: see section note)`
+13. Report with the audit template in [REFERENCE.md](REFERENCE.md). Use its headings verbatim and write "None" under an empty one. `(review-time: see section note)`
+14. Give one row per doc, finding type and shared evidence, and list every line on it. Never group findings from different docs. `(review-time: see section note)`
 
 ## Instruction file integration
 
 After `bootstrap` or a new top-level doc, make the repo's instruction file point to the docs index in its documentation section. Use `CLAUDE.md` when the repo has one, otherwise `AGENTS.md`. Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists, so this keeps Claude's auto-discovery working.
 
-## Verification before finishing
+## Running the repo's doc checks
 
-This applies to every run that edits: `write`, `adr`, `bootstrap`, `check`, and `review` after the user's go. `audit` ends with its report.
+Every subcommand that runs a check command follows these rules, `audit` included.
 
 - Read a check command's script definition before running it. Ask before running one that deploys, publishes, sends data out, or changes state outside the working tree. `(review-time: see section note)`
+- Never run a command that can download a package, such as `npx`, `npm exec`, `pnpm dlx` or `bunx`, unless `node_modules/.bin` already holds it. With dependencies missing, report the check as not run. `(review-time: see section note)`
+
+## Verification before finishing
+
+This applies to every run that edits: `write`, `adr`, `bootstrap`, `check`, and `review` after the user's go.
+
+- Run the doc check commands found in Step 0, under the rules above. `(review-time: see section note)`
 - With no check commands, confirm that each source-file citation in the touched docs resolves and each mermaid block names a known diagram type. `(review-time: see section note)`
 - Fix failures in files this run touched. Report other failures without fixing them. `(review-time: see section note)`
 

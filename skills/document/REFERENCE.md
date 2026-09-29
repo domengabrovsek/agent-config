@@ -110,13 +110,16 @@ Sensitive paths `check` never reads or diffs: `.env*`, `*.pem`, `*.key`, `creden
 
 ## audit: report template
 
-One row per finding, with the full doc path and line in each row. Write "None" under an empty heading.
+One row per doc, finding type and shared evidence, with the full doc path and every line on it. Write "None" under an empty heading.
 
 ```markdown
 ## Docs audit: <repo> at <sha>
 
 Conventions read: <files>
-Checks run: <commands>
+Checks run: <commands, or "not run" and why>
+
+### Access and security claims
+| Doc:lines | Claim | What the code allows |
 
 ### Broken links and anchors
 | Doc:line | Target | Evidence |
@@ -138,6 +141,9 @@ Checks run: <commands>
 
 ### Decision records
 | Doc:line | Finding | Scheme the repo uses |
+
+### Not verified
+| Doc or area | Why it was left |
 ```
 
 ## ADR files
