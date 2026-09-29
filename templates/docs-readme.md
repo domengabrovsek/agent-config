@@ -46,12 +46,12 @@ See [adr/README.md](adr/README.md).
 
 ## Maintaining these docs
 
-Use the `/document` slash command in Claude Code:
+Use the `/document` skill:
 
-- `/document explain <topic>` - new explanation doc
-- `/document reference <topic>` - new reference doc
-- `/document how-to <task>` - new recipe
+- `/document check` - correct docs the current change made stale
+- `/document audit` - read-only drift report for the whole tree
+- `/document review <doc>` - reader test, prune candidates and diagram verdict for one doc
+- `/document write <topic>` - new or updated doc, placed per the conventions above
 - `/document adr "<title>"` - new ADR
-- `/document audit` - drift report against current code
 
 Every code change that affects documented behavior should update the relevant doc in the same PR.
