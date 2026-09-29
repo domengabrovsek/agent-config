@@ -47,10 +47,10 @@ If no subcommand matches, ask which one the user meant before running Step 0.
 
 1. Take the base from the argument. Otherwise run `git merge-base HEAD "$(git symbolic-ref --short refs/remotes/origin/HEAD)"`, which already names the remote, such as `origin/main`. If that ref is missing, ask the user for the base. `(review-time: see section note)`
 2. Resolve the base with `git rev-parse --verify --end-of-options "<base>^{commit}"`. Stop if it fails, and use the resolved SHA from here on. `(review-time: see section note)`
-3. List changed paths with `git diff --name-only --no-ext-diff --end-of-options <sha>`. `(review-time: see section note)`
+3. List changed paths with `git diff --name-only --no-renames --no-ext-diff --end-of-options <sha>`. `--no-renames` keeps a renamed file's old path, which is the one stale docs cite. `(review-time: see section note)`
 4. List untracked files from `git status --porcelain` under "Not verified", by name only, because their contents are unvetted. Tell the user that `git add -N <file>` brings one into the next check. `(review-time: see section note)`
 5. Drop the sensitive paths named in [REFERENCE.md](REFERENCE.md). Skip and report any path with a character outside letters, digits and `._/-`. `(review-time: see section note)`
-6. Read the diff with `--no-ext-diff --no-textconv`, only for the remaining tracked paths, each single-quoted after `--`. `(review-time: see section note)`
+6. Read the diff with `--no-renames --no-ext-diff --no-textconv`, only for the remaining tracked paths, each single-quoted after `--`. `(review-time: see section note)`
 7. Find affected docs in two passes: changed paths first, then changed symbols. Search only the docs scope, with the host's file-search tool rather than a shell command. `(review-time: see section note)`
 8. Pass 1: find docs that cite a changed code or config path, by backticked path, link, or parent directory. A doc the diff changed is not a trigger path, but it stays a doc to check. `(review-time: see section note)`
 9. Pass 2: list each changed symbol, by the kinds in [REFERENCE.md](REFERENCE.md). Search for each name. `(review-time: see section note)`
