@@ -52,12 +52,12 @@ If no subcommand matches, ask which one the user meant before running Step 0.
 6. Find affected docs in two passes: changed paths first, then changed symbols. Search only the docs scope, with the host's file-search tool rather than a shell command. `(review-time: see section note)`
 7. Pass 1: find docs that cite a changed code or config path, by backticked path, link, or parent directory. A doc the diff changed is not a trigger path, but it stays a doc to check. `(review-time: see section note)`
 8. Pass 2: list each changed symbol, by the kinds in [REFERENCE.md](REFERENCE.md). Search for each name. `(review-time: see section note)`
-9. Compare each matched claim with the code and config after the change. Comments are not evidence. `(review-time: see section note)`
+9. Compare each matched claim with the code and config after the change. Comments in code are not evidence. Expected output and comments in a doc's code blocks are claims to check. `(review-time: see section note)`
 10. Correct a descriptive fact only when the change made it false and the code proves it. Edit only the stale words, and add nothing the change does not need. `(review-time: see section note)`
 11. Leave a claim the change did not make false, or one the run cannot verify. List it under "Not verified". `(review-time: see section note)`
-12. Report instead of editing when the change weakens or widens what a doc says is enforced. That covers decisions, security controls, compliance mappings, and any sentence on who can reach what. `(review-time: see section note)`
+12. Report instead of editing when the change weakens or widens what a doc says is enforced. That covers decisions, security controls, compliance mappings, and any sentence on who can reach what. Apply this per sentence, and still correct a descriptive sentence next to one. `(review-time: see section note)`
 13. Never create a doc or delete a section. `(review-time: see section note)`
-14. Report with the check template in [REFERENCE.md](REFERENCE.md). `(review-time: see section note)`
+14. Report with the check template in [REFERENCE.md](REFERENCE.md). Use its headings verbatim and write "None" under an empty one. `(review-time: see section note)`
 
 ## write
 
@@ -85,17 +85,21 @@ This subcommand is the only path that creates an ADR file. No other workflow pro
 - Refuse when the repo already has a docs tree, in `docs/` or where its conventions put docs. Offer `audit` instead. `(review-time: see section note)`
 - Otherwise create the default layout from [REFERENCE.md](REFERENCE.md) with its bootstrap templates. `(review-time: see section note)`
 
-## Audit procedure
+## audit
 
-When `audit`:
+Edit nothing. The user runs `check`, `review` or `write` to fix what the report finds.
 
-1. Walk `docs/**/*.md`. `(review-time: see section note)`
-2. For each doc, extract source-file citations (backticked paths). Verify they exist with `Glob`/`Read`. Report missing files. `(review-time: see section note)`
-3. For each ADR, verify `Status` is one of {Proposed, Accepted, Superseded by NNNN, Deprecated}. Flag malformed ADRs. `(review-time: see section note)`
-4. For each `docs/reference/*.md`, scan referenced enums/configs (e.g. `src/**/enums/*.ts`) and report mismatches between doc tables and code. `(review-time: see section note)`
-5. Report doc files exceeding 300 lines. `(review-time: see section note)`
-6. Report any `docs/**/*.md` not linked from `docs/README.md`. `(review-time: see section note)`
-7. Output a report only - do NOT edit files. The user runs targeted subcommands afterward to fix drift. `(review-time: see section note)`
+1. Read the docs scope from Step 0 plus the instruction files. With more than about 40 docs, give each top-level docs directory to a read-only teammate when the host supports one. `(review-time: see section note)`
+2. Check every relative link and anchor. `(review-time: see section note)`
+3. Check each `github.com` link in the docs scope and the instruction files with `gh api`, after checking its owner, repo and path for unsafe characters. List other external links as unchecked, and never fetch them. `(review-time: see section note)`
+4. Check that each cited source path and symbol exists. `(review-time: see section note)`
+5. Compare reference tables, such as env vars, roles, enums and config keys, with the code they describe. `(review-time: see section note)`
+6. Check each doc against the repo's stated rules, and quote the rule a finding breaks. Prose that narrates past changes breaks a rule that history lives in git. `(review-time: see section note)`
+7. Flag docs over the repo's length cap. A repo with no cap gets the 300-line skill default, and that is the only skill default audit applies where the repo has conventions. `(review-time: see section note)`
+8. Flag docs the docs index does not reach. `(review-time: see section note)`
+9. Check decision records against the repo's own scheme. Never flag a missing `docs/adr/`, or numbered decision anchors, in a repo that records decisions another way. `(review-time: see section note)`
+10. Report with the audit template in [REFERENCE.md](REFERENCE.md). Use its headings verbatim and write "None" under an empty one. `(review-time: see section note)`
+11. Give each finding its own row with one doc and line. Never group findings or give one example for many. `(review-time: see section note)`
 
 ## Instruction file integration
 

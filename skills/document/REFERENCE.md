@@ -108,6 +108,38 @@ Sensitive paths `check` never reads or diffs: `.env*`, `*.pem`, `*.key`, `creden
 <n> matched passages in <m> docs.
 ```
 
+## audit: report template
+
+One row per finding, with the full doc path and line in each row. Write "None" under an empty heading.
+
+```markdown
+## Docs audit: <repo> at <sha>
+
+Conventions read: <files>
+Checks run: <commands>
+
+### Broken links and anchors
+| Doc:line | Target | Evidence |
+
+### Unchecked external links
+| Doc:line | URL |
+
+### Stale facts
+| Doc:line | Claim | What the code says |
+
+### Convention breaks
+| Doc:line | Finding | Rule broken (quoted) |
+
+### Length
+| Doc | Lines | Cap (quoted repo rule, or "skill default: 300") |
+
+### Unindexed docs
+| Doc | Nearest index |
+
+### Decision records
+| Doc:line | Finding | Scheme the repo uses |
+```
+
 ## ADR files
 
 For repos that keep one file per decision. With an existing scheme, follow its directory, numbering, headings, statuses and index, and skip the steps below.
