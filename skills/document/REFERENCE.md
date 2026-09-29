@@ -146,6 +146,19 @@ Checks run: <commands, or "not run" and why>
 | Doc or area | Why it was left |
 ```
 
+## audit: GitHub links
+
+Before any call, check the owner, repo, ref and path against letters, digits and `._/-`, and the number against digits. Reject a link with a `.` or `..` path segment or a percent sign, and list it as unchecked.
+
+| Link shape | Endpoint |
+| --- | --- |
+| `github.com/<owner>/<repo>` | `repos/<owner>/<repo>` |
+| `github.com/<owner>/<repo>/blob/<ref>/<path>` or `/tree/<ref>/<path>` | `repos/<owner>/<repo>/contents/<path>?ref=<ref>` |
+| `github.com/<owner>/<repo>/pull/<n>` or `/issues/<n>` | `repos/<owner>/<repo>/issues/<n>` |
+| Any other shape | None; list the link as unchecked |
+
+Call `gh api --method GET '<endpoint>'`, with the endpoint single-quoted and no `-f` or `-F`. Keep only the HTTP status.
+
 ## review: report template
 
 ```markdown
