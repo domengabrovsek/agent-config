@@ -103,7 +103,8 @@ Edit nothing. The user runs `check`, `review` or `write` to fix what the report 
 11. Flag docs the docs index does not reach. `(review-time: see section note)`
 12. Check decision records against the repo's own scheme. Never flag a missing `docs/adr/`, or numbered decision anchors, in a repo that records decisions another way. `(review-time: see section note)`
 13. Report with the audit template in [REFERENCE.md](REFERENCE.md). Use its headings verbatim and write "None" under an empty one. `(review-time: see section note)`
-14. Give one row per doc, finding type and shared evidence, and list every line on it. Never group findings from different docs. `(review-time: see section note)`
+14. Give one row per doc, finding type and shared evidence, and list every line on it. `(review-time: see section note)`
+15. A row names exactly one file path. Never write a glob, a directory, or a count such as "all 13 docs". `(review-time: see section note)`
 
 ## review
 
