@@ -4,7 +4,7 @@ Skill defaults and templates for `SKILL.md`. A default applies only where the re
 
 ## Diataxis routing
 
-The default layout when a repo states none. One quadrant per topic. Ask when a topic fits none.
+The default layout when a repo states none. One quadrant per topic. Ask when a topic fits none or several, and never split a topic across quadrants.
 
 | Quadrant | Use when... | Don't use when... |
 | --- | --- | --- |
@@ -39,10 +39,9 @@ The default layout when a repo states none. One quadrant per topic. Ask when a t
 6. Why before how. An explanation opens with the problem the thing solves.
 7. Present tense. Document behavior that exists now. No plans, no history of how the code got here.
 8. No issue, PR or ticket numbers. They belong in PR descriptions and git history.
-9. ADRs are immutable once Accepted. A new decision gets a new ADR, and the old one becomes `Superseded by NNNN`.
-10. Max 300 lines per doc. Split longer docs by sub-topic.
-11. No emoji unless the user asked for them.
-12. No em dashes.
+9. Max 300 lines per doc. Split longer docs by sub-topic.
+10. No emoji unless the user asked for them.
+11. No em dashes.
 
 ## Diagram conventions
 
@@ -69,13 +68,14 @@ The `/diagram` skill picks the format and writes the source. Full policy: `rules
 
 ## ADR files
 
-For repos that keep one file per decision.
+For repos that keep one file per decision. With an existing scheme, follow its directory, numbering, headings, statuses and index, and skip the steps below.
 
-1. An existing scheme wins: directory, numbering, headings, statuses.
-2. With no scheme, scan `docs/adr/` for the highest number. The new file is `NNNN-<kebab-title>.md`, zero-padded to 4 digits.
-3. Use `~/.agents/templates/adr.md` as the body. Fill the title, today's date and status `Proposed`.
-4. Append a row to the `docs/adr/README.md` table.
-5. Valid statuses: Proposed, Accepted, Superseded by NNNN, Deprecated.
+With no scheme:
+
+1. Scan `docs/adr/` for the highest number. The new file is `NNNN-<kebab-title>.md`, zero-padded to 4 digits.
+2. Use `~/.agents/templates/adr.md` as the body. Fill the title, today's date and status `Proposed`.
+3. Append a row to the `docs/adr/README.md` table.
+4. Use these statuses: Proposed, Accepted, Superseded by NNNN, Deprecated.
 
 ## Bootstrap templates
 
