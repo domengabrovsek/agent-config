@@ -70,6 +70,8 @@ The `/diagram` skill picks the format and writes the source. Full policy: `rules
 
 A changed symbol is a name the diff adds, removes or renames, or a name whose definition or value the diff changes.
 
+Sensitive paths `check` never reads or diffs: `.env*`, `*.pem`, `*.key`, `credentials.json`, `service-account*.json` and `*.tfstate*`. Drop them from the changed-path list by name. Excluding them with a pathspec names a denied pattern, which the host's deny gate blocks.
+
 | Kind | Where the diff shows it |
 | --- | --- |
 | Env var | Config schema, code that reads it |
@@ -80,6 +82,7 @@ A changed symbol is a name the diff adds, removes or renames, or a name whose de
 | CLI flag or script | Package scripts, flags passed in workflows or scripts |
 | Stack, module or resource | The unit whose files the diff changes |
 | Workflow or job | `.github/workflows/*` file and job names |
+| IAM role, grant or principal | Role bindings, service accounts, access policies |
 
 ## check: report template
 
@@ -89,11 +92,17 @@ A changed symbol is a name the diff adds, removes or renames, or a name whose de
 ### Corrected
 | Doc:line | Was | Now | Evidence |
 
-### Decisions the change contradicts
-| Doc:line | Decision | Contradicting change |
+### Decisions, controls and compliance mappings the change contradicts
+| Doc:line | Statement | Contradicting change |
 
 ### Coverage gaps
 | Changed behavior | Evidence | Doc that should cover it |
+
+### Not verified
+| Doc:line | Claim | Why it was left |
+
+### Outside the docs scope
+| File:line | Stale claim | Suggested fix |
 
 ### Still accurate
 <n> matched passages in <m> docs.
