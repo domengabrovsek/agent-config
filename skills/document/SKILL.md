@@ -34,7 +34,7 @@ Parse the subcommand first, then run these steps.
 
 Parse the first word of `$ARGUMENTS`:
 
-- `check [base]` - compare the diff with the docs it affects and correct stale facts. Base defaults to the merge-base with the default branch, plus uncommitted changes. `(review-time: see section note)`
+- `check [base]` - compare the diff with the docs it affects and correct stale facts. Base defaults to the merge-base with the default branch, plus uncommitted changes to tracked files. `(review-time: see section note)`
 - `audit` - read-only report on the whole docs tree. `(review-time: see section note)`
 - `review <doc>` - reader test, prune candidates, diagram verdict and consistency for one doc. Report first, apply on the user's go. `(review-time: see section note)`
 - `write <topic>` - create or update the doc for a topic, placed and shaped by the repo's conventions. `(review-time: see section note)`
@@ -45,20 +45,21 @@ If no subcommand matches, ask which one the user meant before running Step 0.
 
 ## check
 
-1. Take the base from the argument, or from `git merge-base HEAD origin/<default>`, where `git symbolic-ref --short refs/remotes/origin/HEAD` names the default. `(review-time: see section note)`
+1. Take the base from the argument. Otherwise run `git merge-base HEAD "$(git symbolic-ref --short refs/remotes/origin/HEAD)"`, which already names the remote, such as `origin/main`. If that ref is missing, ask the user for the base. `(review-time: see section note)`
 2. Resolve the base with `git rev-parse --verify --end-of-options "<base>^{commit}"`. Stop if it fails, and use the resolved SHA from here on. `(review-time: see section note)`
-3. List changed paths with `git diff --name-only --no-ext-diff --end-of-options <sha>`. List untracked files from `git status --porcelain` by name only. `(review-time: see section note)`
-4. Drop the sensitive paths named in [REFERENCE.md](REFERENCE.md). Skip and report any path with a character outside letters, digits and `._/-`. `(review-time: see section note)`
-5. Read the diff with `--no-ext-diff --no-textconv`, only for the remaining tracked paths, each single-quoted after `--`. `(review-time: see section note)`
-6. Find affected docs in two passes: changed paths first, then changed symbols. Search only the docs scope, with the host's file-search tool rather than a shell command. `(review-time: see section note)`
-7. Pass 1: find docs that cite a changed code or config path, by backticked path, link, or parent directory. A doc the diff changed is not a trigger path, but it stays a doc to check. `(review-time: see section note)`
-8. Pass 2: list each changed symbol, by the kinds in [REFERENCE.md](REFERENCE.md). Search for each name. `(review-time: see section note)`
-9. Compare each matched claim with the code and config after the change. Comments in code are not evidence. Expected output and comments in a doc's code blocks are claims to check. `(review-time: see section note)`
-10. Correct a descriptive fact only when the change made it false and the code proves it. Edit only the stale words, and add nothing the change does not need. `(review-time: see section note)`
-11. Leave a claim the change did not make false, or one the run cannot verify. List it under "Not verified". `(review-time: see section note)`
-12. Report instead of editing when the change weakens or widens what a doc says is enforced. That covers decisions, security controls, compliance mappings, and any sentence on who can reach what. Apply this per sentence, and still correct a descriptive sentence next to one. `(review-time: see section note)`
-13. Never create a doc or delete a section. `(review-time: see section note)`
-14. Report with the check template in [REFERENCE.md](REFERENCE.md). Use its headings verbatim and write "None" under an empty one. `(review-time: see section note)`
+3. List changed paths with `git diff --name-only --no-ext-diff --end-of-options <sha>`. `(review-time: see section note)`
+4. List untracked files from `git status --porcelain` under "Not verified", by name only, because their contents are unvetted. Tell the user that `git add -N <file>` brings one into the next check. `(review-time: see section note)`
+5. Drop the sensitive paths named in [REFERENCE.md](REFERENCE.md). Skip and report any path with a character outside letters, digits and `._/-`. `(review-time: see section note)`
+6. Read the diff with `--no-ext-diff --no-textconv`, only for the remaining tracked paths, each single-quoted after `--`. `(review-time: see section note)`
+7. Find affected docs in two passes: changed paths first, then changed symbols. Search only the docs scope, with the host's file-search tool rather than a shell command. `(review-time: see section note)`
+8. Pass 1: find docs that cite a changed code or config path, by backticked path, link, or parent directory. A doc the diff changed is not a trigger path, but it stays a doc to check. `(review-time: see section note)`
+9. Pass 2: list each changed symbol, by the kinds in [REFERENCE.md](REFERENCE.md). Search for each name. `(review-time: see section note)`
+10. Compare each matched claim with the code and config after the change. Comments in code are not evidence. Expected output and comments in a doc's code blocks are claims to check. `(review-time: see section note)`
+11. Correct a descriptive fact only when the change made it false and the code proves it. Edit only the stale words, and add nothing the change does not need. `(review-time: see section note)`
+12. Leave a claim the change did not make false, or one the run cannot verify. List it under "Not verified". `(review-time: see section note)`
+13. Report instead of editing when the change weakens or widens what a doc says is enforced. That covers decisions, security controls, compliance mappings, and any sentence on who can reach what. Apply this per sentence, and still correct a descriptive sentence next to one. `(review-time: see section note)`
+14. Never create a doc or delete a section. `(review-time: see section note)`
+15. Report with the check template in [REFERENCE.md](REFERENCE.md). Use its headings verbatim and write "None" under an empty one. `(review-time: see section note)`
 
 ## write
 
