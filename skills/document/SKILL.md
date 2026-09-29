@@ -42,6 +42,19 @@ Parse the first word of `$ARGUMENTS`:
 
 If no subcommand matches, ask which one the user meant before running Step 0.
 
+## check
+
+1. Take the base from the argument, or from `git merge-base HEAD origin/<default branch>`. Confirm it with `git rev-parse --verify --end-of-options "<base>^{commit}"` before any other use. `(review-time: see section note)`
+2. Collect the change with `git diff --end-of-options <base>`, which covers commits and uncommitted edits. Add untracked files from `git status --porcelain`. `(review-time: see section note)`
+3. Find affected docs in two passes: changed paths first, then changed symbols. `(review-time: see section note)`
+4. Pass 1: find docs that cite a changed path, by backticked path, relative link, or parent directory. `(review-time: see section note)`
+5. Pass 2: list each changed symbol, by the kinds in [REFERENCE.md](REFERENCE.md). Search the docs trees and instruction files for each name. `(review-time: see section note)`
+6. Read the passages around each match and compare their claims with the code after the change. `(review-time: see section note)`
+7. Correct each claim the change made false. Edit only the stale sentence, table row or diagram label, and keep the doc's shape. `(review-time: see section note)`
+8. Never create a doc, delete a section, or rewrite a decision's reasoning. Report a decision the change contradicts instead. `(review-time: see section note)`
+9. Take symbol names from code and docs only. Never open `.env*`, key files or credential stores. `(review-time: see section note)`
+10. Report with the check template in [REFERENCE.md](REFERENCE.md), including changed behavior that no doc covers. `(review-time: see section note)`
+
 ## write
 
 1. Find the doc that already covers the topic. Update it rather than add a second one. `(review-time: see section note)`

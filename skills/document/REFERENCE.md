@@ -66,6 +66,39 @@ Switch to drawio for custom shapes, cloud icons, more than two swimlanes, stacke
 
 The `/diagram` skill picks the format and writes the source. Full policy: `rules/diagrams.md`.
 
+## check: changed symbols
+
+A changed symbol is a name the diff adds, removes or renames, or a name whose definition or value the diff changes.
+
+| Kind | Where the diff shows it |
+| --- | --- |
+| Env var | Config schema, code that reads it |
+| Table or column | Schema files, migrations |
+| Route | Controller decorators, router files |
+| Enum or closed value | Union types, constant arrays, check constraints |
+| Config key | Config schemas, `*.tfvars`, manifests such as `stack.hcl` |
+| CLI flag or script | Package scripts, flags passed in workflows or scripts |
+| Stack, module or resource | The unit whose files the diff changes |
+| Workflow or job | `.github/workflows/*` file and job names |
+
+## check: report template
+
+```markdown
+## Docs check: <base>..working tree
+
+### Corrected
+| Doc:line | Was | Now | Evidence |
+
+### Decisions the change contradicts
+| Doc:line | Decision | Contradicting change |
+
+### Coverage gaps
+| Changed behavior | Evidence | Doc that should cover it |
+
+### Still accurate
+<n> matched passages in <m> docs.
+```
+
 ## ADR files
 
 For repos that keep one file per decision. With an existing scheme, follow its directory, numbering, headings, statuses and index, and skip the steps below.
