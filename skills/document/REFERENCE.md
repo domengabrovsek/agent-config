@@ -70,7 +70,7 @@ The `/diagram` skill picks the format and writes the source. Full policy: `rules
 
 A changed symbol is a name the diff adds, removes or renames, or a name whose definition or value the diff changes.
 
-Sensitive paths `check` never reads or diffs: `.env*`, `*.pem`, `*.key`, `credentials.json`, `service-account*.json` and `*.tfstate*`. Drop them from the changed-path list by name. Excluding them with a pathspec names a denied pattern, which the host's deny gate blocks.
+Sensitive paths no subcommand reads and `check` never diffs: `.env*`, `*.pem`, `*.key`, `credentials.json`, `service-account*.json` and `*.tfstate*`. `check` drops them from the changed-path list by name. Excluding them with a pathspec names a denied pattern, which the host's deny gate blocks.
 
 | Kind | Where the diff shows it |
 | --- | --- |
@@ -148,7 +148,7 @@ Checks run: <commands, or "not run" and why>
 
 ## audit: GitHub links
 
-Before any call, check the owner, repo, ref and path against letters, digits and `._/-`, and the number against digits. Reject a link with a `.` or `..` path segment or a percent sign, and list it as unchecked.
+Drop any `#fragment` first, and list the anchor as unchecked. Before any call, check the owner, repo, ref and path against letters, digits and `._/-`, and the number against digits. Reject a link with a `.` or `..` path segment or a percent sign, and list it as unchecked.
 
 | Link shape | Endpoint |
 | --- | --- |
@@ -173,6 +173,9 @@ Call `gh api --method GET '<endpoint>'`, with the endpoint single-quoted and no 
 ### Diagram verdict
 <needed and missing | present and current | present and stale | not needed>: <the relationship behind the verdict>
 | Node or edge | What the code says |
+
+### Stale facts
+| Line | Claim | What the code says |
 
 ### Consistency with repo conventions
 | Line | Finding | Rule broken (quoted) |
