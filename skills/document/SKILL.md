@@ -91,10 +91,10 @@ Edit nothing. The user runs `check`, `review` or `write` to fix what the report 
 
 1. Read the docs scope from Step 0 plus the instruction files. `(review-time: see section note)`
 2. With more than about 40 docs, split the tree across at most five read-only teammates, one or more top-level directories each. `(review-time: see section note)`
-3. Brief each teammate with the Step 0 rules verbatim. Give it no shell when the host allows that; otherwise tell it to run no commands. `(review-time: see section note)`
+3. Brief each teammate with the Step 0 rules verbatim. Give it read and search tools and no shell when the host allows that; otherwise tell it to run no commands. `(review-time: see section note)`
 4. Before a teammate row enters the report, check it against its cited file and line. Check every access, security or secret row, and a sample of the rest. `(review-time: see section note)`
 5. Check every relative link and anchor. `(review-time: see section note)`
-6. Check each `github.com` link in the docs scope and the instruction files. Reject `.` and `..` path segments, then call `gh api --method GET repos/<owner>/<repo>/contents/<path>` with no `-f` or `-F`, and keep only the status. `(review-time: see section note)`
+6. Check each `github.com` link in the docs scope and the instruction files yourself, not through a teammate. Reject `.` and `..` path segments, then call `gh api --method GET repos/<owner>/<repo>/contents/<path>` with no `-f` or `-F`, and keep only the status. `(review-time: see section note)`
 7. List other real external links as unchecked, without userinfo or query strings, and never fetch them. Skip localhost, placeholder and example URLs. `(review-time: see section note)`
 8. Check that each cited source path and symbol exists. Compare reference tables, such as env vars, roles, enums and config keys, with the code they describe. `(review-time: see section note)`
 9. Check each doc against the repo's stated rules, and quote the rule a finding breaks. When the repo says history lives in git, prose that narrates past changes breaks that rule. `(review-time: see section note)`
