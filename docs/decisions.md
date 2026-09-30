@@ -25,7 +25,7 @@ The design decisions this config still runs on. Each entry states the choice, th
 
 - A specialized task spawns the matching persona through the Agent tool. Persona files never load into the main conversation.
 - Persona text in the main thread cost 3-15K tokens and biased unrelated work later in the session.
-- `rules/agent-routing.md` holds one routing row per persona.
+- `rules/agent-routing.md` holds one routing row per routed persona. Doc Reader has none, because only `/document review` spawns it.
 
 ### Lean personas that inherit the rules
 
@@ -52,17 +52,24 @@ The design decisions this config still runs on. Each entry states the choice, th
 ### Deliver a feature with one human gate
 
 - `deliver` runs research, spec, plan, the tests-first slice loop, spec verification, the PR, CI, and bot comments in one run.
-- The user approves the spec. After that the run stops only for replies to human reviewers, force-push, merge, production changes, and deleting data.
-- The author of code never grades it. The QA Expert writes and locks the tests, a read-only panel reviews, and the Spec Verifier records evidence at HEAD.
-- Hooks back the loop: the evidence gate blocks a PR without passing criteria, the test lock blocks implementers from editing tests, and the reply gate blocks posting to humans.
+- The user approves the spec. After that the run stops only for these:
+  - replies to human reviewers
+  - force-push, merge, or a push to `main`
+  - production changes, deleting data, or changes outside the repo
+  - an architectural choice the spec left open
+- The author of code never grades it. The QA Expert writes and locks the tests, a review panel of advisory personas reviews, and the Spec Verifier records evidence at HEAD.
+- Hooks back the loop:
+  - The evidence gate blocks opening a PR until every automated criterion passes at HEAD.
+  - The test lock blocks implementers from editing locked tests.
+  - The reply gate blocks inline replies to human comments.
 
 ## Skills
 
 ### Vendor and adapt upstream skills
 
-- Upstream skills are adapted, not copied. Each keeps a `> Source:` line and drifts from upstream on purpose.
+- Upstream skills are adapted, not copied. Each names its upstream, usually in a `> Source:` line, and drifts from upstream on purpose.
 - Orchestration skills stay model-invoked, so the model enters workflow phases on its own. `wayfinder` and `deliver` are the exceptions: a long run starts only when the user asks.
-- Upstream's user-invoked stages (`to-spec`, `to-tickets`, `implement`) are not adopted.
+- Upstream's user-invoked `to-spec` and `implement` stages are not adopted. `to-tickets` is adopted as the model-invoked `to-issues`.
 - Reusable disciplines merge into an existing skill, such as `test`, `debug`, or `review-pr`, when one fits.
 - `wayfinder` tracks multi-session efforts in files under `.claude/state/`, because this setup runs no issue tracker.
 - Re-vendoring is manual. No upstream commit is pinned.
@@ -75,8 +82,9 @@ The design decisions this config still runs on. Each entry states the choice, th
 - `scripts/setup-hosts.sh` links each host's native path to the same files.
 - Claude Code has no user-level `AGENTS.md`, so `~/.claude/CLAUDE.md` links to it.
 - Claude Code loads `rules/` natively through `~/.claude/rules`. Other hosts reach it through the `rulebook` skill.
-- Hooks run on every host from one registry in `settings.json`. Claude Code runs it natively. Codex (through a generated `~/.codex/hooks.json`) and Pi (through the `hook-bridge` extension) call `hooks/lib/dispatch.sh`, so each check stays one script.
-- The deny list stays in `settings.json`. Claude Code and Pi enforce it natively, and `hooks/deny-gate.sh` adds it for Codex and blocks shell commands that name a denied path on every host.
+- Tool hooks run on every host from one registry in `settings.json`. Claude Code runs it natively. Codex (through a generated `~/.codex/hooks.json`) and Pi (through the `hook-bridge` extension) call `hooks/lib/dispatch.sh`, so each check stays one script.
+- Session hooks differ by host. Codex gets `SessionStart` and `SessionEnd` but no `Notification`. Pi runs its session work in its own extensions.
+- The deny list stays in `settings.json`. Claude Code enforces it natively. Pi enforces a policy that the `permission-gate` extension derives from it for the pinned `pi-permission-system` package. `hooks/deny-gate.sh` adds it for Codex and blocks shell commands that name a denied path on every host.
 - Teammate mechanics stay host-specific.
 - Shared skills keep Claude notation, and `AGENTS.md` maps it for the other hosts.
 
