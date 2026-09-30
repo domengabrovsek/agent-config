@@ -139,7 +139,7 @@ Every subcommand that runs a check command follows these rules, `audit` included
 This applies to every run that edits: `write`, `adr`, `bootstrap`, `check`, and `review` after the user's go.
 
 - Run the doc check commands found in Step 0, under the rules above. `(review-time: see section note)`
-- With no check commands, confirm that each source-file citation in the touched docs resolves and each mermaid block names a known diagram type. `(review-time: see section note)`
+- With no check commands, confirm that each source-file citation in the touched docs resolves, each drawio PNG has its `.drawio` source, and each mermaid block names a known diagram type. `(review-time: see section note)`
 - Fix failures in files this run touched. Report other failures without fixing them. `(review-time: see section note)`
 
 ## Out of scope

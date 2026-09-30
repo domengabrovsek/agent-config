@@ -23,7 +23,7 @@ For the full description of a skill, see its `skills/<name>/SKILL.md`.
 | Watch CI on the latest PR | `/ci` (or `/loop 2m /ci` on Claude Code) |
 | Address reviewer comments on a PR (bots answered, humans drafted) | `/pr-comments` |
 | Cut a release | `/ship` |
-| Make a diagram (mermaid or drawio) | `/diagram <topic>` |
+| Make a diagram (drawio) | `/diagram <topic>` |
 | Save the session's work as a diary entry | `/summarize` |
 | Refresh a library's API docs (React, Prisma, Next.js, etc.) | mention the library by name - the `ctx7` CLI auto-fires |
 | Break a plan/PRD into independently-grabbable tracker issues | `/to-issues` |

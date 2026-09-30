@@ -45,26 +45,18 @@ The default layout when a repo states none. One quadrant per topic. Ask when a t
 
 ## Diagram conventions
 
-Mermaid is the default, in fenced blocks GitHub renders natively. Pick the type by purpose:
-
-| Purpose | Mermaid type |
-| --- | --- |
-| Architecture, decision trees | `flowchart TD` |
-| Request, auth and async flows | `sequenceDiagram` |
-| Data models | `erDiagram` |
-| State machines | `stateDiagram-v2` |
-| Services, queues, datastores | `flowchart LR` with subgraphs |
-
-Keep node labels short and put detail in adjacent prose. One diagram per doc unless the doc is an architecture overview. Every diagram gets adjacent text naming what it shows, because an agent cannot read a drawio PNG.
-
-Switch to drawio for custom shapes, cloud icons, more than two swimlanes, stacked layers, or precise layout. Source goes in `docs/diagrams/<topic>.drawio` with a committed PNG beside it:
+Drawio is the default. Source goes in `docs/diagrams/<topic>.drawio` with a committed PNG beside it:
 
 ```markdown
 ![<topic>](diagrams/<topic>.png)
 *Source: [`<topic>.drawio`](diagrams/<topic>.drawio)*
 ```
 
-The `/diagram` skill picks the format and writes the source. Full policy: `rules/diagrams.md`.
+Keep labels short and put detail in adjacent prose. Every diagram gets adjacent text naming what it shows, because an agent cannot read a drawio PNG.
+
+Use mermaid in fenced blocks only when the drawio MCP server is unavailable. Convert an existing mermaid diagram to drawio when a change edits it.
+
+The `/diagram` skill writes the source. Full policy: `rules/diagrams.md`.
 
 ## check: changed symbols
 
