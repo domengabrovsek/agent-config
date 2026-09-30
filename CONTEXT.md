@@ -55,7 +55,7 @@ The machine-readable deny rules in the root `settings.json`, canonical enforceme
 _Avoid_: "Claude permissions" (hosts other than Claude consume it), "blocklist".
 
 **Permission gate**:
-pi's mechanical enforcement of the Deny list by intercepting model tool calls before execution.
+pi's mechanical enforcement of the Deny list. The pinned `pi-permission-system` package intercepts model tool calls before execution, using the Derived policy from the `permission-gate` extension.
 _Avoid_: "sandbox", "security boundary" - an in-process gate is friction, not isolation.
 
 **Derived policy**:
@@ -67,7 +67,7 @@ A host's links diverging from the checkout; the Host bootstrap detects it with `
 _Avoid_: "config drift", "stale links", "out-of-sync".
 
 **Workflow state**:
-Cross-session research, plans, specs, diaries, and per-branch run files (task list, test lock, evidence ledger, reply drafts) shared by every agent host under the historical `.claude/state/` project path.
+Cross-session research, plans, specs, diaries, wayfinder maps, and per-branch run files (task list, test lock, evidence ledger, reply drafts) shared by every agent host under the historical `.claude/state/` project path.
 _Avoid_: "Claude state" - the path is retained for compatibility, but ownership is multi-host.
 
 ### Agent orchestration
@@ -103,7 +103,7 @@ A skill the model may auto-invoke because its `description` carries trigger phra
 _Avoid_: "auto skill".
 
 **User-invoked skill**:
-A skill only a human can start (`disable-model-invocation: true`, human-facing description); reserved for orchestration a human should sequence deliberately.
+A skill only a human can start (`disable-model-invocation: true`, human-facing description); reserved for runs a human should start deliberately.
 _Avoid_: "manual skill", "slash-only skill".
 
 **Orchestrator**:
@@ -139,7 +139,7 @@ The per-branch list of test files the QA Expert committed for a slice; only the 
 _Avoid_: "frozen tests".
 
 **Spec Verifier**:
-The read-only persona that runs each criterion's check at HEAD and writes the evidence ledger; it never fixes what it finds.
+The advisory persona that runs each criterion's check at HEAD and writes the evidence ledger; it never fixes what it finds.
 _Avoid_: "QA agent".
 
 **Decision ticket**:
@@ -153,7 +153,7 @@ _Avoid_: "spike task", "POC".
 ### Config surface
 
 **Always-loaded rule**:
-A rule in `AGENTS.md` or in a `rules/` file without `paths:` frontmatter, present in the context of every session regardless of the task.
+A rule in `AGENTS.md` or in a `rules/` file without `paths:` frontmatter, present in the context of every Claude Code session regardless of the task. Codex and Pi load only `AGENTS.md` this way and reach `rules/` through the Rulebook.
 _Avoid_: "global rule", "base rule".
 
 **On-demand rule**:
@@ -161,7 +161,7 @@ A rule that enters context only when its trigger fires: `paths:` frontmatter mat
 _Avoid_: "lazy rule", "scoped rule".
 
 **Prose gate**:
-The mechanical tier of the writing policy: the word lists, filler phrases and punctuation checks in `hooks/prose-gate.sh`, applied to markdown writes, commit messages and PR bodies. Distinct from the code-structure checks in `hooks/post-edit-lint.sh`, which fire on comment shape and language rules rather than word choice.
+The mechanical tier of the writing policy: the word lists, filler phrases and punctuation checks in `hooks/prose-gate.sh`, applied to markdown writes, commit messages and PR bodies, and in CI to every tracked markdown file. Distinct from the code-structure checks in `hooks/post-edit-lint.sh`, which fire on comment shape and language rules rather than word choice.
 _Avoid_: "the lint hook", "the style check".
 
 **Judgment tier**:
