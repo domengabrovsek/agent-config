@@ -15,7 +15,8 @@ How to install this config, scope it per machine, and wire each host. For the bi
 | `git`, `bash` | Everything |
 | `jq` | `setup-hosts.sh` for Codex, and the `settings.json` git filter |
 | `python3` | `hooks/lib/dispatch.sh` on Codex and Pi, and `config-integrity.sh` |
-| Node.js 22.19 or later | `hooks/deny-gate.sh` and `npm test`. Without `node`, the deny gate allows everything |
+| Node.js 22.18 or later | `hooks/deny-gate.sh`, which runs its TypeScript directly. Without `node`, the deny gate allows everything |
+| Node.js 22.19 or later | `npm test`, from the `engines` floor in `package.json`. This version also satisfies the deny gate |
 | Claude Code, Codex, or Pi | At least one host |
 
 ## Install
