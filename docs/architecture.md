@@ -62,7 +62,8 @@ Most of the config costs nothing until a task needs it.
 | A task needs a standard | The `rulebook` skill loads the matching `rules/` file | Codex, Pi |
 | A request matches a skill's description | That skill's `SKILL.md` | All |
 | A task touches a specialized domain | A persona, in a subagent with its own context | All |
-| Every tool call | Hooks run; they add text only when they block or report | All |
+| A tool call matches a registry entry | Hooks run; they add text only when they block or report | Claude Code, Codex |
+| A `bash`, `edit`, or `write` call | Hooks run through the `hook-bridge` extension | Pi |
 
 The main session never reads a persona file. Persona text in the main thread costs thousands of tokens and biases later, unrelated work.
 

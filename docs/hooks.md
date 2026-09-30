@@ -27,8 +27,9 @@ Each command runs the current project's `hooks/<name>` when that file is executa
 Exit codes decide the outcome:
 
 - **0** lets the tool call run. JSON output with `additionalContext` adds text for the model.
-- **2** blocks the call. The script's stderr reaches the model as feedback.
-- Any other code: `dispatch.sh` ignores it, so a broken hook fails open on Codex and Pi.
+- **2** blocks a `PreToolUse` call, and the script's stderr reaches the model as feedback. A `PostToolUse` hook runs after the file is saved, so its exit 2 sends the feedback without undoing the edit.
+- Any other code lets the call run. Claude Code shows a non-blocking error, and `dispatch.sh` ignores the code, so a broken hook fails open on every host.
+- `dispatch.sh` kills a hook that runs past its `timeout`, 60 seconds when unset, and lets the call run.
 
 ## Host coverage
 
@@ -38,7 +39,7 @@ Exit codes decide the outcome:
 | Codex | `~/.codex/hooks.json` calls `dispatch.sh` | `SessionStart` and `SessionEnd` through `dispatch.sh`; no `Notification` | `deny-gate.sh`, including the `Bash` rules |
 | Pi | The `hook-bridge` extension calls `dispatch.sh` for `bash`, `edit`, and `write` | Extensions instead: `drift-check` at start, `worktree-cleanup` at shutdown | The `permission-gate` extension derives a policy for the pinned `pi-permission-system` package; `deny-gate.sh` runs through the bridge |
 
-`dispatch.sh` makes one registry serve three hosts. It maps each host's tool names to Claude Code's, so Codex shell tools become `Bash` and each file in an `apply_patch` becomes an `Edit`. It runs the matching hooks in registry order, stops at the first exit 2, and merges the context the others print.
+`dispatch.sh` makes one registry serve three hosts. It reads `settings.json` from the checkout on every call, so a registry edit reaches Codex and Pi at once. It maps each host's tool names to Claude Code's, so Codex shell tools become `Bash` and each file in an `apply_patch` becomes an `Edit`. It runs the matching hooks in registry order, stops at the first exit 2, and merges the context the others print.
 
 ## PreToolUse hooks
 
@@ -47,11 +48,11 @@ These run before the tool call and can block it. The rows follow registry order,
 | Hook | Runs on | Blocks when | Bypass |
 | --- | --- | --- | --- |
 | `deny-gate.sh` | Bash, Write, Edit, MCP tools | A command names a denied path, an edit targets one, or an MCP tool is denied. `Bash` rules apply on Codex only | None |
-| `pre-git-state-refresh.sh` | `git push`, `git commit`, `gh pr` writes | Never. It adds a `[pr-state]` line with the branch's PR state | `SKIP_PR_STATE_REFRESH` |
+| `pre-git-state-refresh.sh` | `git push`, `git commit`, and `gh pr` `edit`, `comment`, `merge`, `close`, `ready`, `review`; not `gh pr create` | Never. It adds a `[pr-state]` line with the branch's PR state | `SKIP_PR_STATE_REFRESH` |
 | `pre-pr-test-gate.sh` | `gh pr create`, `gh pr ready` | The title is not conventional, or HEAD has no passing verify run | `SKIP_PR_TEST_GATE` |
 | `pre-pr-evidence-gate.sh` | `gh pr create`, when a spec names the branch | A non-manual acceptance criterion lacks a PASS row at HEAD | `SKIP_EVIDENCE_GATE` |
-| `pre-push-gate.sh` | `git push` | The repo's `verify:fast` fails, or lint, typecheck, test, or build fails without it | `SKIP_PUSH_GATE` |
-| `pre-commit-branch-gate.sh` | `git commit` | The branch is `main` or `master` | `SKIP_COMMIT_BRANCH_GATE` |
+| `pre-push-gate.sh` | `git push`, including `git -C <dir> push` | A repo check fails, `node_modules` is missing, or `core.hooksPath` names a missing dir. See below | `SKIP_PUSH_GATE` |
+| `pre-commit-branch-gate.sh` | `git commit`, including `git -C <dir> commit` | The branch is `main` or `master` | `SKIP_COMMIT_BRANCH_GATE` |
 | `pre-commit-coauthor-gate.sh` | `git commit` | The command contains a `Co-authored-by` trailer | `SKIP_COAUTHOR_GATE` |
 | `pre-commit-conventional-gate.sh` | `git commit` | The subject is not a conventional commit | `SKIP_CONVENTIONAL_GATE` |
 | `prose-gate.sh` | `git commit`, `gh pr create`, `gh pr edit` | The message or body uses a blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
@@ -63,7 +64,7 @@ The conventional and co-author gates read the message from the command. A messag
 
 Two gates defer to the repo they run in:
 
-- `pre-push-gate.sh` steps aside when the repo has its own executable pre-push hook, and runs `verify:fast` when `package.json` declares it.
+- `pre-push-gate.sh` steps aside when the repo has its own executable pre-push hook, and runs `verify:fast` when `package.json` declares it. Otherwise it runs each of `lint`, `typecheck`, `knip`, `test`, and `build` that `package.json` declares, then a critical-only audit. In a Terraform dir it runs `terraform fmt -check` and `terraform validate`. A dir with neither `package.json` nor `.tf` files passes.
 - `pre-pr-test-gate.sh` reads the `verify-passed` stamp that the repo's `npm run verify` writes to the git dir. It runs `npm test` only in repos without `verify`.
 
 ## PostToolUse hooks

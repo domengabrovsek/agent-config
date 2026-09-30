@@ -7,7 +7,7 @@ The domain language for this repo's multi-host configuration, agent-orchestratio
 ### Multi-host configuration
 
 **Agent host**:
-A coding-agent runtime that consumes this repo's shared instructions and skills, currently Claude Code, Codex, and Pi. Called a **harness** in repo naming and prose; the two words are synonyms.
+A coding-agent runtime that consumes this repo's shared instructions and skills, currently Claude Code, Codex, and Pi. Also called a **harness**, as in the `HARNESS_SKIP_HOSTS` variable; the two words are synonyms.
 _Avoid_: "agent" when referring to the runtime - reserve agent for a model-driven worker or session.
 
 **Shared instruction source**:
@@ -35,7 +35,7 @@ Host-specific configuration that connects an agent host to the shared instructio
 _Avoid_: "copy", "fork" - adapters must not duplicate shared guidance.
 
 **Host bootstrap**:
-The multi-host installer that checks or creates the filesystem links connecting supported agent hosts to this repo.
+`scripts/setup-hosts.sh`, the multi-host installer that checks or creates the filesystem links connecting supported agent hosts to this repo.
 _Avoid_: "Codex setup script", "Claude setup script" for the shared installer.
 
 **Hook dispatcher**:
@@ -55,7 +55,7 @@ The machine-readable deny rules in the root `settings.json`, canonical enforceme
 _Avoid_: "Claude permissions" (hosts other than Claude consume it), "blocklist".
 
 **Permission gate**:
-pi's mechanical enforcement of the Deny list. The pinned `pi-permission-system` package intercepts model tool calls before execution, using the Derived policy from the `permission-gate` extension.
+Pi's mechanical enforcement of the Deny list. The pinned `pi-permission-system` package intercepts model tool calls before execution, using the Derived policy from the `permission-gate` extension.
 _Avoid_: "sandbox", "security boundary" - an in-process gate is friction, not isolation.
 
 **Derived policy**:
@@ -85,7 +85,7 @@ Named read-only teammates that coordinate peer-to-peer via SendMessage to challe
 _Avoid_: "round-table", "team mode".
 
 **Peer session**:
-Another pi session on this machine, addressable directly for coordination; exists outside the spawn relationship, unlike a Teammate.
+Another Pi session on this machine, addressable directly for coordination; exists outside the spawn relationship, unlike a Teammate.
 _Avoid_: "subagent", "teammate" for cross-session peers.
 
 **Advisory persona**:
@@ -174,14 +174,14 @@ _Avoid_: "soft rules", "style guide".
 - Each **Agent host** discovers the same **Shared skill library** through its native user-level path.
 - Every **Agent host** also gets the **Shared root**, so one absolute path in a shared file resolves everywhere.
 - Each **Agent host** maps **Compatibility notation** to its native skill and teammate mechanisms.
-- The **Host bootstrap** installs every **Host adapter** while the legacy Claude setup command remains a compatibility entrypoint.
+- The **Host bootstrap** installs every **Host adapter** while the legacy Claude setup command, `scripts/setup-symlinks.sh`, remains a compatibility entrypoint.
 - The **Host bootstrap** leaves provider, model, and credential choices to each **Agent host** user.
 - A **Host adapter** may add host-specific behavior but must not redefine shared guidance.
 - **Behavioral parity** is the first multi-host milestone; **Mechanical parity** is translated and verified separately for each host.
 - A **Permission gate** enforces the **Deny list** on one Agent host; rules without a translation for that host are surfaced, not silently dropped.
 - All hosts translate one canonical **Deny list**; a host may enforce a superset, never a subset.
 - A host's permission mechanism derives its rules from the **Deny list**; a generated or synced copy is acceptable, a second hand-maintained policy file is not.
-- **Drift** between the checkout and a host is surfaced at that host's session start.
+- **Drift** between the checkout and a host is surfaced at session start on Claude Code and Pi. Codex runs the check, but the **Hook dispatcher** drops its warning, so a Codex user runs `bash scripts/setup-hosts.sh --check --host codex` by hand.
 - **Behavioral parity** covers interactive and non-interactive modes supported by each **Agent host**.
 - Every **Agent host** reads and writes the same **Workflow state** so work can move between hosts without conversion.
 - Detailed standards live in **Reusable disciplines** and load on demand rather than expanding the **Shared instruction source**.
@@ -204,10 +204,10 @@ _Avoid_: "soft rules", "style guide".
 
 ## Flagged ambiguities
 
-- "harness" and "host" named the same runtime - resolved: synonyms; prose and the repo name say **harness**, while inherited script names, flags, and upstream-shared files keep "host" so merges stay conflict-free.
+- "harness" and "host" named the same runtime - resolved: synonyms; docs prose says **host**, while names inherited from the upstream harness-config repo, such as `HARNESS_SKIP_HOSTS`, keep their spelling so merges stay conflict-free.
 - "Agent" was used for both the coding runtime and a model-driven worker - resolved: the runtime is an **Agent host**; a named worker is a **Teammate**.
 - Pi was described as a design target - resolved: Pi is a supported **Agent host** within the **Behavioral parity** boundary.
 - "Full Pi support" was ambiguous - resolved: Pi loads shared behavior in every native mode; **Teammate** spawning (including background runs and panel-style steering) carries mechanical parity through the `pi-subagents` package.
 - "subagent" was used for both the generic spawn mechanism and a named agent - resolved: a named agent is a **Teammate**; "subagent" refers only to the generic Agent-tool spawn.
 - "skill" was used for both sequencing workflows and single practices - resolved: a sequencing skill is an **Orchestrator**, a single-practice skill is a **Reusable discipline**.
-- "full permission parity for pi" was ambiguous - resolved: the pi **Permission gate** enforces a **superset** of the **Deny list** on file tools (Edit rules also bind writes; bash matching covers command segments), so any parity claim names its direction.
+- "full permission parity for pi" was ambiguous - resolved: the Pi **Permission gate** enforces a **superset** of the **Deny list** on file tools (Edit rules also bind writes; bash matching covers command segments), so any parity claim names its direction.

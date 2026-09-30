@@ -21,7 +21,7 @@ Every change lands through a pull request to `main`, and CI runs the same checks
 2. Register it in `settings.json` under its event, with a `matcher`, an optional `if` pattern, and a timeout. Copy the command wrapper of an existing entry, so the project's copy wins over `~/.claude/hooks`.
 3. Add `tests/<name>.sh`, and add a step that runs it to the `shell-tests` job in `.github/workflows/pull-request.yml`.
 4. Change the tag of the rule it backs to `(hook)`.
-5. If you use Codex, run `bash scripts/setup-hosts.sh --apply --host codex`. The generated `hooks.json` sums the hook timeouts of each event, so it goes stale when the registry changes.
+5. If you use Codex, run `bash scripts/setup-hosts.sh --apply --host codex` from the main checkout once the change is there. The generated `hooks.json` sums the hook timeouts of each event, so it goes stale when the registry changes.
 
 [Hooks](hooks.md) describes the registry format and how `dispatch.sh` runs it on Codex and Pi.
 
@@ -51,7 +51,7 @@ Edit `scripts/setup-hosts.sh`, update the link tables in [setup](setup.md), and 
 
 ## Run the checks
 
-CI runs these jobs on every pull request. Each runs locally from the repo root.
+CI runs these jobs on every pull request. Each job except Lint Markdown runs locally from the repo root.
 
 | CI job | Local command | Checks |
 | --- | --- | --- |
@@ -62,6 +62,8 @@ CI runs these jobs on every pull request. Each runs locally from the repo root.
 | Config Integrity | `./scripts/config-integrity.sh` and `./scripts/shellcheck-all.sh` | JSON parses, no runtime keys committed, the git filter declared, shell lint |
 | Shell Tests | `for t in tests/*.sh; do bash "$t"; done` | Host setup, drift check, shared paths, dispatcher, and every gate |
 
+- The agent push gate runs only part of this table. `package.json` declares only a `test` script, so `pre-push-gate.sh` runs `npm test` and a critical-only `npm audit`. Run every command in the table before you push.
+- The push gate blocks a push from any Node checkout without `node_modules`, even though `npm test` here needs no install. Run `npm ci` in a new worktree first.
 - `shellcheck-all.sh` installs `shellcheck` through `apt-get` or `brew` when it is missing.
 - `npm test` needs Node.js 22.19 or later and no install step.
 - A `Gate` job passes only when every job above passed or was skipped. Branch protection requires `Gate`, so the required check stays stable when jobs change.
