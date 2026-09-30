@@ -70,7 +70,7 @@ Rows marked **user** start only when you type them.
 | Skill | Starts | Does |
 | --- | --- | --- |
 | `document` | model | Checks, audits, reviews, and writes a repo's docs |
-| `diagram` | model | Writes a diagram in the format `rules/diagrams.md` picks, and previews it |
+| `diagram` | model | Writes a drawio diagram, falling back to mermaid when drawio is unavailable |
 | `write-plain` | model | Edits prose to remove patterns that read as machine-written |
 | `write-a-skill` | model | Gives the principles for writing or editing a skill |
 
