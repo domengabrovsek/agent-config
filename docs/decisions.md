@@ -1,12 +1,13 @@
 # Decisions
 
-The design decisions this config still runs on. Each entry states the choice, the reason, and when to revisit it. The original ADRs, with their context and rejected alternatives, stay in git history under `docs/adr/`.
+The design decisions this config still runs on. Each entry states the choice and the reason, and some name when to revisit it. The original ADRs, with their context and rejected alternatives, stay in git history under `docs/adr/`.
 
 ## Workflow
 
 ### Grill before building
 
-- Work runs Research, Grill, Spec and plan, Implement, Summarize, as the Workflow section of `AGENTS.md` describes.
+- The Workflow section of `AGENTS.md` names five phases: Research, Grill, Spec and plan, Implement, Summarize. Each phase has a trigger, such as unfamiliar code for Research or checkable criteria for Spec and plan.
+- The request's intent picks the phases, so a review or an explanation skips planning and implementation.
 - The grill aligns through real-time questions instead of an annotated plan document.
 - Each phase hands off explicitly. The user's "ready" at the end of the grill, or approval of the spec, is the approval gate.
 - The grill writes domain terms to `CONTEXT.md` and a short plan to `.claude/state/plans/`. It never writes an ADR.
@@ -38,7 +39,8 @@ The design decisions this config still runs on. Each entry states the choice, th
 
 - Mutating parallel work uses lane mode: teammates in isolated worktrees own disjoint files and report to the parent.
 - Read-only research, grilling, and design use panel mode: named teammates challenge each other through SendMessage, then the parent converges.
-- Research panels spawn as `Explore`, which has no Edit or Write tool. Grill and design panels use domain personas with a read-only brief.
+- Implementation needs isolated writers, while research and grilling need teammates that challenge each other. A teammate that only reports to the parent never sees another teammate's findings.
+- Research panels spawn as `Explore`, which has no Edit or Write tool. Grill and design panels use domain personas, often writers with every tool. A read-only brief keeps them from editing, because the Agent tool cannot restrict tools per spawn.
 - The entry-point skills (`research`, `grill-with-docs`, `build`) pick the mode, so a prompt does not have to.
 - `CONTEXT.md` defines both modes, and `rules/parallel-agents.md` holds the rules.
 
@@ -46,6 +48,7 @@ The design decisions this config still runs on. Each entry states the choice, th
 
 - `drive-fleet` plans file-isolated lanes through a grill. One manager session then loops under the built-in `/goal`.
 - Subagents in worktrees do every edit, review, and rebase. The manager never touches a working tree.
+- A main session that edits every branch itself fills its context, lets one lane's edits overwrite another's, and blocks its turn polling CI.
 - Setting the `/goal` authorizes opening the fleet's pull requests and in-scope fixes, retries, and rebases.
 - The loop always stops for a plan-breaking conflict, the same CI failure three times, or an outward post-completion action.
 
@@ -91,6 +94,8 @@ The design decisions this config still runs on. Each entry states the choice, th
 ### Pi adapter under pi/
 
 - `setup-hosts.sh` links `AGENTS.md`, `agents/`, and the files under `pi/` into every Pi agent dir.
+- As links, Pi's extensions and settings show up in `setup-hosts.sh --check`, and `--apply` sets up a new machine without manual steps.
+- Pi files live under `pi/` because the repo root keeps the Claude Code layout.
 - `PI_CONFIG_DIRS` selects the dirs. The default is `~/.pi/agent` plus `~/.pi-personal/agent`.
 - `pi/settings.json` uses the `strip-ephemeral-state` git filter, like `settings.json`, so runtime keys stay out of git.
 - The checkout path is load-bearing. Moving it breaks every linked host at once.
