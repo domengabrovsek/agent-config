@@ -2,7 +2,7 @@
 
 Intent → skill. Claude Code accepts the `/name` notation shown below. In Codex or Pi, invoke the same shared skill by name; host-specific notation in a skill maps to the equivalent available capability.
 
-For the full description of a skill, see its `skills/<name>/SKILL.md`.
+For every skill with its kind and how it loads, see [skills](docs/skills.md). For the full text of one, see its `skills/<name>/SKILL.md`.
 
 ## "I want to..."
 
@@ -20,7 +20,7 @@ For the full description of a skill, see its `skills/<name>/SKILL.md`.
 | Review someone's PR | `/review-pr 567` |
 | Verify everything before pushing | `/verify-done` |
 | Open a PR/MR (reuses a verify pass at HEAD or runs the gate, regex-checks the title) | `/mr` |
-| Watch CI on the latest PR | `/ci` (or `/loop 2m /ci` on Claude Code) |
+| Watch CI on the current branch | `/ci` (or `/loop 2m /ci` on Claude Code) |
 | Address reviewer comments on a PR (bots answered, humans drafted) | `/pr-comments` |
 | Cut a release | `/ship` |
 | Make a diagram (drawio) | `/diagram <topic>` |
@@ -28,8 +28,8 @@ For the full description of a skill, see its `skills/<name>/SKILL.md`.
 | Refresh a library's API docs (React, Prisma, Next.js, etc.) | mention the library by name - the `ctx7` CLI auto-fires |
 | Break a plan/PRD into independently-grabbable tracker issues | `/to-issues` |
 | Find architectural deepening opportunities in a codebase | `/improve-codebase-architecture` |
-| Scaffold a new skill | `/write-a-skill` |
-| Create a worktree for parallel sub-agent work | `/worktree <slug>` |
+| Write or edit a skill | `/write-a-skill` |
+| Work on a task in its own worktree | `/worktree <slug>` |
 | Clean up a worktree after its branch merged | `/worktree-merge` |
 | Prune dead worktrees in this repo | `/worktrees [--apply]` |
 | Audit worktrees across all repos under `~/dev/` | `/worktrees --all [--apply]` |
@@ -56,7 +56,7 @@ Some skills enforce a discipline plain English would skip. Use the slash when yo
 
 ## Skills that fire on their own
 
-Model-invoked, so describing the work is enough. Naming them still works:
+Every skill except `/deliver`, `/wayfinder`, and `/wait-what` can start on its own when your request matches its description. Those three start only when you type them. These four fire most often without being named:
 
 - `rulebook` - loads the detailed standards a task needs from `rules/`
 - `write-plain` - fires on prose work: docs, ADRs, specs, PR bodies
@@ -71,27 +71,21 @@ Lightweight helpers; structure is minimal:
 
 ## Workflow
 
-`/deliver <goal>` runs the whole chain below after you approve the spec. Step by step:
+One way to run a change by hand, step by step. Skip the steps a change does not need:
 
-```text
-[/research]       optional orientation
-        ↓
-/grill-with-docs  alignment - emits CONTEXT.md terms + execution plan
-        ↓
-[/spec → /plan]   when criteria need checks: spec, then slices
-        ↓
-/build            walk the execution plan
-        ↓
-/verify-done      full quality gate
-        ↓
-/mr               open PR (reuses the verify pass at HEAD)
-        ↓
-/ci               watch pipeline
-        ↓
-/pr-comments      address reviewer comments
-        ↓
-/summarize        session diary
-```
+| Step | Skill | Produces |
+| --- | --- | --- |
+| 1 | `/research` | Optional orientation in unfamiliar code |
+| 2 | `/grill-with-docs` | Alignment, glossary terms in `CONTEXT.md`, and a plan |
+| 3 | `/spec`, then `/plan` | When criteria need checks: a spec, then vertical slices |
+| 4 | `/build` | The plan, implemented slice by slice |
+| 5 | `/verify-done` | A full quality gate pass |
+| 6 | `/mr` | An open PR, reusing the verify pass at HEAD |
+| 7 | `/ci` | A watched pipeline |
+| 8 | `/pr-comments` | Reviewer comments addressed |
+| 9 | `/summarize` | A session diary |
+
+`/deliver <goal>` automates steps 1 and 3 to 8, with a worktree and spec verification added. You approve the spec, and it skips the grill and the diary. [Skills](docs/skills.md#how-deliver-runs) shows its flow.
 
 ## Other intents
 
