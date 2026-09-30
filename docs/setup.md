@@ -116,7 +116,7 @@ It also writes `~/.codex/hooks.json`. The file sends `PreToolUse`, `PostToolUse`
 
 `hooks/deny-gate.sh` brings the deny list to Codex. It blocks Bash commands matching a `Bash` rule, edits and shell commands naming a denied path, and denied MCP tools. It adds friction, not a sandbox.
 
-Codex runs `symlink-check.sh` at session start, but the dispatcher drops its warning. Run `bash scripts/setup-hosts.sh --check --host codex` by hand to see Codex drift.
+Codex runs `symlink-check.sh` at session start, but that hook checks only the Claude Code dir, and the dispatcher drops its warning. Run `bash scripts/setup-hosts.sh --check --host codex` by hand to see Codex drift.
 
 ## Pi
 

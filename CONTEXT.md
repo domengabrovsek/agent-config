@@ -181,7 +181,7 @@ _Avoid_: "soft rules", "style guide".
 - A **Permission gate** enforces the **Deny list** on one Agent host; rules without a translation for that host are surfaced, not silently dropped.
 - All hosts translate one canonical **Deny list**; a host may enforce a superset, never a subset.
 - A host's permission mechanism derives its rules from the **Deny list**; a generated or synced copy is acceptable, a second hand-maintained policy file is not.
-- **Drift** between the checkout and a host is surfaced at session start on Claude Code and Pi. Codex runs the check, but the **Hook dispatcher** drops its warning, so a Codex user runs `bash scripts/setup-hosts.sh --check --host codex` by hand.
+- **Drift** between the checkout and a host is surfaced at session start on Claude Code and Pi. Codex has no drift check of its own, because the shared `SessionStart` hook audits only the Claude Code dir, so a Codex user runs `bash scripts/setup-hosts.sh --check --host codex` by hand.
 - **Behavioral parity** covers interactive and non-interactive modes supported by each **Agent host**.
 - Every **Agent host** reads and writes the same **Workflow state** so work can move between hosts without conversion.
 - Detailed standards live in **Reusable disciplines** and load on demand rather than expanding the **Shared instruction source**.
