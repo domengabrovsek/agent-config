@@ -94,6 +94,36 @@ assert_gate "a new commit makes the evidence stale" "$TEST_DIR/wt" 2
 git -C "$REPO" checkout -q -b feat/no-spec
 assert_gate "a branch with no spec passes" "$REPO" 0
 
+git -C "$REPO" checkout -q -b feat/bold
+BOLD_SHA=$(git -C "$REPO" rev-parse HEAD)
+mkdir -p "$STATE/runs/feat-bold"
+cat > "$STATE/specs/2026-10-01-spec-bold.md" <<'SPEC'
+---
+branch: feat/bold
+---
+# Spec: bold
+
+## Acceptance Criteria
+- [ ] **AC-4:** applies in bulk | verify: test src/bulk.test.ts::applies
+- [ ] **AC-4b:** skips warned rows | verify: test src/bulk.test.ts::skips
+SPEC
+BOLD4="| AC-4 | PASS | test src/bulk.test.ts::applies | 1 passed | ${BOLD_SHA:0:7} |"
+BOLD4B="| AC-4b | PASS | test src/bulk.test.ts::skips | 1 passed | ${BOLD_SHA:0:7} |"
+
+bold_ledger() {
+  printf '%s\n' "| AC | status | check | evidence | sha |" "| --- | --- | --- | --- | --- |" "$@" \
+    > "$STATE/runs/feat-bold/evidence.md"
+}
+
+bold_ledger "$BOLD4"
+assert_gate "a bold criterion with a suffixed id and no row blocks" "$REPO" 2
+
+bold_ledger "$BOLD4" "| AC-4b | FAIL | test src/bulk.test.ts::skips | 1 failed | ${BOLD_SHA:0:7} |"
+assert_gate "a FAIL row for a bold criterion blocks" "$REPO" 2
+
+bold_ledger "$BOLD4" "$BOLD4B"
+assert_gate "bold criteria passing at HEAD pass" "$REPO" 0
+
 echo
 echo "$PASSED passed, $FAILED failed"
 [ "$FAILED" -eq 0 ]

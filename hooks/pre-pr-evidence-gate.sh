@@ -61,9 +61,10 @@ report() {
   echo "  $1" >&2
 }
 
-# Criteria checked by a test or command; manual ones are skipped.
-AC_IDS=$(grep -E '^- \[.\] AC-[0-9]+:' "$SPEC" | grep -v 'verify: manual' \
-  | sed -E 's/^- \[.\] (AC-[0-9]+):.*/\1/')
+# Criteria checked by a test or command; manual ones are skipped. An id may be
+# wrapped in bold markers and may end in a lowercase letter suffix.
+AC_IDS=$(grep -E '^- \[.\] (\*\*)?AC-[0-9]+[a-z]?:' "$SPEC" | grep -v 'verify: manual' \
+  | sed -E 's/^- \[.\] (\*\*)?(AC-[0-9]+[a-z]?):.*/\2/')
 
 if [ -z "$LEDGER" ]; then
   report "No evidence ledger for spec $(basename "$SPEC"). Run the Spec Verifier."
