@@ -71,4 +71,4 @@ CI runs these jobs on every pull request. Each job except Lint Markdown runs loc
 ## Review and notifications
 
 - **Reviewer.** `.github/workflows/reviewer.yml` calls the [shared reviewer](https://github.com/domengabrovsek/github-actions/blob/main/docs/workflows/reviewer.md). Claude reviews a PR when it opens, updates, or turns ready, comments inline, and answers the owner's replies in its threads. A fork PR gets one review each time the owner adds the `safe-to-review` label. The Claude token comes from AWS SSM through the role in the `REVIEWER_ROLE_ARN` variable, so the repo stores no secret.
-- **Notifications.** `.github/workflows/notifications.yml` sends PR and review events to Telegram through a shared workflow. It skips review events on fork PRs.
+- **Notifications.** A repo webhook, managed outside this repo, sends PR, review, and comment events to Telegram. New pushes to an open PR send no ping.
