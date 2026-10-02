@@ -158,6 +158,32 @@ branch: feat/bold
 # Spec: bold
 
 ## Acceptance Criteria
+- [ ] AC-4: applies in bulk | verify: test src/bulk.test.ts::applies
+- [ ] AC-6 - retries once | verify: test src/bulk.test.ts::retries
+SPEC
+assert_gate "one unparseable criterion beside a passing one blocks" "$REPO" 2
+
+cat > "$STATE/specs/2026-10-01-spec-bold.md" <<'SPEC'
+---
+branch: feat/bold
+---
+# Spec: bold
+
+## Acceptance Criteria
+- [ ] AC-4: applies in bulk | verify: test src/bulk.test.ts::applies
+
+## Rollout
+- [ ] tell the team
+SPEC
+assert_gate "a checkbox outside the criteria section is ignored" "$REPO" 0
+
+cat > "$STATE/specs/2026-10-01-spec-bold.md" <<'SPEC'
+---
+branch: feat/bold
+---
+# Spec: bold
+
+## Acceptance Criteria
 - [ ] AC-5: reads well | verify: manual read the page
 SPEC
 assert_gate "a spec with only manual criteria passes" "$REPO" 0

@@ -69,6 +69,13 @@ CRITERIA=$(grep -E "$AC_LINE" "$SPEC")
 AC_IDS=$(printf '%s\n' "$CRITERIA" | grep -v 'verify: manual' \
   | sed -nE 's/^- \[.\] (\*\*)?(AC-[0-9]+[a-z]?)(\*\*)?:.*/\2/p')
 
+# A checkbox in the criteria section that the pattern misses would go unchecked.
+UNPARSED=$(awk '/^## /{s=($0 ~ /^## Acceptance Criteria/)} s' "$SPEC" \
+  | grep -E '^- \[.\] ' | grep -vE "$AC_LINE")
+while IFS= read -r line; do
+  [ -n "$line" ] && report "Could not parse criterion: $line"
+done <<< "$UNPARSED"
+
 if [ -z "$CRITERIA" ] && grep -qE '^## Acceptance Criteria' "$SPEC"; then
   report "Could not parse any criteria in $(basename "$SPEC"). Write them as '- [ ] AC-1: ...'."
 elif [ -z "$LEDGER" ]; then
