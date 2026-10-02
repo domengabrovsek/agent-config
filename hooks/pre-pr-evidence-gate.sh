@@ -62,11 +62,16 @@ report() {
 }
 
 # Criteria checked by a test or command; manual ones are skipped. An id may be
-# wrapped in bold markers and may end in a lowercase letter suffix.
-AC_IDS=$(grep -E '^- \[.\] (\*\*)?AC-[0-9]+[a-z]?:' "$SPEC" | grep -v 'verify: manual' \
-  | sed -E 's/^- \[.\] (\*\*)?(AC-[0-9]+[a-z]?):.*/\2/')
+# wrapped in bold markers, with the colon inside or outside them, and may end in
+# a lowercase letter suffix.
+AC_LINE='^- \[.\] (\*\*)?AC-[0-9]+[a-z]?(\*\*)?:'
+CRITERIA=$(grep -E "$AC_LINE" "$SPEC")
+AC_IDS=$(printf '%s\n' "$CRITERIA" | grep -v 'verify: manual' \
+  | sed -nE 's/^- \[.\] (\*\*)?(AC-[0-9]+[a-z]?)(\*\*)?:.*/\2/p')
 
-if [ -z "$LEDGER" ]; then
+if [ -z "$CRITERIA" ] && grep -qE '^## Acceptance Criteria' "$SPEC"; then
+  report "Could not parse any criteria in $(basename "$SPEC"). Write them as '- [ ] AC-1: ...'."
+elif [ -z "$LEDGER" ]; then
   report "No evidence ledger for spec $(basename "$SPEC"). Run the Spec Verifier."
 else
   for ac in $AC_IDS; do
