@@ -17,7 +17,7 @@ Claude Code loads a rule at session start unless its frontmatter has `paths:`. A
 | `parallel-agents.md` | Always | Worktree lanes, read-only panels, and teammate limits |
 | `shell-commands.md` | Always | Direct command forms instead of wrappers |
 | `state-persistence.md` | Always | Where research, specs, plans, and diaries go |
-| `database.md` | SQL, migrations, Prisma, Drizzle, models, repositories | Migrations, queries, and schema code |
+| `database.md` | SQL, migrations, Prisma, Drizzle, models, repositories, `db/`, `database/` | Migrations, queries, and schema code |
 | `diagrams.md` | `docs/`, `*.drawio`, `*.mmd` | Diagram format and file layout |
 | `infrastructure.md` | Terraform, Docker, Kubernetes, Helm, Ansible, CI files | Infrastructure code and destructive infra commands |
 | `rule-authoring.md` | `rules/`, `agents/`, `skills/**/SKILL.md` | How to write and tag a rule |
@@ -61,7 +61,7 @@ Moving a rule to a stronger layer changes its tag and adds the check in the same
 | Words | 4,010 | `AGENTS.md` plus the nine always-loaded rules |
 | `(review-time` tags | 100 | The same files |
 
-CI runs the script, and it prints a per-file word count. When a new rule would pass the limit, give it `paths:` frontmatter, move it into a skill, or back it with a hook. [Contributing](contributing.md#add-a-rule) lists the steps.
+CI runs the script and fails when either limit is passed. Run `./scripts/config-budget.sh` locally to see the per-file word count. When a new rule would pass the limit, give it `paths:` frontmatter, move it into a skill, or back it with a hook. [Contributing](contributing.md#add-a-rule) lists the steps.
 
 ## Where else guidance lives
 

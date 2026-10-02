@@ -22,7 +22,11 @@ A registry entry has four parts:
 | `if` | An optional glob on the tool input | `Bash(git commit *)` |
 | `command` | The script and its arguments, with a timeout | `hooks/prose-gate.sh commit` |
 
-Each command runs the current project's `hooks/<name>` when that file is executable, and `~/.claude/hooks/<name>` otherwise. A session inside this repo therefore runs the checkout's own copy, so a hook edit takes effect in that session.
+Each command runs the current project's `hooks/<name>` when that file is executable, and `~/.claude/hooks/<name>` otherwise. A session inside this repo therefore runs the checkout's own copy, so a hook edit takes effect in that session. The `herdr-agent-state.sh` entry runs only `~/.claude/hooks/herdr-agent-state.sh` and never a project copy.
+
+"Current project" is the git top level of the working directory. On Codex and Pi, `dispatch.sh` sets `CLAUDE_PROJECT_DIR` to it, so the same lookup applies on every host.
+
+The lookup lets any project replace any hook. A repo that ships an executable `hooks/deny-gate.sh` runs its own copy instead of this one, so a hostile repo can ship a deny gate that allows everything. Before you open a session in an unfamiliar repo, check whether it has executable scripts in `hooks/` named like the ones below, and read them first. `ls -l <repo>/hooks` shows them. If one looks wrong, do not start a session in that repo. No setting forces the global copy.
 
 Exit codes decide the outcome:
 
@@ -73,7 +77,7 @@ These run after a Write or Edit. A block here reports the problem after the file
 
 | Hook | Does | Blocks when | Bypass |
 | --- | --- | --- | --- |
-| `auto-format.sh` | Runs Prettier when the repo configures it and has no Biome config | Never | None |
+| `auto-format.sh` | Runs Prettier when the repo has no Biome config and either configures Prettier or has `node_modules/.bin/prettier` | Never | None |
 | `post-edit-typecheck.sh` | Runs `biome check --write` on the file when the repo has Biome | Biome reports an error | `SKIP_POST_EDIT_TYPECHECK` |
 | `post-edit-lint.sh` | Replaces em dashes, then checks the added lines | Tracker refs in comments, stacked `//` or `--` comments, `var`, TODO markers, `SELECT *`, `:latest` | `SKIP_POST_EDIT_LINT` |
 | `prose-gate.sh file` | Checks the added lines of a Markdown file | A blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
@@ -84,10 +88,10 @@ The prose gate also prints advisories that never block: words to reconsider, sen
 
 | Event | Hook | Does |
 | --- | --- | --- |
-| `SessionStart`, startup | `symlink-check.sh` | Warns when the Claude Code links drifted, with the fix command |
+| `SessionStart`, startup | `symlink-check.sh` | Warns when the Claude Code links drifted, with the fix command; `SKIP_SYMLINK_CHECK=1` turns it off |
 | `SessionStart`, after compaction | Inline `echo` | Reminds the model of the workflow, `/verify-done` before a PR, and the current year |
-| `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1` |
-| `SessionEnd` | `worktree-cleanup.sh` | Runs `scripts/worktree-prune.sh --apply`; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off |
+| `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1`. herdr manages this file and overwrites it on reinstall |
+| `SessionEnd` | `worktree-cleanup.sh` | Runs `scripts/worktree-prune.sh --apply`; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off. Pi's `worktree-cleanup` extension also reads `HARNESS_DISABLE_WORKTREE_CLEANUP=1` |
 | `Notification` | Inline `osascript` | Shows a macOS notification on a permission or idle prompt |
 
 ## Bypass variables

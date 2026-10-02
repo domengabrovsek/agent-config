@@ -8,16 +8,16 @@ The design decisions this config still runs on. Each entry states the choice and
 
 - The Workflow section of `AGENTS.md` names five phases: Research, Grill, Spec and plan, Implement, Summarize. Each phase has a trigger, such as unfamiliar code for Research or checkable criteria for Spec and plan.
 - The request's intent picks the phases, so a review or an explanation skips planning and implementation.
-- The grill aligns through real-time questions instead of an annotated plan document.
-- Each phase hands off explicitly. The user's "ready" at the end of the grill, or approval of the spec, is the approval gate.
-- The grill writes domain terms to `CONTEXT.md` and a short plan to `.claude/state/plans/`. It never writes an ADR.
+- The grill aligns through real-time questions instead of an annotated plan document. An annotated plan mixes domain terms, decisions, and task steps in one file, and each round is a slow write, read, and annotate cycle. The grill settles one decision per answer while the user is present.
+- Each phase hands off explicitly. The grill ends when the user confirms a shared understanding, and approval of the spec gates implementation.
+- The grill writes domain terms to `CONTEXT.md` and a short plan to `.claude/state/plans/`. It never writes an ADR. The glossary grows across sessions, while the plan is discarded once the work ships.
 - Trivial changes, such as typos, version bumps, and config tweaks, skip the grill.
 - Cost: the grill needs the user present to answer.
 
 ### No cross-session repo lock
 
-- The config has no lock between sessions. Concurrent sessions run in different repos, and the old lock never caught a real collision.
-- Worktrees serve parallel teammates and personal preference. Nothing forces them.
+- The config has no lock between sessions. Concurrent sessions run in different repos, so the same-checkout race a lock prevents does not occur.
+- Worktrees serve parallel teammates and personal preference. Rules and skills ask for them, and no hook forces them.
 - Revisit if two long-lived sessions start sharing one checkout.
 
 ## Agents
@@ -25,7 +25,7 @@ The design decisions this config still runs on. Each entry states the choice and
 ### Spawn personas as subagents
 
 - A specialized task spawns the matching persona through the Agent tool. Persona files never load into the main conversation.
-- Persona text in the main thread cost 3-15K tokens and biased unrelated work later in the session.
+- Persona text in the main thread costs thousands of tokens and biases unrelated work later in the session.
 - `rules/agent-routing.md` holds one routing row per routed persona. Doc Reader has none, because only `/document review` spawns it.
 
 ### Lean personas that inherit the rules
@@ -55,33 +55,27 @@ The design decisions this config still runs on. Each entry states the choice and
 ### Deliver a feature with one human gate
 
 - `deliver` runs research, spec, plan, the tests-first slice loop, spec verification, the PR, CI, and bot comments in one run.
-- The user approves the spec. After that the run stops only for these:
-  - replies to human reviewers
-  - force-push, merge, or a push to `main`
-  - production changes, deleting data, or changes outside the repo
-  - an architectural choice the spec left open
-- The author of code never grades it. The QA Expert writes and locks the tests, a review panel of advisory personas reviews, and the Spec Verifier records evidence at HEAD.
-- Hooks back the loop:
-  - The evidence gate blocks opening a PR until every automated criterion passes at HEAD.
-  - The test lock blocks implementers from editing locked tests.
-  - The reply gate blocks inline replies to human comments.
+- The user approves the spec, which is the one decision gate. After that the run stops only to post a reply to a human reviewer, or before a force-push, merge, push to `main`, production change, data deletion, or change outside the repo. `/plan` also asks about an architectural choice the spec left open. The user merges the PR.
+- One gate is enough because the approved spec fixes the acceptance criteria. The Spec Verifier and the evidence gate check later stages against them.
+- The author of code never grades its own tests. The QA Expert writes and locks the tests, a domain persona or the session writes the code, a read-only review panel reviews, and the Spec Verifier records evidence at HEAD.
+- Three hooks back the loop, so a role cannot skip its limit. The evidence gate blocks a PR until every automated criterion passes at HEAD. The test lock blocks implementers from editing locked tests. The reply gate blocks inline replies to human comments.
 
 ## Skills
 
 ### Vendor and adapt upstream skills
 
-- Upstream skills are adapted, not copied. Each names its upstream, usually in a `> Source:` line, and drifts from upstream on purpose.
+- Upstream skills are adapted, not copied. Each names its upstream, usually in a `> Source:` line, and drifts from upstream on purpose. Here orchestration is model-invoked, while upstream makes the user type each stage, so verbatim copies would conflict.
 - Orchestration skills stay model-invoked, so the model enters workflow phases on its own. `wayfinder` and `deliver` are the exceptions: a long run starts only when the user asks.
-- Upstream's user-invoked `to-spec` and `implement` stages are not adopted. `to-tickets` is adopted as the model-invoked `to-issues`.
-- Reusable disciplines merge into an existing skill, such as `test`, `debug`, or `review-pr`, when one fits.
+- Upstream's user-invoked `to-spec` and `implement` stages are not adopted, because they exist to let the user sequence stages by hand. `to-tickets` is adopted as the model-invoked `to-issues`.
+- Reusable disciplines merge into an existing skill, such as `test`, `debug`, or `review-pr`, when one fits. Disciplines are model-invoked on both sides, so they merge without conflict.
 - `wayfinder` tracks multi-session efforts in files under `.claude/state/`, because this setup runs no issue tracker.
-- Re-vendoring is manual. No upstream commit is pinned.
+- Re-vendoring is manual. No upstream commit is pinned, because each sync repeats the judgment of what to adapt.
 
 ## Hosts
 
 ### One instruction file and skill library for every host
 
-- `AGENTS.md` holds the shared instructions and `skills/` the shared skills for Claude Code, Codex, and Pi.
+- `AGENTS.md` holds the shared instructions and `skills/` the shared skills for Claude Code, Codex, and Pi. Guidance copied per host drifts apart.
 - `scripts/setup-hosts.sh` links each host's native path to the same files.
 - Claude Code has no user-level `AGENTS.md`, so `~/.claude/CLAUDE.md` links to it.
 - Claude Code loads `rules/` natively through `~/.claude/rules`. Other hosts reach it through the `rulebook` skill.
