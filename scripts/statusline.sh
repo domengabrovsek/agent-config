@@ -70,6 +70,16 @@ if [ -n "$node_version" ]; then
   printf "${SEP}${BLUE}node${RESET} ${YELLOW}%s${RESET}" "$node_version"
 fi
 
+# Effort is absent when the model does not support the effort parameter
+model=$(echo "$input" | jq -r '.model.display_name // empty')
+effort=$(echo "$input" | jq -r '.effort.level // empty')
+if [ -n "$model" ]; then
+  printf "${SEP}${MAGENTA}%s${RESET}" "$model"
+  if [ -n "$effort" ]; then
+    printf " ${DIM}%s${RESET}" "$effort"
+  fi
+fi
+
 # Context block: render from the start, defaulting to 0 before the first API call
 if [ -n "$has_usage" ] && [ -n "$ctx_pct" ]; then
   pct_int=$(echo "$ctx_pct" | awk '{printf "%d", $1}')

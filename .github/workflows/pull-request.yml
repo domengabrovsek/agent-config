@@ -93,6 +93,9 @@ jobs:
       - name: Test the worktree prune verdicts
         run: bash tests/worktree-prune.sh
 
+      - name: Test the status line
+        run: bash tests/statusline.sh
+
       - name: Test the host-neutral hook dispatcher
         run: bash tests/dispatch.sh
 
