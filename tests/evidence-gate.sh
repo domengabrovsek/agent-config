@@ -177,6 +177,24 @@ branch: feat/bold
 SPEC
 assert_gate "a checkbox outside the criteria section is ignored" "$REPO" 0
 
+printf '%s\n' "---" "branch: feat/bold" "---" "## Acceptance Criteria" \
+  "- [ ] AC-4: applies in bulk | verify: test src/bulk.test.ts::applies" \
+  "* [ ] AC-6: retries once | verify: test src/bulk.test.ts::retries" \
+  > "$STATE/specs/2026-10-01-spec-bold.md"
+assert_gate "a star-bulleted criterion with no row blocks" "$REPO" 2
+
+cat > "$STATE/specs/2026-10-01-spec-bold.md" <<'SPEC'
+---
+branch: feat/bold
+---
+# Spec: bold
+
+## Acceptance Criteria
+- [ ] AC-4: applies in bulk | verify: test src/bulk.test.ts::applies
++ [ ] AC-6 retries once | verify: test src/bulk.test.ts::retries
+SPEC
+assert_gate "an unparseable plus-bulleted criterion blocks" "$REPO" 2
+
 cat > "$STATE/specs/2026-10-01-spec-bold.md" <<'SPEC'
 ---
 branch: feat/bold
