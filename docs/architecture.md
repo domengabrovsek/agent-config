@@ -23,7 +23,7 @@ The repo answers with three design choices:
 | `AGENTS.md` | Shared instructions: priorities, writing, workflow, safety, git | Loaded at session start on every host |
 | `rules/` | 15 detailed standards, such as git, tests, and comments | See [rules](rules.md) |
 | `skills/` | 38 workflows, such as `/build`, `/mr`, and `/debug` | Picked by description, or typed as `/name`. See [skills](skills.md) |
-| `agents/` | 18 expert personas | Spawned as subagents. See [agents](agents.md) |
+| `agents/` | 18 expert personas | Spawned as subagents. See [personas](personas.md) |
 | `settings.json` | Hook registry, deny list, and Claude Code settings | Read by each host. See [hooks](hooks.md) |
 | `hooks/` | Guardrail scripts | Run on tool calls and session events |
 | `pi/` | Pi extensions, settings, models, and MCP servers | Linked into each Pi agent dir |

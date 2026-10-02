@@ -75,7 +75,7 @@ For Pi, a machine that uses only some hosts, or how each host is wired, see [set
 | [Hooks](docs/hooks.md) | Every hook, what it blocks, and the deny list |
 | [Rules](docs/rules.md) | Which rules load when, and enforcement tags |
 | [Skills](docs/skills.md) | Every skill, how skills load, and how `/deliver` runs |
-| [Agents](docs/agents.md) | The personas, lane mode, and panel mode |
+| [Personas](docs/personas.md) | The personas, lane mode, and panel mode |
 | [Contributing](docs/contributing.md) | Changing the config and running the checks |
 | [Decisions](docs/decisions.md) | Why it works this way |
 | [Cheatsheet](CHEATSHEET.md) | Which skill fits a task |

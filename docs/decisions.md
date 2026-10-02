@@ -30,7 +30,7 @@ The design decisions this config still runs on. Each entry states the choice and
 
 ### Lean personas that inherit the rules
 
-- Personas are short spawn-time briefs: role, working method, repo-specific guardrails, red flags, and output format. [`agents.md`](agents.md) has the skeleton.
+- Personas are short spawn-time briefs: role, working method, repo-specific guardrails, red flags, and output format. [Personas](personas.md) has the skeleton.
 - A persona never restates `rules/`. Custom subagents already receive the user `CLAUDE.md`, which links to `AGENTS.md`, and the always-loaded rules.
 - Advisory personas drop Edit and Write through `tools:` frontmatter, so they cannot act as lane-mode writers.
 - Revisit if custom subagents stop receiving user instructions, for example through `omitClaudeMd`.

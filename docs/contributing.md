@@ -36,10 +36,10 @@ Every change lands through a pull request to `main`, and CI runs the same checks
 
 ## Add a persona
 
-1. Write `agents/<name>.md` with the sections in [agents](agents.md#agent-structure). Tag each guardrail `(persona)`.
+1. Write `agents/<name>.md` with the sections in [personas](personas.md#agent-structure). Tag each guardrail `(persona)`.
 2. Leave out `tools:` for a writer. List tools without Edit and Write for an advisory persona.
 3. Add a routing row to `rules/agent-routing.md`, then run `./scripts/config-budget.sh`, because that rule loads in every session.
-4. Add the persona to the tables in [agents](agents.md).
+4. Add the persona to the tables in [personas](personas.md).
 
 ## Change the deny list
 
