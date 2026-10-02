@@ -4,7 +4,7 @@ One checkout holds the instructions, standards, workflows, personas, and guardra
 
 ## The problem it solves
 
-Coding agents write code well and judge "done" badly. They start before they understand the problem, claim what they never checked, and push work that fails CI. Instructions help, but a long prompt competes for attention, and the agent forgets part of it as the session grows.
+Coding agents write code well and judge "done" badly, as the [README](../README.md#why) describes. Instructions help, but a long prompt competes for attention, and the agent forgets part of it as the session grows.
 
 The repo answers with three design choices:
 
@@ -23,7 +23,7 @@ The repo answers with three design choices:
 | `AGENTS.md` | Shared instructions: priorities, writing, workflow, safety, git | Loaded at session start on every host |
 | `rules/` | 15 detailed standards, such as git, tests, and comments | See [rules](rules.md) |
 | `skills/` | 38 workflows, such as `/build`, `/mr`, and `/debug` | Picked by description, or typed as `/name`. See [skills](skills.md) |
-| `agents/` | 18 expert personas | Spawned as subagents. See [agents](agents.md) |
+| `agents/` | 18 expert personas | Spawned as subagents. See [personas](personas.md) |
 | `settings.json` | Hook registry, deny list, and Claude Code settings | Read by each host. See [hooks](hooks.md) |
 | `hooks/` | Guardrail scripts | Run on tool calls and session events |
 | `pi/` | Pi extensions, settings, models, and MCP servers | Linked into each Pi agent dir |
@@ -39,16 +39,16 @@ The repo answers with three design choices:
 
 The diagram shows the checkout on the left and the four linked locations on the right. `scripts/setup-hosts.sh --apply` creates the links, and `--check` reports any that drifted.
 
-- **Claude Code** gets `CLAUDE.md` linked to `AGENTS.md`, because Claude Code reads `AGENTS.md` only at project level. It also gets `settings.json`, `rules/`, `skills/`, `agents/`, `hooks/`, and `scripts/`, in `~/.claude` and `~/.claude-personal`.
+- **Claude Code** gets `CLAUDE.md` linked to `AGENTS.md`, because Claude Code reads `AGENTS.md` only at project level. It also gets `settings.json`, `rules/`, `skills/`, `agents/`, `hooks/`, `scripts/`, and a few more files, in `~/.claude` and `~/.claude-personal`. [Setup](setup.md) lists every link.
 - **Codex** gets `AGENTS.md`, a few `config.toml` defaults, and a generated `hooks.json` that sends hook events to `hooks/lib/dispatch.sh`.
 - **Pi** gets `AGENTS.md`, `agents/`, and the files in `pi/`.
-- **The shared root `~/.agents/`** exists on every host. Codex and Pi find skills there. A shared skill names `~/.agents/...`, so one absolute path resolves everywhere.
+- **The shared root `~/.agents/`** is set up with every host unless the machine scope skips `shared`. Codex and Pi find skills there. A shared skill names `~/.agents/...`, so one absolute path resolves everywhere.
 
 Codex and Pi run the hooks from the checkout, through `hooks/lib/dispatch.sh`. [Hooks](hooks.md#host-coverage) shows how each host runs them.
 
 Because the hosts hold links, not copies, an edit in the checkout is live at once. Moving the checkout breaks every host together. Run `bash scripts/setup-hosts.sh --apply --adopt` from the new location to relink them, including the Codex `hooks.json`. [Setup](setup.md) lists every link and the variables that change the defaults.
 
-A session start checks for drift. Claude Code runs `hooks/symlink-check.sh`, and Pi runs the `drift-check` extension. Both print the fix command. Codex shows no drift warning, so run `--check` there by hand.
+A session start checks for drift. Claude Code runs `hooks/symlink-check.sh`, and Pi runs the `drift-check` extension. Claude Code prints the exact fix command, and Pi points to `setup-hosts.sh --apply`. Codex shows no drift warning, so run `--check` there by hand.
 
 ## What a session loads
 
@@ -69,29 +69,17 @@ The main session never reads a persona file. Persona text in the main thread cos
 
 ## Enforcement layers
 
-A rule the model must remember is weaker than a check the model cannot skip. Every rule bullet in `rules/`, persona guardrails, and skill rules ends with a tag naming what enforces it:
-
-| Tag | Enforced by | Example |
-| --- | --- | --- |
-| `(hook)` | A script in `hooks/` that runs on a tool call | `pre-commit-branch-gate.sh` blocks a commit on `main` |
-| `(lint)` | The target repo's linter config | No `any` in TypeScript, through Biome or ESLint |
-| `(CI)` | A workflow in `.github/workflows/` | A pipeline runs lint, typecheck, and tests before deploy |
-| `(persona)` | A guardrail in an `agents/*.md` file | Applies only inside that persona's subagent |
-| `(review-time: <why>)` | Attention, from the model or a reviewer | Reply length, and one question per turn |
-
-The tag tells a reader how much to trust a rule. A `(review-time)` tag must say why no hook can check it. [Rules](rules.md) covers the tag format and the budget on these tags.
+A rule the model must remember is weaker than a check the model cannot skip. Every rule bullet in `rules/`, persona guardrails, and skill rules ends with a tag naming what enforces it: `(hook)`, `(lint)`, `(CI)`, `(persona)`, or `(review-time: <why>)`. The tag tells a reader how much to trust a rule. A `(review-time)` tag must say why no hook can check it, so each one marks a candidate for a stronger check. [Rules](rules.md#enforcement-tags) explains each tag and its cost of a miss.
 
 The deny list in `settings.json` sits beside the hooks. It blocks reads and edits of secrets and credential stores, and commands such as `rm -rf`, `sudo`, force-pushes, pushes to `main`, and `gh pr merge`. It matches literal patterns, so it adds friction rather than a sandbox. [Hooks](hooks.md) lists every hook and deny rule group.
 
 ## Context budget
 
-`scripts/config-budget.sh` counts the words in `AGENTS.md` plus every rule without `paths:` frontmatter. CI fails when the total passes 4,010 words, or when those files hold more than 100 `(review-time)` tags. Run the script locally to see the count per file.
-
-Every always-loaded word competes for attention in every session. A new rule that fits a file pattern gets `paths:` frontmatter. A new procedure goes into a skill. Raising the budget is a deliberate edit to the script, reviewed in the same pull request as the rule that needs it.
+Every always-loaded word competes for attention in every session. `scripts/config-budget.sh` caps the words and `(review-time)` tags in `AGENTS.md` plus the always-loaded rules, and CI fails above the cap. A new rule that fits a file pattern gets `paths:` frontmatter, and a new procedure goes into a skill. Raising the cap is a deliberate edit to the script, reviewed in the same pull request as the rule that needs it. [Rules](rules.md#the-budget) gives the limits.
 
 ## Workflow state
 
-Skills and hooks share state through files under `.claude/state/` in the project being worked on. Every host reads and writes the same paths, so work moves between sessions and hosts without conversion. The path keeps its historical `.claude` name on every host. This repo gitignores it, because here the files are personal notes.
+Skills and hooks share state through files under `.claude/state/` in the project being worked on. Every host reads and writes the same paths, so work moves between sessions and hosts without conversion. This repo gitignores it, because here the files are personal notes.
 
 | Path | Written by | Read by |
 | --- | --- | --- |
@@ -109,14 +97,4 @@ Skills and hooks share state through files under `.claude/state/` in the project
 
 ## Where to go next
 
-| Doc | Read it to |
-| --- | --- |
-| [Setup](setup.md) | Install the config, scope a machine, and wire each host |
-| [Hooks](hooks.md) | See what each hook blocks and how hooks run on each host |
-| [Rules](rules.md) | See which rules load when and how enforcement tags work |
-| [Skills](skills.md) | See every skill, how skills load, and how `/deliver` runs |
-| [Agents](agents.md) | See the personas, lane mode, and panel mode |
-| [Contributing](contributing.md) | Change the config and run the checks CI runs |
-| [Decisions](decisions.md) | Learn why the config works this way |
-| [Cheatsheet](../CHEATSHEET.md) | Find the skill for a task |
-| [Context](../CONTEXT.md) | Look up a term |
+The [README docs table](../README.md#docs) lists every doc and what it covers.
