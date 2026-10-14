@@ -60,7 +60,7 @@
 Personas share a five-section skeleton, [decided](decisions.md#lean-personas-that-inherit-the-rules) to keep them short:
 
 1. **Role**: two or three sentences of responsibility and approach.
-2. **How to work**: investigate first, and return findings in the final message instead of report files. The Spec Verifier's evidence ledger is the one file a persona writes on purpose.
+2. **How to work**: investigate first, and return findings in the final message instead of report files. Apart from the code a writer persona changes, personas write files only where a workflow names one: the Spec Verifier's evidence ledger, the QA Expert's tests and `tests.lock` entries, and a research artifact the user asks for.
 3. **Guardrails**: repo-specific, non-obvious blockers, each tagged `(persona)`. Rules already in `rules/` stay out, because subagents inherit `AGENTS.md` and the always-loaded rules.
 4. **Red Flags**: concrete, easy-to-miss patterns that trigger investigation. The Spec Verifier has a Ledger format section instead.
 5. **Output format**: the shape of the returned summary. Advisory personas return severity buckets and a verdict, and writer personas return what changed, what was verified, and concerns. The Spec Verifier returns a MEETS SPEC, GAPS, or NO SPEC verdict, one line per criterion, and the manual steps left for you.

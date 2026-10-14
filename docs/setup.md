@@ -16,12 +16,12 @@ How to install this config, scope it per machine, and wire each host. For the bi
 | `jq` | `setup-hosts.sh` for Codex, and the `settings.json` git filter |
 | `python3` | `hooks/lib/dispatch.sh` on Codex and Pi, and `config-integrity.sh` |
 | Node.js 22.18 or later | `hooks/deny-gate.sh`, which runs its TypeScript directly. Without `node`, the deny gate allows everything |
-| Node.js 22.19 or later | `npm test`, from the `engines` floor in `package.json`. This version also satisfies the deny gate |
+| Node.js 22.19 or later | `npm test`, from the `engines` floor in `package.json`. Install this version, because it also satisfies the deny gate |
 | Claude Code, Codex, or Pi | At least one host |
 
 ## Install
 
-`scripts/setup-hosts.sh` links each host to this checkout.
+`scripts/setup-hosts.sh` links each host to this checkout. With no `--host`, it sets up every host, so `bash scripts/setup-hosts.sh --apply` is a full install.
 
 | Mode | Does | Exit code |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ These variables change what the bootstrap links:
 
 | Variable | Default | Sets |
 | --- | --- | --- |
-| `AGENT_CONFIG_REPO` | The checkout the script runs from | The repo the links point to |
+| `AGENT_CONFIG_REPO` | `CLAUDE_DOTFILES_REPO` when set, then the checkout the script runs from, then `~/dev/personal/agent-config` when the script sits outside a git checkout | The repo the links point to |
 | `CLAUDE_CONFIG_DIRS` | `~/.claude ~/.claude-personal` | The Claude Code dirs. When unset, `CLAUDE_CONFIG_DIR` names one dir |
 | `PI_CONFIG_DIRS` | `~/.pi/agent ~/.pi-personal/agent` | The Pi agent dirs. When unset, `PI_CODING_AGENT_DIR` names one dir |
 | `CODEX_HOME` | `~/.codex` | The Codex dir |
@@ -89,7 +89,7 @@ The Pi `drift-check` extension runs `--check` for every host at each session sta
 
 Two paths assume the default dirs:
 
-- The hook commands and the status line in `settings.json` fall back to `~/.claude/...`. A machine that uses only `~/.claude-personal` still needs the `~/.claude` links.
+- The hook commands in `settings.json` fall back to `~/.claude/hooks/...`, and the status line and herdr hook use `~/.claude/` paths only. A machine that uses only `~/.claude-personal` still needs the `~/.claude` links.
 - `pi/settings.json` loads the hook bridge into subagents from `~/.pi/agent/extensions/`. A machine with only `~/.pi-personal/agent` runs subagents without it.
 
 ## Codex
@@ -107,7 +107,7 @@ The bootstrap adds these `config.toml` settings, each only when absent:
 It refuses the whole config step in these cases, and `--adopt` does not help:
 
 - `config.toml` is not a regular file.
-- A setting or table appears twice, or a setting sits outside its table.
+- A setting or table appears twice, a root setting sits inside a table, or `tui` settings are nested or dotted with no `[tui]` table.
 - The fallback list differs, or `hooks` is not `true`.
 
 Fix the file by hand, then run `--apply` again.
@@ -140,9 +140,9 @@ The bootstrap does not install or upgrade Pi. It does not manage credentials, pr
 | `drift-check` | Runs `setup-hosts.sh --check` at session start and warns on drift |
 | `worktree-cleanup` | Runs `scripts/worktree-prune.sh --apply` at session shutdown |
 | `statusline` | Replaces the footer with folder, branch, tokens, cost, context, usage windows, and model |
-| `herdr-agent-state` | Reports session state to herdr when `HERDR_ENV=1` |
+| `herdr-agent-state` | Reports session state to herdr when `HERDR_ENV=1` and herdr sets its socket path and pane ID |
 
-**`permission-gate`** turns `Read` rules into `path_read` surfaces, `Edit` and `Write` rules into `path_write`, and passes `Bash` and MCP rules through. The pinned [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system) package enforces the result. The extension writes `pi/extensions/pi-permission-system/config.json` and announces a stale policy.
+**`permission-gate`** turns `Read` rules into `path_read` surfaces, `Edit` and `Write` rules into `path_write`, and passes `Bash` and MCP rules through. The pinned [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system) package enforces the result. The extension writes `pi/extensions/pi-permission-system/config.json`. When it cannot refresh that file, it shows an error at session start and the package keeps the last generated policy. Separately, `hooks/deny-gate.sh` runs on Pi through `hook-bridge` and blocks shell commands that name a denied path. It leaves `Bash` rules to the package on Pi, and applies them itself only on Codex.
 
 - The generated policy holds only deny rules, and the fallback is `allow`, so deny wins and headless sessions never prompt.
 - The bash surface lists its `*: allow` catch-all first, because the package applies the last matching rule.

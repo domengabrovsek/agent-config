@@ -6,6 +6,8 @@ For every skill with its kind and how it loads, see [skills](docs/skills.md). Fo
 
 ## "I want to..."
 
+Each skill runs on its own. Pick the ones a task needs, in the order that fits it.
+
 | Intent | Tool |
 | --- | --- |
 | Understand an unfamiliar code area | `/research <topic>` |
@@ -20,7 +22,7 @@ For every skill with its kind and how it loads, see [skills](docs/skills.md). Fo
 | Review someone's PR | `/review-pr 567` |
 | Verify everything before pushing | `/verify-done` |
 | Open a PR/MR (reuses a verify pass at HEAD or runs the gate, regex-checks the title) | `/mr` |
-| Watch CI on the current branch | `/ci` (or `/loop 2m /ci` on Claude Code) |
+| Watch CI on the current branch | `/ci` |
 | Address reviewer comments on a PR (bots answered, humans drafted) | `/pr-comments` |
 | Cut a release | `/ship` |
 | Make a diagram (drawio) | `/diagram <topic>` |
@@ -69,27 +71,13 @@ Lightweight helpers; structure is minimal:
 
 - `/diagram`, plus the Claude Code built-ins `/loop` and `/schedule`
 
-## Workflow
+## Hand over a whole feature
 
-One way to run a change by hand, step by step. Skip the steps a change does not need:
-
-| Step | Skill | Produces |
-| --- | --- | --- |
-| 1 | `/research` | Optional orientation in unfamiliar code |
-| 2 | `/grill-with-docs` | Alignment, glossary terms in `CONTEXT.md`, and a plan |
-| 3 | `/spec`, then `/plan` | When criteria need checks: a spec, then vertical slices |
-| 4 | `/build` | The plan, implemented slice by slice |
-| 5 | `/verify-done` | A full quality gate pass |
-| 6 | `/mr` | An open PR, reusing the verify pass at HEAD |
-| 7 | `/ci` | A watched pipeline |
-| 8 | `/pr-comments` | Reviewer comments addressed |
-| 9 | `/summarize` | A session diary |
-
-`/deliver <goal>` automates steps 1 and 3 to 8, with a worktree and spec verification added. You approve the spec, and it skips the grill and the diary. [Skills](docs/skills.md#how-deliver-runs) shows its flow.
+`/deliver <goal>` chains skills for a whole feature. You approve the spec, and it runs research, planning, tests-first building, verification, the PR, CI, and bot comments. After the spec it stops only to post a reply to a human reviewer, or before a force-push, merge, push to `main`, production change, data deletion, or change outside the repo. `/plan` also asks about an architectural choice the spec left open, and anything else it cannot resolve goes under **Blocked on me** in its `tasks.md`. It ends when the PR is open, CI is green, and every bot comment has a reply. [Skills](docs/skills.md#how-deliver-runs) shows its flow.
 
 ## Other intents
 
-These run independently of the implementation workflow:
+These cover work outside a feature change:
 
 - `/debug` for incidents
 - `/review-pr` for reviewing others' code
@@ -103,4 +91,4 @@ These run independently of the implementation workflow:
 
 ## Agents
 
-Claude Code agents auto-spawn via `rules/agent-routing.md` when a task touches a specialized domain. Pi spawns the same personas as child sessions through the `pi-subagents` package, including background runs and worktree-isolated lanes. Codex maps `Agent` and `SendMessage` to its own teammate mechanisms when available, and follows the workflow locally otherwise. See [`docs/decisions.md`](docs/decisions.md#hosts) for the shared boundary and the Pi adapter.
+In Claude Code, `rules/agent-routing.md` maps each specialized domain to a persona, and the session spawns that persona through the Agent tool, with the persona as `subagent_type`, when a task touches the domain. You can also ask for a persona by name. Pi spawns the same personas as child sessions through the `pi-subagents` package, including background runs and worktree-isolated lanes. Codex maps `Agent` and `SendMessage` to its own teammate mechanisms when available, and follows the workflow locally otherwise. [Personas](docs/personas.md) lists every persona and its domain. See [`docs/decisions.md`](docs/decisions.md#hosts) for the shared boundary and the Pi adapter.
