@@ -42,6 +42,8 @@ When a plan slice lists **Tests first**, run it as a loop with separate roles. T
 3. **Review panel**: in one message, spawn read-only reviewers on the slice diff: `PR Reviewer`, `Cybersecurity Expert`, and `Spec Verifier` for the slice's criteria. Add `GDPR Expert`, `UX Expert`, or `PostgreSQL Expert` when the diff touches their domain `(review-time: see section note)`
 4. **Verify findings**: check each blocker and issue against the code or a reproduction before accepting it. Drop a finding with no file and line or no evidence `(review-time: see section note)`
 5. **Fix**: the implementer fixes accepted code findings, and the `QA Expert` fixes test findings. Checkpoint `(review-time: see section note)`
+   - Return only the failing unit, never the whole slice. Passing work stays untouched `(review-time: see section note)`
+   - Each return carries the unit, the finding, its evidence (file:line, expected vs actual), and a scope line naming the files the fix may touch `(review-time: see section note)`
 6. **Re-review**: the same panel reviews the fix diff. The slice is done when the panel returns no blockers or issues and the Spec Verifier passes `(review-time: see section note)`
 
 Budget: three review rounds per slice. Escalate under **Blocked on me** when the cap is hit, the same failure repeats twice, or a finding invalidates the plan. Log each round in `tasks.md` `(review-time: see section note)`

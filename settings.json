@@ -125,7 +125,6 @@
     "defaultMode": "auto"
   },
   "model": "claude-opus-5-5[1m]",
-  "outputStyle": "Concise",
   "hooks": {
     "PreToolUse": [
       {
@@ -381,9 +380,16 @@
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
   },
+  "outputStyle": "Concise",
   "effortLevel": "xhigh",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    }
+  },
+  "subagentPromptCacheTtl": "1h",
   "askUserQuestionTimeout": "never",
-  "autoUpdatesChannel": "stable",
+  "autoUpdatesChannel": "latest",
   "minimumVersion": "2.1.92",
   "tui": "fullscreen",
   "skipAutoPermissionPrompt": false
