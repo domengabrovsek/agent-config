@@ -5,7 +5,7 @@ A skill is a `skills/<name>/SKILL.md` file whose `description` says when to use 
 ## How skills load
 
 - Every host reads `skills/` through `~/.agents/skills`. Claude Code also reads it through `~/.claude/skills`, and `package.json` declares it for Pi.
-- A **model-invoked** skill carries trigger phrases in its description, so the model enters it without being asked. 35 skills work this way.
+- A **model-invoked** skill carries trigger phrases in its description, so the model enters it without being asked. 36 skills work this way.
 - A **user-invoked** skill sets `disable-model-invocation: true`, so only a typed `/name` starts it. `deliver`, `wayfinder`, and `wait-what` work this way. The first two start long runs, which should start only when you ask. `wait-what` says the last reply did not land, which only you can judge.
 - Shared skills use Claude Code notation: `/name`, `$ARGUMENTS`, `Agent`, and `SendMessage`. `AGENTS.md` maps each one to the equivalent on Codex and Pi.
 - A skill adapted from an upstream repo names its source, usually in a `> Source:` line. The copies drift from upstream on purpose, and re-syncing is manual.
@@ -64,6 +64,7 @@ Rows marked **user** start only when you type them.
 | `debug` | model | Ranks hypotheses from evidence before any code change |
 | `sentry-issue` | model | Fetches and digests a Sentry issue by ID or URL |
 | `jira` | model | Reads and writes Jira items through the `acli` CLI |
+| `reverse-engineer` | model | Traces how a product or feature works and writes a clean-room behavior spec |
 
 ### Docs and writing
 
