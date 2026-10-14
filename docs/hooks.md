@@ -24,7 +24,7 @@ A registry entry has four parts:
 
 Each command runs the current project's `hooks/<name>` when that file is executable, and `~/.claude/hooks/<name>` otherwise. A session inside this repo therefore runs the checkout's own copy, so a hook edit takes effect in that session. The `herdr-agent-state.sh` entry runs only `~/.claude/hooks/herdr-agent-state.sh` and never a project copy.
 
-"Current project" is the git top level of the working directory. On Codex and Pi, `dispatch.sh` sets `CLAUDE_PROJECT_DIR` to it, so the same lookup applies on every host.
+"Current project" depends on the host. On Codex and Pi, `dispatch.sh` sets `CLAUDE_PROJECT_DIR` to the git top level of the working directory. On Claude Code, it is the directory the session started in, which is not always the git root. A session started in a subdirectory looks for `<subdir>/hooks/`.
 
 The lookup lets any project replace any hook. A repo that ships an executable `hooks/deny-gate.sh` runs its own copy instead of this one, so a hostile repo can ship a deny gate that allows everything. Before you open a session in an unfamiliar repo, check whether it has executable scripts in `hooks/` named like the ones below, and read them first. `ls -l <repo>/hooks` shows them. If one looks wrong, do not start a session in that repo. No setting forces the global copy.
 
