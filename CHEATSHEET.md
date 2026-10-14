@@ -38,6 +38,7 @@ For every skill with its kind and how it loads, see [skills](docs/skills.md). Fo
 | Hand this session to a fresh one | `/handoff` |
 | Spike a throwaway prototype to settle a design question | `/prototype` |
 | Review code for over-engineering only | `/prune` |
+| Understand how a product or feature you like works | `/reverse-engineer <target>` |
 
 ## When the slash IS the value
 

@@ -64,6 +64,7 @@ Rows marked **user** start only when you type them.
 | `debug` | model | Ranks hypotheses from evidence before any code change |
 | `sentry-issue` | model | Fetches and digests a Sentry issue by ID or URL |
 | `jira` | model | Reads and writes Jira items through the `acli` CLI |
+| `reverse-engineer` | model | Traces how a product or feature works and writes a clean-room behavior spec |
 
 ### Docs and writing
 
