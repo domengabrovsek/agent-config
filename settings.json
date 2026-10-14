@@ -382,6 +382,7 @@
     "frontend-design@claude-plugins-official": true
   },
   "effortLevel": "xhigh",
+  "subagentPromptCacheTtl": "1h",
   "askUserQuestionTimeout": "never",
   "autoUpdatesChannel": "stable",
   "minimumVersion": "2.1.92",
