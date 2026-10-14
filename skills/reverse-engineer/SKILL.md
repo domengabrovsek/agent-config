@@ -11,21 +11,21 @@ The output is a **clean-room spec**: what the target does, proven by evidence, w
 
 ## Steps
 
-1. **Route the target.** Name its kind and pick the cheapest reader that shows behavior. The step is done when the kind and reader are stated:
+1. **Route the target.** Name its kind and pick the cheapest reader that shows behavior. Put every clone or extract in a `mktemp -d` directory outside the project. The step is done when the kind and reader are stated:
 
    | Kind | Reader |
    | --- | --- |
-   | Open-source repo or library | Clone it, read the source and its tests |
-   | Website or web app | Claude in Chrome: page text, network requests, the shipped JS |
-   | Electron app | Read the JS in its `app.asar` (`npx @electron/asar extract`) |
+   | Open-source repo or library | Clone it into the temp directory, read the source and its tests |
+   | Website or web app | A browser tool (Claude in Chrome, Playwright MCP) for page text, network requests, and the shipped JS. Without one, fetch the page and its JS bundles directly |
+   | Electron app | `npx @electron/asar extract <path>/app.asar <tmpdir>` (macOS: `<App>.app/Contents/Resources`), then read the JS |
    | CLI tool | `--help`, man pages, run it on sample inputs, its config files |
    | Public API | Its docs, then real requests and responses |
    | Native binary or mobile app | Stop and tell the user this skill reads source, bundles, and observed behavior only |
 
 2. **Map before reading code.** Find the entry points, the routes or commands, and the endpoints and strings that name features. Rank modules by how many places reference them, and read down that list. Done when the map names where the feature most likely lives.
 3. **Trace one feature end to end**, from the user action to the stored or returned result. Done when every hop in the path has a cited claim.
-4. **Write the spec** to `.claude/state/research/YYYY-MM-DD-reverse-<target>.md` with these sections: Summary, Architecture, Data model, Behavior (each feature as a testable requirement), Interfaces and formats, Evidence, Unknowns. Done when Unknowns lists everything still unproven.
-5. **Offer the next step**: `/spec` and `/plan` to rebuild from the spec, or a parity harness that runs the same inputs through the original and the rebuild and reports the match rate.
+4. **Write the spec** to `.claude/state/research/YYYY-MM-DD-reverse-<short-slug>.md` with these sections: Summary, Architecture, Data model, Behavior (each feature as a testable requirement), Interfaces and formats, Evidence, Unknowns. Done when Unknowns lists everything still unproven.
+5. **Hand off the rebuild.** This session has read the target, so a rebuild starts in a new session. Run `/handoff` with the spec path, where `/spec` and `/plan` take over. Offer a parity harness that runs the same inputs through the original and the rebuild and reports the match rate.
 
 ## Evidence
 
