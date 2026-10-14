@@ -29,11 +29,13 @@ The output is a **clean-room spec**: what the target does, proven by evidence, w
 
 ## Evidence
 
+**why-no-hook:** each tag requires judging a claim against its source.
+
 Tag every claim:
 
-- **Observed**: seen directly. Cite the file and line, URL and request, or command and output `(review-time: requires judging each claim against its source)`
-- **Inferred**: reasoned from observations. Name the observations it rests on `(review-time: requires judging each claim against its source)`
-- **Unknown**: not yet proven. Say what would prove it `(review-time: requires judging each claim against its source)`
+- **Observed**: seen directly. Cite the file and line, URL and request, or command and output `(review-time: see section note)`
+- **Inferred**: reasoned from observations. Name the observations it rests on `(review-time: see section note)`
+- **Unknown**: not yet proven. Say what would prove it `(review-time: see section note)`
 
 ## Clean room
 
