@@ -31,12 +31,14 @@ cat > "$TEST_DIR/bin/gh" <<'STUB'
 case "$1 $2" in
   "pr view") cat "$STUB_DIR/view.json" ;;
   "api graphql") cat "$STUB_DIR/threads.json" ;;
+  "api repos/"*) cat "$STUB_DIR/workflows" ;;
   *) exit 1 ;;
 esac
 STUB
 chmod +x "$TEST_DIR/bin/gh"
 export PATH="$TEST_DIR/bin:$PATH"
 export STUB_DIR="$TEST_DIR"
+echo 1 > "$TEST_DIR/workflows"
 export PR_READY_INTERVAL=0
 
 pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
@@ -114,7 +116,13 @@ view OPEN false MERGEABLE BEHIND "" "$GREEN"
 assert_ready "a branch behind its base blocks" 1 "behind-base"
 
 view OPEN true MERGEABLE DRAFT "" "$GREEN"
-assert_ready "a draft blocks" 1 "draft"
+assert_ready "a draft waits on the user" 4 "draft"
+
+view OPEN false MERGEABLE CLEAN "" '[]'
+assert_ready "no checks yet in a repo with workflows is pending" 1 "check-pending: no checks registered yet"
+echo 0 > "$TEST_DIR/workflows"
+assert_ready "no checks in a repo without workflows is ready" 0 "READY $URL"
+echo 1 > "$TEST_DIR/workflows"
 
 view OPEN false MERGEABLE BLOCKED CHANGES_REQUESTED "$GREEN"
 assert_ready "requested changes wait on a human" 4 "changes-requested"
@@ -163,6 +171,10 @@ assert_hook "a ready PR number with a repo becomes a URL" "$GH_READY -R acme/app
 assert_hook "a ready that did not mark the PR stays silent" "$GH_READY 7" \
   '! Pull request acme/app#7 is already "ready for review"' ""
 assert_hook "undo stays silent" "$GH_READY 7 --undo" "$MARKED" ""
+assert_hook "a draft create stays silent" "$GH_CREATE --draft --title t" "$URL" ""
+assert_hook "a short draft flag stays silent" "$GH_CREATE -d --title t" "$URL" ""
+assert_hook "a create with a -d in the body is not a draft" "$GH_CREATE --title t --body x-d" "$URL" \
+  "pr-ready.sh --watch $URL"
 assert_hook "other commands stay silent" "gh pr view 7" "$URL" ""
 assert_hook "help stays silent" "$GH_CREATE --help" "$URL" ""
 OUT=$(SKIP_PR_WATCH=1 bash "$HOOK" <<< '{"tool_input":{"command":"gh pr create"}}')

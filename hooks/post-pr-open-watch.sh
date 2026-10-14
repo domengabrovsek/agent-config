@@ -17,6 +17,10 @@ esac
 case "$COMMAND" in
   *" --help"*|*" -h"*|*"--dry-run"*|*"--undo"*) exit 0 ;;
 esac
+# A draft stays with the user until they run gh pr ready, which arms the watch.
+case "$COMMAND" in
+  *"gh pr create"*" --draft"*|*"gh pr create"*" -d "*|*"gh pr create"*" -d") exit 0 ;;
+esac
 
 OUTPUT=$(echo "$INPUT" | jq -r '.tool_response | if type == "object" then "\(.stdout // "")\n\(.stderr // "")" else tostring end')
 

@@ -47,13 +47,21 @@ check() {
     -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){pageInfo{hasNextPage} nodes{id isResolved path line comments(first:1){nodes{author{__typename login} url}}}}}}}' \
     2>/dev/null) || return 2
 
+  # A fresh HEAD has no checks until its workflows register. In a repo with
+  # workflows, an empty rollup means CI has not started, not that it passed.
+  local workflows=0
+  if [ "$(echo "$view" | jq '.statusCheckRollup | length')" -eq 0 ]; then
+    workflows=$(gh api "repos/$owner/$repo/actions/workflows" --jq '.total_count' 2>/dev/null) || return 2
+  fi
+
   # Each blocker is "agent|<line>" or "human|<line>" by who can clear it.
   local blockers agent human
-  blockers=$(jq -rn --argjson v "$view" --argjson t "$threads" '
+  blockers=$(jq -rn --argjson v "$view" --argjson t "$threads" --argjson wf "$workflows" '
     def ok_conclusion: . == "SUCCESS" or . == "SKIPPED" or . == "NEUTRAL";
     ($t.data.repository.pullRequest.reviewThreads) as $rt |
     [
-      (if $v.isDraft then "agent|draft" else empty end),
+      (if $v.isDraft then "human|draft" else empty end),
+      (if ($v.statusCheckRollup | length) == 0 and $wf > 0 then "agent|check-pending: no checks registered yet" else empty end),
       ($v.statusCheckRollup[]? |
         if .__typename == "StatusContext" then
           if .state == "PENDING" or .state == "EXPECTED" then "agent|check-pending: \(.context)"
@@ -98,7 +106,10 @@ if [ "$WATCH" -eq 0 ]; then
   exit $?
 fi
 
+# A settled state must hold for two polls in a row before the watch ends, so
+# a check that registers late (a review bot, a slow workflow) still counts.
 LAST=""
+SETTLED=""
 ERRORS=0
 while true; do
   OUT=$(check)
@@ -111,11 +122,18 @@ while true; do
     fi
   else
     ERRORS=0
-    if [ "$OUT" != "$LAST" ]; then
+    if [ "$CODE" -eq 1 ]; then
+      SETTLED=""
+      if [ "$OUT" != "$LAST" ]; then
+        echo "$OUT"
+        LAST="$OUT"
+      fi
+    elif [ "$CODE" -eq 3 ] || [ "$OUT" = "$SETTLED" ]; then
       echo "$OUT"
-      LAST="$OUT"
+      exit "$CODE"
+    else
+      SETTLED="$OUT"
     fi
-    [ "$CODE" -ne 1 ] && exit "$CODE"
   fi
   sleep "${PR_READY_INTERVAL:-30}"
 done
