@@ -25,7 +25,7 @@ The output is a **clean-room spec**: what the target does, proven by evidence, w
 2. **Map before reading code.** Find the entry points, the routes or commands, and the endpoints and strings that name features. Rank modules by how many places reference them, and read down that list. Done when the map names where the feature most likely lives.
 3. **Trace one feature end to end**, from the user action to the stored or returned result. Done when every hop in the path has a cited claim.
 4. **Write the spec** to `.claude/state/research/YYYY-MM-DD-reverse-<short-slug>.md` with these sections: Summary, Architecture, Data model, Behavior (each feature as a testable requirement), Interfaces and formats, Evidence, Unknowns. Done when Unknowns lists everything still unproven.
-5. **Hand off the rebuild.** This session has read the target, so a rebuild starts in a new session. Run `/handoff` with the spec path, where `/spec` and `/plan` take over. Offer a parity harness that runs the same inputs through the original and the rebuild and reports the match rate.
+5. **Hand off the rebuild.** This session has read the target, so a rebuild starts in a new session that sees only the spec. Tell the user to open one and run `/spec <spec path>`, then `/plan`. Offer a parity harness that runs the same inputs through the original and the rebuild and reports the match rate.
 
 ## Evidence
 
