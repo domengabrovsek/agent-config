@@ -392,6 +392,11 @@
   },
   "outputStyle": "Concise",
   "effortLevel": "xhigh",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    }
+  },
   "subagentPromptCacheTtl": "1h",
   "askUserQuestionTimeout": "never",
   "autoUpdatesChannel": "stable",
