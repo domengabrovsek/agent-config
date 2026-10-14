@@ -399,7 +399,7 @@
   },
   "subagentPromptCacheTtl": "1h",
   "askUserQuestionTimeout": "never",
-  "autoUpdatesChannel": "stable",
+  "autoUpdatesChannel": "latest",
   "minimumVersion": "2.1.92",
   "tui": "fullscreen",
   "skipAutoPermissionPrompt": false
