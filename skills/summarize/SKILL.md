@@ -29,7 +29,13 @@ Format the file as:
 ## Key decisions
 
 - Important choices made during this session and why
+
+## Harness candidates
+
+- Each failure that happened twice, and the rule or hook that would prevent it
 ```
+
+Fill **Harness candidates** from this session and the last three diaries in `.claude/state/sessions/`. A failure seen twice means the harness needs fixing, not the output. Propose each fix as a rule line or a hook. Do not apply it without the user's approval. Write "None" when nothing repeated.
 
 Also output the summary to the conversation. Keep it concise - suitable for a standup update or handoff to another session.
 

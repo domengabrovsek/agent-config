@@ -123,6 +123,9 @@ jobs:
       - name: Test the PR reply gate
         run: bash tests/pr-reply-gate.sh
 
+      - name: Test the PR readiness check and watch hook
+        run: bash tests/pr-ready.sh
+
   # ==============================================
   # Gate
   # ==============================================
