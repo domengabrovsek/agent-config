@@ -4,11 +4,16 @@
 # thread. Each blocker prints on its own line so a Monitor sees exactly what
 # changed between polls.
 #
+# Blockers the agent can clear (checks, conflicts, bot threads) print as
+# NOT_READY. When only human-owned blockers remain (human threads, a required
+# review, requested changes), it prints WAITING_ON_HUMAN so a watch can end.
+#
 # Usage:
 #   pr-ready.sh [<pr>]           one check; <pr> is a number, URL, or branch
-#   pr-ready.sh --watch [<pr>]   poll, print only on change, exit when ready
+#   pr-ready.sh --watch [<pr>]   poll, print only on change, exit when settled
 #
-# Exit codes: 0 ready, 1 not ready, 2 error, 3 PR merged or closed.
+# Exit codes: 0 ready, 1 not ready, 2 error, 3 PR merged or closed,
+# 4 waiting on a human.
 # PR_READY_INTERVAL sets the watch poll in seconds (default 30).
 
 set -u
@@ -39,39 +44,52 @@ check() {
 
   threads=$(gh api graphql \
     -F owner="$owner" -F repo="$repo" -F number="$number" \
-    -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{id isResolved path line comments(first:1){nodes{author{login} url}}}}}}}' \
+    -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){pageInfo{hasNextPage} nodes{id isResolved path line comments(first:1){nodes{author{__typename login} url}}}}}}}' \
     2>/dev/null) || return 2
 
-  local reasons
-  reasons=$(jq -rn --argjson v "$view" --argjson t "$threads" '
+  # Each blocker is "agent|<line>" or "human|<line>" by who can clear it.
+  local blockers agent human
+  blockers=$(jq -rn --argjson v "$view" --argjson t "$threads" '
     def ok_conclusion: . == "SUCCESS" or . == "SKIPPED" or . == "NEUTRAL";
+    ($t.data.repository.pullRequest.reviewThreads) as $rt |
     [
-      (if $v.isDraft then "draft" else empty end),
+      (if $v.isDraft then "agent|draft" else empty end),
       ($v.statusCheckRollup[]? |
         if .__typename == "StatusContext" then
-          if .state == "PENDING" or .state == "EXPECTED" then "check-pending: \(.context)"
+          if .state == "PENDING" or .state == "EXPECTED" then "agent|check-pending: \(.context)"
           elif .state == "SUCCESS" then empty
-          else "check-failing: \(.context)" end
-        elif .status != "COMPLETED" then "check-pending: \(.name)"
+          else "agent|check-failing: \(.context)" end
+        elif .status != "COMPLETED" then "agent|check-pending: \(.name)"
         elif (.conclusion | ok_conclusion) then empty
-        else "check-failing: \(.name)" end),
-      (if $v.mergeable == "CONFLICTING" then "conflicts"
-       elif $v.mergeable == "UNKNOWN" then "mergeable-unknown"
+        else "agent|check-failing: \(.name)" end),
+      (if $v.mergeable == "CONFLICTING" then "agent|conflicts"
+       elif $v.mergeable == "UNKNOWN" then "agent|mergeable-unknown"
        else empty end),
-      (if $v.mergeStateStatus == "BEHIND" then "behind-base" else empty end),
-      (if $v.reviewDecision == "CHANGES_REQUESTED" then "changes-requested"
-       elif $v.reviewDecision == "REVIEW_REQUIRED" then "review-required"
+      (if $v.mergeStateStatus == "BEHIND" then "agent|behind-base" else empty end),
+      (if $v.reviewDecision == "CHANGES_REQUESTED" then "human|changes-requested"
+       elif $v.reviewDecision == "REVIEW_REQUIRED" then "human|review-required"
        else empty end),
-      ($t.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved | not) |
-        "thread: \(.id) \(.comments.nodes[0].author.login // "unknown") \(.path):\(.line // "-") \(.comments.nodes[0].url // "")")
+      ($rt.nodes[]? | select(.isResolved | not) |
+        (.comments.nodes[0].author // {}) as $a |
+        (if $a.__typename == "Bot" then "agent|thread: \(.id) bot" else "human|thread: \(.id) human" end)
+        + " \($a.login // "unknown") \(.path):\(.line // "-") \(.comments.nodes[0].url // "")"),
+      (if $rt.pageInfo.hasNextPage then "agent|threads-truncated: over 100 threads, check the PR by hand" else empty end)
     ] | .[]')
 
-  if [ -z "$reasons" ]; then
+  agent=$(echo "$blockers" | sed -n 's/^agent|//p')
+  human=$(echo "$blockers" | sed -n 's/^human|//p')
+
+  if [ -z "$agent" ] && [ -z "$human" ]; then
     echo "READY $url"
     return 0
   fi
+  if [ -z "$agent" ]; then
+    echo "WAITING_ON_HUMAN $url"
+    echo "$human" | sed 's/^/  /'
+    return 4
+  fi
   echo "NOT_READY $url"
-  echo "$reasons" | sed 's/^/  /'
+  printf '%s\n%s\n' "$agent" "$human" | sed '/^$/d; s/^/  /'
   return 1
 }
 
@@ -97,7 +115,7 @@ while true; do
       echo "$OUT"
       LAST="$OUT"
     fi
-    [ "$CODE" -eq 0 ] || [ "$CODE" -eq 3 ] && exit "$CODE"
+    [ "$CODE" -ne 1 ] && exit "$CODE"
   fi
   sleep "${PR_READY_INTERVAL:-30}"
 done

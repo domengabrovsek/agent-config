@@ -15,15 +15,40 @@ case "$COMMAND" in
   *) exit 0 ;;
 esac
 case "$COMMAND" in
-  *" --help"*|*" -h"*|*"--dry-run"*) exit 0 ;;
+  *" --help"*|*" -h"*|*"--dry-run"*|*"--undo"*) exit 0 ;;
 esac
 
-OUTPUT=$(echo "$INPUT" | jq -r '.tool_response | if type == "object" then (.stdout // "") else tostring end')
-URL=$(echo "$OUTPUT" | grep -oE 'https://github\.com/[^/ ]+/[^/ ]+/pull/[0-9]+' | head -1)
+OUTPUT=$(echo "$INPUT" | jq -r '.tool_response | if type == "object" then "\(.stdout // "")\n\(.stderr // "")" else tostring end')
 
-# gh pr create prints the URL on success; no URL means it failed.
 case "$COMMAND" in
-  *"gh pr create"*) [ -z "$URL" ] && exit 0 ;;
+  *"gh pr create"*)
+    # gh pr create prints the URL on success; no URL means it failed.
+    URL=$(echo "$OUTPUT" | grep -oE 'https://github\.com/[^/ ]+/[^/ ]+/pull/[0-9]+' | head -1)
+    [ -z "$URL" ] && exit 0
+    ;;
+  *)
+    # gh pr ready prints no URL, only this marker on success.
+    echo "$OUTPUT" | grep -q 'is marked as "ready for review"' || exit 0
+    # The PR is the first non-flag argument; -R/--repo takes a value.
+    URL=""
+    REPO=""
+    set -f
+    # shellcheck disable=SC2086
+    set -- ${COMMAND#*gh pr ready}
+    set +f
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        '&&'|'||'|';'|'|') break ;;
+        -R|--repo) REPO="${2:-}"; shift 2 ;;
+        --repo=*) REPO="${1#--repo=}"; shift ;;
+        -*) shift ;;
+        *) URL="$1"; break ;;
+      esac
+    done
+    case "$URL" in
+      [0-9]*) [ -n "$REPO" ] && URL="https://github.com/$REPO/pull/$URL" ;;
+    esac
+    ;;
 esac
 
 TARGET="$URL"
@@ -32,14 +57,16 @@ TARGET="$URL"
 CTX=$(cat <<EOF
 [pr-watch] Drive $TARGET until it is ready to merge.
 Arm a Monitor on: bash ~/.agents/scripts/pr-ready.sh --watch $URL
-It prints READY when done. Re-arm it if the Monitor expires first. For each blocker it prints:
+It ends on READY, or on WAITING_ON_HUMAN when only human blockers remain. Re-arm it if the Monitor expires first. For each blocker it prints:
 - check-failing: follow /ci (classify transient vs real, fix real failures, push)
-- thread by a bot: fix or answer it, reply in-thread, then resolve it with
+- thread ... bot: fix or answer it, reply in-thread, then resolve it with
   gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:"<id>"}){thread{isResolved}}}'
-- thread by a human: draft the reply for the user. Leave it unresolved
+- thread ... human: draft the reply for the user. Leave it unresolved
 - behind-base: gh pr update-branch
 - conflicts: /resolve-conflicts
+- threads-truncated: list the remaining threads by hand
 - review-required or changes-requested: report under Blocked on me
+On WAITING_ON_HUMAN, report the remaining blockers under Blocked on me and stop.
 Never merge. The user merges.
 EOF
 )

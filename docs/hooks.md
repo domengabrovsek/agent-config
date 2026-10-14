@@ -69,7 +69,7 @@ Two gates defer to the repo they run in:
 
 ## PostToolUse hooks
 
-These run after a Write or Edit. A block here reports the problem after the file is saved.
+These run after a Write or Edit, except `post-pr-open-watch.sh`, which runs after a Bash call. A block here reports the problem after the file is saved.
 
 | Hook | Does | Blocks when | Bypass |
 | --- | --- | --- | --- |
@@ -77,6 +77,7 @@ These run after a Write or Edit. A block here reports the problem after the file
 | `post-edit-typecheck.sh` | Runs `biome check --write` on the file when the repo has Biome | Biome reports an error | `SKIP_POST_EDIT_TYPECHECK` |
 | `post-edit-lint.sh` | Replaces em dashes, then checks the added lines | Tracker refs in comments, stacked `//` or `--` comments, `var`, TODO markers, `SELECT *`, `:latest` | `SKIP_POST_EDIT_LINT` |
 | `prose-gate.sh file` | Checks the added lines of a Markdown file | A blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
+| `post-pr-open-watch.sh` | After `gh pr create` or `gh pr ready` succeeds, tells the agent to watch the PR with `scripts/pr-ready.sh --watch` and how to clear each blocker | Never | `SKIP_PR_WATCH` |
 
 The prose gate also prints advisories that never block: words to reconsider, sentences over 25 words, and a causal "since".
 
@@ -122,6 +123,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/hook-bridge.test.ts`, `tests/permission-gate.test.ts` | The Pi bridge, and the policy derived from the real deny list |
 | `tests/commit-gates.sh` | The conventional-commit gate and the prose gate on commits |
 | `tests/pr-gates.sh`, `tests/pre-pr-test-gate.sh`, `tests/pr-reply-gate.sh` | The PR body, prose, test, and reply gates |
+| `tests/pr-ready.sh` | `scripts/pr-ready.sh` and the PR watch hook |
 | `tests/evidence-gate.sh`, `tests/test-lock.sh` | The evidence gate and the test lock |
 | `tests/pre-push-gate.sh`, `tests/resolve-repo.sh` | The push gate, and how hooks find the target repo |
 | `tests/post-edit-hooks.sh` | The three per-edit hooks |

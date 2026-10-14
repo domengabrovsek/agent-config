@@ -60,7 +60,7 @@ description: "Create a merge request or pull request from the current branch: ve
     - Mention in description: `> **Stacked PR**: depends on #<base-pr-number>. Retarget to main/develop after #<base-pr-number> is merged.` `(review-time: see section note)`
 
 11. **Report**: print the MR/PR URL. If a dependency was set, mention it. `(review-time: see section note)`
-12. **Watch the PR**: drive it until `~/.agents/scripts/pr-ready.sh` exits 0: CI green, mergeable, and no unresolved review thread. `hooks/post-pr-open-watch.sh` injects the steps after `gh pr create` `(hook)`
+12. **Watch the PR**: drive it until `~/.agents/scripts/pr-ready.sh` prints READY (CI green, mergeable, no unresolved thread) or WAITING_ON_HUMAN. `hooks/post-pr-open-watch.sh` injects the steps after `gh pr create` `(hook)`
 
 ## Rules
 

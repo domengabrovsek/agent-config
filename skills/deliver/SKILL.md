@@ -19,12 +19,12 @@ An orchestrator. You approve the spec. Everything after that runs without asking
 3. **Set up**, after approval: `(review-time: see section note)`
    - Create the branch and worktree with `/worktree <slug>`, and set the spec's `branch:` frontmatter `(review-time: see section note)`
    - Write `tasks.md` with one line per stage, and tick stages as they finish `(review-time: see section note)`
-   - Print this line for the user to paste as `/goal`, which keeps the session working across turns: `The PR for <spec> is open, every automated criterion passes at HEAD, and ~/.agents/scripts/pr-ready.sh exits 0 for it.` The run continues without it `(review-time: see section note)`
+   - Print this line for the user to paste as `/goal`, which keeps the session working across turns: `The PR for <spec> is open, every automated criterion passes at HEAD, and ~/.agents/scripts/pr-ready.sh prints READY or WAITING_ON_HUMAN for it.` The run continues without it `(review-time: see section note)`
 4. **Plan**: run `/plan`. It asks only about an architectural choice the spec left open `(review-time: see section note)`
 5. **Build**: run `/build`, which runs each slice through its Slice Loop. A plan spanning two or more repos goes to `/drive-fleet` with the plan instead `(review-time: see section note)`
 6. **Verify**: spawn the `Spec Verifier` for the whole branch, then run `/verify-done`. Fix and repeat until both pass `(review-time: see section note)`
 7. **Open the PR**: run `/mr`. It reuses the step 6 pass when nothing changed since. List manual criteria under **Blocked on me** in the PR body `(review-time: see section note)`
-8. **Watch**: follow the `[pr-watch]` steps until `~/.agents/scripts/pr-ready.sh` exits 0. Resolve each bot thread after replying. Human-reviewer replies go to the user as drafts `(review-time: see section note)`
+8. **Watch**: follow the `[pr-watch]` steps until `~/.agents/scripts/pr-ready.sh` prints READY or WAITING_ON_HUMAN. Resolve each bot thread after replying. Human-reviewer replies go to the user as drafts `(review-time: see section note)`
 9. **Report**: end with **Blocked on me**, **Changed**, and **Found**, plus the PR URL. Notify with `~/.agents/scripts/notify.sh "PR ready: <url>"` `(review-time: see section note)`
 
 ## Gates the user keeps
