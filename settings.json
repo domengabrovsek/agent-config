@@ -317,6 +317,23 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(gh pr create *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(gh pr ready *)",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SessionEnd": [
