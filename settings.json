@@ -8,7 +8,9 @@
       "Read(**/.env.example)",
       "Read(**/.env.sample)",
       "Edit(**/.env.example)",
-      "Edit(**/.env.sample)"
+      "Edit(**/.env.sample)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)"
     ],
     "deny": [
       "Read(**/.env)",
