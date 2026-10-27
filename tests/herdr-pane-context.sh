@@ -142,6 +142,17 @@ model_start=$(printf '{"cwd":"%s","hook_event_name":"SessionStart","source":"cle
 expect "reports a short model name on SessionStart" \
   "$(run_hook 1 "$model_start" | grep -o 'model=.*')" "model=Opus 5.5"
 
+parallel_dir="$TEST_ROOT/parallel"
+for i in $(seq 6); do git init -q -b main "$parallel_dir/repo-$i"; done
+pids=()
+for i in $(seq 6); do
+  FAKE_SPACE=space-p run_hook 1 "{\"cwd\":\"$parallel_dir/repo-$i\"}" >/dev/null &
+  pids+=($!)
+done
+wait "${pids[@]}"
+expect "gives parallel new repos distinct colors" \
+  "$(awk '$1 == "space-p" { print $3 }' "$TEST_ROOT/state/herdr/repo-colors" | sort -u | wc -l | tr -d ' ')" "6"
+
 expect "starts each space at the first color" \
   "$(FAKE_SPACE=space-b run_hook 1 "{\"cwd\":\"$TEST_ROOT/plain2\"}" | grep -o 'c[0-9]*=●')" "c0=●"
 
