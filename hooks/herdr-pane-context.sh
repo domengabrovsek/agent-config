@@ -2,8 +2,8 @@
 # SessionStart, CwdChanged, and Stop hook: report the pane's repo, branch, and
 # worktree to herdr as $repo, $icon, $branch, and $wt sidebar tokens.
 # Stop is included because a branch switch inside a session fires no event.
-# SessionStart also sorts the agent panel by repo, because herdr drops the
-# agent view on server restart.
+# A fresh session start also sorts the agent panel by repo, because herdr
+# drops the agent view on server restart.
 # Always exits 0; never blocks.
 
 set -u
@@ -14,18 +14,33 @@ command -v herdr >/dev/null 2>&1 || exit 0
 
 input=$(cat 2>/dev/null || true)
 dir=""
-event=""
+event_source=""
 if command -v jq >/dev/null 2>&1; then
   dir=$(printf '%s' "$input" | jq -r '.new_cwd // .cwd // empty' 2>/dev/null || true)
-  event=$(printf '%s' "$input" | jq -r '.hook_event_name // empty' 2>/dev/null || true)
+  event_source=$(printf '%s' "$input" | jq -r 'select(.hook_event_name == "SessionStart") | .source // empty' 2>/dev/null || true)
 fi
 [ -n "$dir" ] && [ -d "$dir" ] || dir="$PWD"
 
 source_id="agent-config:pane-context"
 
-if [ "$event" = "SessionStart" ] && [ -S "${HERDR_SOCKET_PATH:-}" ] && command -v nc >/dev/null 2>&1; then
-  printf '%s\n' '{"id":"agent-config:repo-view","method":"agent.view.set","params":{"source":"agent-config:repo-groups","label":"by repo","sort":[{"field":"workspace_order","order":"asc"},{"field":{"token":"repo"},"order":"asc"},{"field":"tab_order","order":"asc"},{"field":"pane_order","order":"asc"}]}}' |
-    nc -U -w 2 "$HERDR_SOCKET_PATH" >/dev/null 2>&1 || true
+if [ "$event_source" = "startup" ] && [ -S "${HERDR_SOCKET_PATH:-}" ] && command -v python3 >/dev/null 2>&1; then
+  python3 - "$HERDR_SOCKET_PATH" <<'PY_VIEW' >/dev/null 2>&1 || true
+import json, socket, sys
+request = {"id": "agent-config:repo-view", "method": "agent.view.set", "params": {
+    "source": "agent-config:repo-groups", "label": "by repo", "sort": [
+        {"field": "workspace_order", "order": "asc"},
+        {"field": {"token": "repo"}, "order": "asc"},
+        {"field": "tab_order", "order": "asc"},
+        {"field": "pane_order", "order": "asc"}]}}
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+    client.settimeout(0.5)
+    client.connect(sys.argv[1])
+    client.sendall((json.dumps(request) + "\n").encode())
+    try:
+        client.recv(4096)
+    except socket.timeout:
+        pass
+PY_VIEW
 fi
 
 if ! git_dir=$(git -C "$dir" rev-parse --absolute-git-dir 2>/dev/null); then

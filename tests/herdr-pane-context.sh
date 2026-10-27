@@ -12,6 +12,7 @@ PASSED=0
 FAILED=0
 
 cleanup() {
+  kill "${SERVER_PID:-}" 2>/dev/null
   case "$TEST_ROOT" in
     "$TMP_ROOT"/herdr-pane-context-test.*) rm -rf "$TEST_ROOT" ;;
     *) echo "Refusing to clean unexpected test path: $TEST_ROOT" >&2 ;;
@@ -37,13 +38,23 @@ cat >"$TEST_ROOT/bin/herdr" <<EOF
 printf '%s\n' "\$*" >>"$LOG"
 EOF
 chmod +x "$TEST_ROOT/bin/herdr"
-cat >"$TEST_ROOT/bin/nc" <<EOF
-#!/bin/bash
-printf 'nc %s %s\n' "\$*" "\$(jq -c '[.method, .params.sort[1].field.token]')" >>"$LOG"
-EOF
-chmod +x "$TEST_ROOT/bin/nc"
 SOCKET="$TEST_ROOT/herdr.sock"
-python3 -c 'import socket, sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$SOCKET"
+VIEW_LOG="$TEST_ROOT/view.log"
+python3 - "$SOCKET" "$VIEW_LOG" <<'PY_SERVER' &
+import json, socket, sys
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+    server.bind(sys.argv[1])
+    server.listen()
+    while True:
+        conn, _ = server.accept()
+        with conn:
+            request = json.loads(conn.recv(4096))
+            with open(sys.argv[2], "a") as log:
+                log.write(f"{request['method']} {request['params']['sort'][1]['field']['token']}\n")
+            conn.sendall(b'{"result":{}}\n')
+PY_SERVER
+SERVER_PID=$!
+until [ -S "$SOCKET" ]; do sleep 0.1; done
 
 REPO="$TEST_ROOT/my-repo"
 git init -q -b main "$REPO"
@@ -92,9 +103,17 @@ expect "names a bare repo worktree after the bare repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/bare-wt\"}")" \
   "$prefix --token repo=bare-repo --token icon=🟢 --token branch=main --token wt=⎇ bare-wt"
 
-expect "sorts the agent panel by repo on SessionStart" \
-  "$(run_hook 1 "{\"cwd\":\"$REPO\",\"hook_event_name\":\"SessionStart\"}" | head -1)" \
-  "nc -U -w 2 $SOCKET [\"agent.view.set\",\"repo\"]"
+view_requests() {
+  : >"$VIEW_LOG"
+  run_hook 1 "{\"cwd\":\"$REPO\",\"hook_event_name\":\"SessionStart\",\"source\":\"$1\"}" >/dev/null
+  cat "$VIEW_LOG"
+}
+
+expect "sorts the agent panel by repo on a fresh session start" \
+  "$(view_requests startup)" "agent.view.set repo"
+
+expect "leaves the agent view alone after /clear" \
+  "$(view_requests clear)" ""
 
 expect "clears every token outside a git repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/plain\"}")" \
