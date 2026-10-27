@@ -37,6 +37,13 @@ cat >"$TEST_ROOT/bin/herdr" <<EOF
 printf '%s\n' "\$*" >>"$LOG"
 EOF
 chmod +x "$TEST_ROOT/bin/herdr"
+cat >"$TEST_ROOT/bin/nc" <<EOF
+#!/bin/bash
+printf 'nc %s %s\n' "\$*" "\$(jq -c '[.method, .params.sort[1].field.token]')" >>"$LOG"
+EOF
+chmod +x "$TEST_ROOT/bin/nc"
+SOCKET="$TEST_ROOT/herdr.sock"
+python3 -c 'import socket, sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$SOCKET"
 
 REPO="$TEST_ROOT/my-repo"
 git init -q -b main "$REPO"
@@ -51,7 +58,8 @@ git -C "$SUPER" -c protocol.file.allow=always submodule add -q "$REPO" sub-repo
 
 run_hook() {
   : >"$LOG"
-  printf '%s' "$2" | PATH="$TEST_ROOT/bin:$PATH" HERDR_ENV="$1" HERDR_PANE_ID=w0:p1 bash "$HOOK"
+  printf '%s' "$2" | PATH="$TEST_ROOT/bin:$PATH" HERDR_ENV="$1" HERDR_PANE_ID=w0:p1 \
+    HERDR_SOCKET_PATH="$SOCKET" bash "$HOOK"
   cat "$LOG"
 }
 
@@ -66,27 +74,31 @@ expect "skips panes outside herdr" \
 
 expect "reports repo and branch, clears wt in the main checkout" \
   "$(run_hook 1 "{\"cwd\":\"$REPO\"}")" \
-  "$prefix --token repo=my-repo --token branch=main --clear-token wt"
+  "$prefix --token repo=my-repo --token icon=🟣 --token branch=main --clear-token wt"
 
 expect "reports the parent repo and worktree name in a linked worktree" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/wt-x\"}")" \
-  "$prefix --token repo=my-repo --token branch=feat/x --token wt=⎇ wt-x"
+  "$prefix --token repo=my-repo --token icon=🟣 --token branch=feat/x --token wt=⎇ wt-x"
 
 expect "prefers new_cwd from CwdChanged" \
   "$(run_hook 1 "{\"cwd\":\"$REPO\",\"new_cwd\":\"$TEST_ROOT/wt-x\"}")" \
-  "$prefix --token repo=my-repo --token branch=feat/x --token wt=⎇ wt-x"
+  "$prefix --token repo=my-repo --token icon=🟣 --token branch=feat/x --token wt=⎇ wt-x"
 
 expect "names a submodule after its own checkout, not .git/modules" \
   "$(run_hook 1 "{\"cwd\":\"$SUPER/sub-repo\"}")" \
-  "$prefix --token repo=sub-repo --token branch=main --clear-token wt"
+  "$prefix --token repo=sub-repo --token icon=🔴 --token branch=main --clear-token wt"
 
 expect "names a bare repo worktree after the bare repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/bare-wt\"}")" \
-  "$prefix --token repo=bare-repo --token branch=main --token wt=⎇ bare-wt"
+  "$prefix --token repo=bare-repo --token icon=🟣 --token branch=main --token wt=⎇ bare-wt"
+
+expect "sorts the agent panel by repo on SessionStart" \
+  "$(run_hook 1 "{\"cwd\":\"$REPO\",\"hook_event_name\":\"SessionStart\"}" | head -1)" \
+  "nc -U -w 2 $SOCKET [\"agent.view.set\",\"repo\"]"
 
 expect "clears every token outside a git repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/plain\"}")" \
-  "$prefix --clear-token repo --clear-token branch --clear-token wt"
+  "$prefix --clear-token repo --clear-token icon --clear-token branch --clear-token wt"
 
 echo "$PASSED passed, $FAILED failed"
 [ "$FAILED" -eq 0 ]
