@@ -39,7 +39,7 @@ Exit codes decide the outcome:
 
 | Host | Tool hooks | Session hooks | Deny list |
 | --- | --- | --- | --- |
-| Claude Code | Native, from `settings.json` | Native: `SessionStart`, `SessionEnd`, `Notification` | Native `permissions.deny`, plus `deny-gate.sh` |
+| Claude Code | Native, from `settings.json` | Native: `SessionStart`, `SessionEnd`, `CwdChanged`, `Stop`, `Notification` | Native `permissions.deny`, plus `deny-gate.sh` |
 | Codex | `~/.codex/hooks.json` calls `dispatch.sh` | `SessionStart` and `SessionEnd` through `dispatch.sh`; no `Notification` | `deny-gate.sh`, including the `Bash` rules |
 | Pi | The `hook-bridge` extension calls `dispatch.sh` for `bash`, `edit`, and `write` | Extensions instead: `drift-check` at start, `worktree-cleanup` at shutdown | The `permission-gate` extension derives a policy for the pinned `pi-permission-system` package; `deny-gate.sh` runs through the bridge |
 
@@ -92,6 +92,7 @@ The prose gate also prints advisories that never block: words to reconsider, sen
 | `SessionStart`, startup | `symlink-check.sh` | Warns when the Claude Code links drifted, with the fix command; `SKIP_SYMLINK_CHECK=1` turns it off |
 | `SessionStart`, after compaction | Inline `echo` | Reminds the model of the workflow, `/verify-done` before a PR, and the current year |
 | `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1`. herdr manages this file and overwrites it on reinstall |
+| `SessionStart`, `CwdChanged`, `Stop` | `herdr-pane-context.sh` | Reports `$repo`, `$branch`, and `$wt` pane tokens to the herdr sidebar when `HERDR_ENV=1`. `Stop` catches a branch switch inside a session. Claude Code only |
 | `SessionEnd` | `worktree-cleanup.sh` | Runs `scripts/worktree-prune.sh --apply`; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off. Pi's `worktree-cleanup` extension also reads `HARNESS_DISABLE_WORKTREE_CLEANUP=1` |
 | `Notification` | Inline `osascript` | Shows a macOS notification on a permission or idle prompt |
 
@@ -132,6 +133,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/pre-push-gate.sh`, `tests/resolve-repo.sh` | The push gate, and how hooks find the target repo |
 | `tests/post-edit-hooks.sh` | The three per-edit hooks |
 | `tests/symlink-check.sh` | The drift check |
+| `tests/herdr-pane-context.sh` | The herdr pane tokens in a checkout, a worktree, a submodule, and a bare repo |
 | `hooks/prose-gate.test.sh` | Prose gate fixtures, plus every tracked Markdown file |
 
 `pre-commit-coauthor-gate.sh`, `herdr-agent-state.sh`, and `worktree-cleanup.sh` have no test. [Contributing](contributing.md#add-a-hook) shows how to add a hook with its test.

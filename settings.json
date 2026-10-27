@@ -390,7 +390,7 @@
           },
           {
             "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
           }
         ]
@@ -401,7 +401,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
           }
         ]
@@ -412,7 +412,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
           }
         ]
