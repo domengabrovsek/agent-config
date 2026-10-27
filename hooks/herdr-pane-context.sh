@@ -42,7 +42,7 @@ branch=$(git -C "$dir" branch --show-current 2>/dev/null)
 [ -n "$branch" ] || branch=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo "?")
 
 # A stable color per repo name, so panes of one repo share a marker.
-icons=(🔴 🟠 🟡 🟢 🔵 🟣 🟤 🟥 🟧 🟨 🟩 🟦 🟪 🟫)
+icons=(🔴 🟠 🟡 🟢 🔵 🟣 🟤 ⚪)
 sum=$(printf '%s' "$repo" | cksum | cut -d' ' -f1)
 icon=${icons[$((sum % ${#icons[@]}))]}
 

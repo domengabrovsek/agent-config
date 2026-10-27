@@ -86,11 +86,11 @@ expect "prefers new_cwd from CwdChanged" \
 
 expect "names a submodule after its own checkout, not .git/modules" \
   "$(run_hook 1 "{\"cwd\":\"$SUPER/sub-repo\"}")" \
-  "$prefix --token repo=sub-repo --token icon=🔴 --token branch=main --clear-token wt"
+  "$prefix --token repo=sub-repo --token icon=🟡 --token branch=main --clear-token wt"
 
 expect "names a bare repo worktree after the bare repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/bare-wt\"}")" \
-  "$prefix --token repo=bare-repo --token icon=🟣 --token branch=main --token wt=⎇ bare-wt"
+  "$prefix --token repo=bare-repo --token icon=🟢 --token branch=main --token wt=⎇ bare-wt"
 
 expect "sorts the agent panel by repo on SessionStart" \
   "$(run_hook 1 "{\"cwd\":\"$REPO\",\"hook_event_name\":\"SessionStart\"}" | head -1)" \
