@@ -138,6 +138,10 @@ spaced_color >/dev/null
 expect "keeps a repo with a space in its name on one color" \
   "$(spaced_color) $(grep -c 'my_spaced' "$TEST_ROOT/state/herdr/repo-colors")" "c0=● 1"
 
+model_start=$(printf '{"cwd":"%s","hook_event_name":"SessionStart","source":"clear","model":"claude-opus-5-5[1m]"}' "$REPO")
+expect "reports a short model name on SessionStart" \
+  "$(run_hook 1 "$model_start" | grep -o 'model=.*')" "model=Opus 5.5"
+
 expect "starts each space at the first color" \
   "$(FAKE_SPACE=space-b run_hook 1 "{\"cwd\":\"$TEST_ROOT/plain2\"}" | grep -o 'c[0-9]*=●')" "c0=●"
 
