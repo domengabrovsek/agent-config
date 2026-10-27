@@ -80,20 +80,28 @@ repo_key=${repo// /_}
 color_file="${XDG_STATE_HOME:-$HOME/.local/state}/herdr/repo-colors"
 mkdir -p "$(dirname "$color_file")"
 touch "$color_file"
-# Panes run this hook in parallel, so the lookup and append hold a lock. A
-# lock left by a killed hook is ignored after one second.
+# Panes run this hook in parallel, so the lookup and append hold a lock. After
+# one second the lock counts as stale: break it once and take it.
 lock="$color_file.lock"
+locked=0
 for _ in $(seq 20); do
-  mkdir "$lock" 2>/dev/null && { trap 'rmdir "$lock" 2>/dev/null' EXIT; break; }
+  mkdir "$lock" 2>/dev/null && { locked=1; break; }
   sleep 0.05
 done
+if [ "$locked" = 0 ]; then
+  rmdir "$lock" 2>/dev/null
+  mkdir "$lock" 2>/dev/null && locked=1
+fi
+[ "$locked" = 1 ] && trap 'rmdir "$lock" 2>/dev/null' EXIT
 color=$(awk -v s="${space:-_}" -v r="$repo_key" '$1 == s && $2 == r { print $3; exit }' "$color_file")
 if [ -z "$color" ]; then
   color=$(awk -v s="${space:-_}" -v n="$colors" '$1 == s { used[$3] = 1; count++ } END { for (i = 0; i < n; i++) if (!(i in used)) { print i; exit } print count % n }' "$color_file")
   printf '%s %s %s\n' "${space:-_}" "$repo_key" "$color" >>"$color_file"
 fi
-rmdir "$lock" 2>/dev/null
-trap - EXIT
+if [ "$locked" = 1 ]; then
+  rmdir "$lock" 2>/dev/null
+  trap - EXIT
+fi
 color_args=()
 for i in $(seq 0 $((colors - 1))); do
   if [ "$i" = "$color" ]; then color_args+=(--token "c$i=●"); else color_args+=(--clear-token "c$i"); fi
