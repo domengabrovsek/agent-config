@@ -37,7 +37,10 @@ cat >"$TEST_ROOT/bin/herdr" <<EOF
 #!/bin/bash
 case "\$1 \$2" in
   "workspace get") printf '{"result":{"workspace":{"label":"%s"}}}\n' "\${FAKE_SPACE:-space-a}" ;;
-  *) printf '%s\n' "\$*" >>"$LOG" ;;
+  *)
+    tokens=\$(printf '%s\n' "\$@" | grep -c -- '-token\$')
+    [ "\$tokens" -le 16 ] || exit 1
+    printf '%s\n' "\$*" >>"$LOG" ;;
 esac
 EOF
 chmod +x "$TEST_ROOT/bin/herdr"
@@ -96,24 +99,24 @@ expect "skips panes outside herdr" \
 
 expect "reports repo and branch, clears wt in the main checkout" \
   "$(run_hook 1 "{\"cwd\":\"$REPO\"}")" \
-  "$prefix --token repo=my-repo --token branch=main --clear-token wt --token c0=●"
+  "$prefix --token repo=my-repo --token branch=main --clear-token wt"$'\n'"$prefix --clear-token icon --token c0=●"
 
 expect "reports the parent repo and worktree name in a linked worktree" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/wt-x\"}")" \
-  "$prefix --token repo=my-repo --token branch=feat/x --token wt=⎇ wt-x --token c0=●"
+  "$prefix --token repo=my-repo --token branch=feat/x --token wt=⎇ wt-x"$'\n'"$prefix --clear-token icon --token c0=●"
 
 cwd_changed=$(printf '{"cwd":"%s","new_cwd":"%s"}' "$REPO" "$TEST_ROOT/wt-x")
 expect "prefers new_cwd from CwdChanged" \
   "$(run_hook 1 "$cwd_changed")" \
-  "$prefix --token repo=my-repo --token branch=feat/x --token wt=⎇ wt-x --token c0=●"
+  "$prefix --token repo=my-repo --token branch=feat/x --token wt=⎇ wt-x"$'\n'"$prefix --clear-token icon --token c0=●"
 
 expect "names a submodule after its own checkout, not .git/modules" \
   "$(run_hook 1 "{\"cwd\":\"$SUPER/sub-repo\"}")" \
-  "$prefix --token repo=sub-repo --token branch=main --clear-token wt --token c1=●"
+  "$prefix --token repo=sub-repo --token branch=main --clear-token wt"$'\n'"$prefix --clear-token icon --token c1=●"
 
 expect "names a bare repo worktree after the bare repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/bare-wt\"}")" \
-  "$prefix --token repo=bare-repo --token branch=main --token wt=⎇ bare-wt --token c2=●"
+  "$prefix --token repo=bare-repo --token branch=main --token wt=⎇ bare-wt"$'\n'"$prefix --clear-token icon --token c2=●"
 
 view_requests() {
   : >"$VIEW_LOG"
@@ -136,7 +139,7 @@ expect "gives each new repo in a space an unused color, then wraps after 14" \
 
 expect "clears every token outside a git repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/plain\"}")" \
-  "$prefix --clear-token repo --clear-token branch --clear-token wt"
+  "$prefix --clear-token repo --clear-token branch --clear-token wt"$'\n'"$prefix --clear-token icon"
 
 echo "$PASSED passed, $FAILED failed"
 [ "$FAILED" -eq 0 ]

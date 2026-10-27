@@ -50,7 +50,9 @@ for i in $(seq 0 $((colors - 1))); do clear_colors+=(--clear-token "c$i"); done
 
 if ! git_dir=$(git -C "$dir" rev-parse --absolute-git-dir 2>/dev/null); then
   herdr pane report-metadata "$HERDR_PANE_ID" --source "$source_id" \
-    --clear-token repo --clear-token branch --clear-token wt "${clear_colors[@]}" >/dev/null 2>&1 || true
+    --clear-token repo --clear-token branch --clear-token wt >/dev/null 2>&1 || true
+  herdr pane report-metadata "$HERDR_PANE_ID" --source "$source_id" \
+    --clear-token icon "${clear_colors[@]}" >/dev/null 2>&1 || true
   exit 0
 fi
 
@@ -84,6 +86,9 @@ else
   wt_args=(--token "wt=⎇ $(basename "$(git -C "$dir" rev-parse --show-toplevel)")")
 fi
 
+# herdr takes at most 16 tokens per report, so the colors go in a second one.
 herdr pane report-metadata "$HERDR_PANE_ID" --source "$source_id" \
-  --token "repo=$repo" --token "branch=$branch" "${wt_args[@]}" "${color_args[@]}" >/dev/null 2>&1 || true
+  --token "repo=$repo" --token "branch=$branch" "${wt_args[@]}" >/dev/null 2>&1 || true
+herdr pane report-metadata "$HERDR_PANE_ID" --source "$source_id" \
+  --clear-token icon "${color_args[@]}" >/dev/null 2>&1 || true
 exit 0
