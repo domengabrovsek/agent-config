@@ -43,6 +43,11 @@ git init -q -b main "$REPO"
 git -C "$REPO" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
 git -C "$REPO" worktree add -q -b feat/x "$TEST_ROOT/wt-x"
 mkdir -p "$TEST_ROOT/plain"
+git clone -q --bare "$REPO" "$TEST_ROOT/bare-repo.git"
+git -C "$TEST_ROOT/bare-repo.git" worktree add -q "$TEST_ROOT/bare-wt" main
+SUPER="$TEST_ROOT/super"
+git init -q -b main "$SUPER"
+git -C "$SUPER" -c protocol.file.allow=always submodule add -q "$REPO" sub-repo
 
 run_hook() {
   : >"$LOG"
@@ -70,6 +75,14 @@ expect "reports the parent repo and worktree name in a linked worktree" \
 expect "prefers new_cwd from CwdChanged" \
   "$(run_hook 1 "{\"cwd\":\"$REPO\",\"new_cwd\":\"$TEST_ROOT/wt-x\"}")" \
   "$prefix --token repo=my-repo --token branch=feat/x --token wt=⎇ wt-x"
+
+expect "names a submodule after its own checkout, not .git/modules" \
+  "$(run_hook 1 "{\"cwd\":\"$SUPER/sub-repo\"}")" \
+  "$prefix --token repo=sub-repo --token branch=main --clear-token wt"
+
+expect "names a bare repo worktree after the bare repo" \
+  "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/bare-wt\"}")" \
+  "$prefix --token repo=bare-repo --token branch=main --token wt=⎇ bare-wt"
 
 expect "clears every token outside a git repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/plain\"}")" \

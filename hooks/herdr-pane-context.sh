@@ -26,7 +26,9 @@ if ! git_dir=$(git -C "$dir" rev-parse --absolute-git-dir 2>/dev/null); then
 fi
 
 common_dir=$(cd "$dir" && cd "$(git rev-parse --git-common-dir)" && pwd -P)
-repo=$(basename "$(dirname "$common_dir")")
+# The first worktree entry is the main checkout, also for submodules and bare repos.
+main_wt=$(git -C "$dir" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
+repo=$(basename "${main_wt:-$(dirname "$common_dir")}" .git)
 branch=$(git -C "$dir" branch --show-current 2>/dev/null)
 [ -n "$branch" ] || branch=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo "?")
 
