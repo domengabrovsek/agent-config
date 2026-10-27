@@ -67,13 +67,14 @@ branch=$(git -C "$dir" branch --show-current 2>/dev/null)
 # repos of a space never share one. Spaces are keyed by label, which survives restarts.
 space=$(herdr workspace get "${HERDR_PANE_ID%%:*}" 2>/dev/null | jq -r '.result.workspace.label // empty' 2>/dev/null)
 space=${space// /_}
+repo_key=${repo// /_}
 color_file="${XDG_STATE_HOME:-$HOME/.local/state}/herdr/repo-colors"
 mkdir -p "$(dirname "$color_file")"
 touch "$color_file"
-color=$(awk -v s="${space:-_}" -v r="$repo" '$1 == s && $2 == r { print $3; exit }' "$color_file")
+color=$(awk -v s="${space:-_}" -v r="$repo_key" '$1 == s && $2 == r { print $3; exit }' "$color_file")
 if [ -z "$color" ]; then
   color=$(awk -v s="${space:-_}" -v n="$colors" '$1 == s { used[$3] = 1; count++ } END { for (i = 0; i < n; i++) if (!(i in used)) { print i; exit } print count % n }' "$color_file")
-  printf '%s %s %s\n' "${space:-_}" "$repo" "$color" >>"$color_file"
+  printf '%s %s %s\n' "${space:-_}" "$repo_key" "$color" >>"$color_file"
 fi
 color_args=()
 for i in $(seq 0 $((colors - 1))); do

@@ -75,6 +75,7 @@ git -C "$REPO" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
 git -C "$REPO" worktree add -q -b feat/x "$TEST_ROOT/wt-x"
 mkdir -p "$TEST_ROOT/plain"
 git init -q -b main "$TEST_ROOT/plain2"
+git init -q -b main "$TEST_ROOT/my spaced"
 git clone -q --bare "$REPO" "$TEST_ROOT/bare-repo.git"
 git -C "$TEST_ROOT/bare-repo.git" worktree add -q "$TEST_ROOT/bare-wt" main
 SUPER="$TEST_ROOT/super"
@@ -129,6 +130,13 @@ expect "sorts the agent panel by repo on a fresh session start" \
 
 expect "leaves the agent view alone after /clear" \
   "$(view_requests clear)" ""
+
+spaced_color() {
+  FAKE_SPACE=space-c run_hook 1 "{\"cwd\":\"$TEST_ROOT/my spaced\"}" | grep -o 'c[0-9]*=●'
+}
+spaced_color >/dev/null
+expect "keeps a repo with a space in its name on one color" \
+  "$(spaced_color) $(grep -c 'my_spaced' "$TEST_ROOT/state/herdr/repo-colors")" "c0=● 1"
 
 expect "starts each space at the first color" \
   "$(FAKE_SPACE=space-b run_hook 1 "{\"cwd\":\"$TEST_ROOT/plain2\"}" | grep -o 'c[0-9]*=●')" "c0=●"
