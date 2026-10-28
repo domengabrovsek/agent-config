@@ -82,7 +82,7 @@ These run after a Write or Edit, except `post-pr-open-watch.sh` and `post-verify
 | `post-edit-lint.sh` | Replaces em dashes, then checks the added lines | Tracker refs in comments, stacked `//` or `--` comments, `var`, TODO markers, `SELECT *`, `:latest` | `SKIP_POST_EDIT_LINT` |
 | `prose-gate.sh file` | Checks the added lines of a Markdown file | A blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `post-pr-open-watch.sh` | After a non-draft `gh pr create` or a `gh pr ready` succeeds, tells the agent to watch the PR with `scripts/pr-ready.sh --watch` and how to clear each blocker | Never | `SKIP_PR_WATCH` |
-| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code | Never | `SKIP_VERIFY_STAMP` |
+| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code. A redirected log must go outside the repo or to an ignored path | Never | `SKIP_VERIFY_STAMP` |
 
 The prose gate also prints advisories that never block: words to reconsider, sentences over 25 words, and a causal "since".
 

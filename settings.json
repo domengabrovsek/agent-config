@@ -345,6 +345,7 @@
           {
             "type": "command",
             "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-verify-stamp.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-verify-stamp.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(*npm run verify*)",
             "timeout": 10
           }
         ]

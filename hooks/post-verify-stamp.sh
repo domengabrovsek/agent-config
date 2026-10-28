@@ -8,7 +8,8 @@
 # alone: a pipe, a `;` or `||` would report another command's exit code, and
 # a background run reports success when it starts, not when it ends. Only a
 # leading `cd <dir> &&`, leading VAR=value assignments and trailing output
-# redirections are allowed around it.
+# redirections are allowed around it. A redirect must point outside the repo
+# or at an ignored path: an untracked log file makes the tree dirty.
 #
 # Always exits 0. Bypass with SKIP_VERIFY_STAMP=1.
 

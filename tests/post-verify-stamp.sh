@@ -74,8 +74,8 @@ mkdir -p "$HUB" "$REPO/packages/sub"
 echo "== stamps =="
 assert_stamp "plain npm run verify stamps HEAD" "$REPO" head "$REPO" "npm run verify"
 assert_stamp "a leading cd from another dir stamps the target" "$REPO" head "$HUB" "cd $REPO && npm run verify"
-assert_stamp "env assignments and redirections are allowed" "$REPO" head "$REPO" \
-  "CI=1 PUBLIC_X=y npm run verify > out.log 2>&1"
+assert_stamp "env assignments and a redirect outside the repo are allowed" "$REPO" head "$REPO" \
+  "CI=1 PUBLIC_X=y npm run verify > $TEST_ROOT/out.log 2>&1"
 assert_stamp "a subdirectory finds the repo's package.json" "$REPO" head "$REPO/packages/sub" "npm run verify"
 out=$(run_hook "$REPO" "npm run verify")
 if printf '%s' "$out" | grep -qF "[verify-stamp] Recorded a verify pass"; then
@@ -96,6 +96,11 @@ assert_stamp "an unrelated command does not stamp" "$REPO" none "$REPO" "npm tes
 touch "$REPO/dirty"
 assert_stamp "a dirty tree does not stamp" "$REPO" none "$REPO" "npm run verify"
 rm "$REPO/dirty"
+# The hook never runs the command, so create the log the redirect would write.
+touch "$REPO/out.log"
+assert_stamp "a log redirected into the repo dirties the tree" "$REPO" none "$REPO" \
+  "npm run verify > out.log 2>&1"
+rm "$REPO/out.log"
 assert_stamp "a repo without verify does not stamp" "$BARE" none "$BARE" "npm run verify"
 rm -f "$(stamp_file "$REPO")"
 echo '{"cwd":"'"$REPO"'","tool_input":{"command":"npm run verify"}}' \

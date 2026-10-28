@@ -6,9 +6,9 @@
 #
 # In a repo that declares a `verify` script, post-verify-stamp.sh records each
 # full pass by writing HEAD to `<git-dir>/verify-passed`. This hook only reads
-# that stamp: the full
-# run takes minutes, longer than a hook may block. A draft PR skips the stamp
-# check, because `gh pr ready` checks it before anyone reviews.
+# that stamp: the full run takes minutes, longer than a hook may block. A draft
+# PR skips the stamp check, because `gh pr ready` checks it before anyone
+# reviews.
 # A repo without `verify` gets `npm test` on create, run here.
 #
 # Bypass with SKIP_PR_TEST_GATE=1.
