@@ -10,7 +10,15 @@
       "Edit(**/.env.example)",
       "Edit(**/.env.sample)",
       "Bash(gh run list *)",
-      "Bash(gh run view *)"
+      "Bash(gh run view *)",
+      "Bash(spacectl stack list *)",
+      "Bash(spacectl stack show *)",
+      "Bash(spacectl stack logs *)",
+      "Bash(spacectl stack changes *)",
+      "Bash(spacectl stack outputs *)",
+      "Bash(spacectl stack run list *)",
+      "Bash(spacectl stack resources list *)",
+      "Bash(spacectl stack dependencies *)"
     ],
     "deny": [
       "Read(**/.env)",
