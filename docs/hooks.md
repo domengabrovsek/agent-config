@@ -69,11 +69,11 @@ The conventional and co-author gates read the message from the command. A messag
 Two gates defer to the repo they run in:
 
 - `pre-push-gate.sh` steps aside when the repo has its own executable pre-push hook, and runs `verify:fast` when `package.json` declares it. Otherwise it runs each of `lint`, `typecheck`, `knip`, `test`, and `build` that `package.json` declares, then a critical-only audit. In a Node repo it blocks when the detected npm, pnpm, or yarn is not on `PATH`. In a Terraform dir it runs `terraform fmt -check` and `terraform validate`, and passes when `terraform` is not installed. A dir with neither `package.json` nor `.tf` files passes.
-- `pre-pr-test-gate.sh` reads the `verify-passed` stamp that the repo's `npm run verify` writes to the git dir. It runs `npm test` only in repos without `verify`.
+- `pre-pr-test-gate.sh` reads the `verify-passed` stamp that `post-verify-stamp.sh` writes to the git dir after a successful `npm run verify`. It runs `npm test` only in repos without `verify`.
 
 ## PostToolUse hooks
 
-These run after a Write or Edit, except `post-pr-open-watch.sh`, which runs after a Bash call. A block here reports the problem after the file is saved.
+These run after a Write or Edit, except `post-pr-open-watch.sh` and `post-verify-stamp.sh`, which run after a Bash call. A block here reports the problem after the file is saved.
 
 | Hook | Does | Blocks when | Bypass |
 | --- | --- | --- | --- |
@@ -82,6 +82,7 @@ These run after a Write or Edit, except `post-pr-open-watch.sh`, which runs afte
 | `post-edit-lint.sh` | Replaces em dashes, then checks the added lines | Tracker refs in comments, stacked `//` or `--` comments, `var`, TODO markers, `SELECT *`, `:latest` | `SKIP_POST_EDIT_LINT` |
 | `prose-gate.sh file` | Checks the added lines of a Markdown file | A blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `post-pr-open-watch.sh` | After a non-draft `gh pr create` or a `gh pr ready` succeeds, tells the agent to watch the PR with `scripts/pr-ready.sh --watch` and how to clear each blocker | Never | `SKIP_PR_WATCH` |
+| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code | Never | `SKIP_VERIFY_STAMP` |
 
 The prose gate also prints advisories that never block: words to reconsider, sentences over 25 words, and a causal "since".
 

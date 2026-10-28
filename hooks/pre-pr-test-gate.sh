@@ -4,8 +4,9 @@
 # Runs as a PreToolUse hook on Bash(gh pr create *) and Bash(gh pr ready *).
 # Exit code 2 blocks the action and sends the error message to Claude.
 #
-# A repo that declares a `verify` script records each full pass by writing
-# HEAD to `<git-dir>/verify-passed`. This hook only reads that stamp: the full
+# In a repo that declares a `verify` script, post-verify-stamp.sh records each
+# full pass by writing HEAD to `<git-dir>/verify-passed`. This hook only reads
+# that stamp: the full
 # run takes minutes, longer than a hook may block. A draft PR skips the stamp
 # check, because `gh pr ready` checks it before anyone reviews.
 # A repo without `verify` gets `npm test` on create, run here.
@@ -76,7 +77,8 @@ if has_script verify; then
     exit 0
   fi
   echo "[pre-pr-test-gate] $PROJECT_ROOT has no verify pass for HEAD ${HEAD_SHA:-?} with a clean tree." >&2
-  echo "Run \`npm run verify\` there (it takes minutes: use run_in_background or a 600000ms timeout), then retry." >&2
+  echo "Run \`npm run verify\` there on its own in the foreground (600000ms timeout), then retry." >&2
+  echo "A background or piped run writes no stamp." >&2
   exit 2
 fi
 
