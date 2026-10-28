@@ -90,6 +90,8 @@ assert_stamp "verify:fast does not stamp" "$REPO" none "$REPO" "npm run verify:f
 assert_stamp "a pipe hides the exit code" "$REPO" none "$REPO" "npm run verify | tail -5"
 assert_stamp "a ; hides the exit code" "$REPO" none "$REPO" "npm run verify; echo done"
 assert_stamp "|| hides the exit code" "$REPO" none "$REPO" "npm run verify || true"
+assert_stamp "a chained cd prefix could name the wrong repo" "$REPO" none "$HUB" \
+  "cd $REPO; cd $BARE && npm run verify"
 assert_stamp "a background run has not finished" "$REPO" none "$REPO" "npm run verify" true
 assert_stamp "an interrupted run does not stamp" "$REPO" none "$REPO" "npm run verify" false true
 assert_stamp "an unrelated command does not stamp" "$REPO" none "$REPO" "npm test"

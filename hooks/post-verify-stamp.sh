@@ -33,7 +33,12 @@ esac
 
 CORE="$COMMAND"
 case "$CORE" in
-  "cd "*"&&"*) CORE=${CORE#*&&} ;;
+  "cd "*"&&"*)
+    # Only a single `cd <path>`: a `;` before the `&&` would stamp the wrong repo.
+    PREFIX=${CORE%%"&&"*}
+    printf '%s\n' "$PREFIX" | grep -qE '^cd[[:space:]]+[^[:space:];|&]+[[:space:]]*$' || exit 0
+    CORE=${CORE#*&&}
+    ;;
 esac
 CORE=$(printf '%s\n' "$CORE" | sed -E \
   -e 's/^[[:space:]]+//' \
