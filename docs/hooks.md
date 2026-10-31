@@ -33,7 +33,7 @@ Exit codes decide the outcome:
 - **0** lets the tool call run. JSON output with `additionalContext` adds text for the model.
 - **2** blocks a `PreToolUse` call, and the script's stderr reaches the model as feedback. A `PostToolUse` hook runs after the file is saved, so its exit 2 sends the feedback without undoing the edit.
 - Any other code lets the call run. Claude Code shows a non-blocking error, and `dispatch.sh` ignores the code, so a broken hook fails open on every host.
-- A timeout differs by host. Claude Code blocks a `PreToolUse` call whose hook runs past its `timeout`, 10 minutes when unset for a command hook, as the [Claude Code hook docs](https://code.claude.com/docs/en/agent-sdk/hooks) describe. `dispatch.sh` kills such a hook, 60 seconds when unset, and lets the call run.
+- A hook that runs past its `timeout` lets the call run on every host. Claude Code cancels it after 10 minutes when unset, as the [hooks reference](https://code.claude.com/docs/en/hooks) describes, unless the entry sets `onFailure: "block"`. No entry here does. `dispatch.sh` kills it after 60 seconds when unset.
 
 ## Host coverage
 

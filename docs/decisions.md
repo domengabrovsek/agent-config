@@ -66,8 +66,8 @@ The design decisions this config still runs on. Each entry states the choice and
 
 - A rule a script can check lives in `hooks/` and runs on the tool call. The model can forget an instruction, but the host runs a hook outside the model.
 - Each rule bullet ends with an [enforcement tag](rules.md#enforcement-tags), so a reader sees whether a hook backs it.
-- Only exit 2 blocks. A crash or any other exit lets the call run. Claude Code works this way, and `hooks/lib/dispatch.sh` and `pi/extensions/hook-bridge.ts` copy it, so a broken hook behaves the same on every host.
-- Timeouts differ. Claude Code blocks a timed-out `PreToolUse` call, while `dispatch.sh` and `hook-bridge.ts` let it run. [Hooks](hooks.md#how-a-hook-runs) gives the defaults.
+- Only exit 2 blocks. A crash, a timeout, or any other exit lets the call run. Claude Code command hooks work this way, and `hooks/lib/dispatch.sh` and `pi/extensions/hook-bridge.ts` copy it, so a broken hook behaves the same on every host.
+- No registry entry sets Claude Code's `onFailure: "block"`, which would make a failed or timed-out hook block the call.
 - Cost: a broken hook enforces nothing until someone notices.
 
 ### Project hooks win over the global copy

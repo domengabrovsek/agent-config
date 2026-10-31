@@ -10,7 +10,7 @@ Coding agents write code well and judge "done" badly. They start before they und
 | --- | --- | --- |
 | Grill before building | The agent settles one decision at a time with you, then writes the plan before any code. Typos and one-liners skip this step | [Decisions](docs/decisions.md#grill-before-building) |
 | Verify before claiming | The agent runs the repo's own checks before a push and cites a file, command, or test for each claim | [Skills](docs/skills.md#verify-and-ship) |
-| Hooks over prompts | Hooks run outside the model, so the agent cannot skip them. They block commits to `main` and PRs that fail their checks. A deny list blocks force-pushes, `rm -rf`, and reads of secrets | [Hooks](docs/hooks.md), [Guardrails](docs/decisions.md#guardrails) |
+| Hooks over prompts | Hooks run outside the model, so the agent cannot skip them. They block commits to `main` and PRs that fail their checks. A deny list blocks force-pushes, pushes to `main`, `rm -rf`, and reads of secrets | [Hooks](docs/hooks.md), [Guardrails](docs/decisions.md#guardrails) |
 | Fix mistakes once | Each agent mistake becomes a rule or a hook here, so every later session gets the fix | [Rules](docs/rules.md) |
 | Specialist personas | Security, database, cloud, and frontend reviews run as subagents with their own context | [Personas](docs/personas.md) |
 
