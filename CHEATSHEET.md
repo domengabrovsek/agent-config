@@ -21,13 +21,13 @@ Each skill runs on its own. Pick the ones a task needs, in the order that fits i
 | Resolve a GitHub issue end-to-end | `/fix-issue 1234` |
 | Review someone's PR | `/review-pr 567` |
 | Verify everything before pushing | `/verify-done` |
-| Open a PR/MR (reuses a verify pass at HEAD or runs the gate, regex-checks the title) | `/mr` |
+| Open a PR/MR (reuses a verify pass at HEAD or runs `/verify-done`, then checks commit format and the title) | `/mr` |
 | Watch CI on the current branch | `/ci` |
 | Address reviewer comments on a PR (bots answered, humans drafted) | `/pr-comments` |
 | Cut a release | `/ship` |
 | Make a diagram (drawio) | `/diagram <topic>` |
 | Save the session's work as a diary entry | `/summarize` |
-| Refresh a library's API docs (React, Prisma, Next.js, etc.) | mention the library by name - the `ctx7` CLI auto-fires |
+| Refresh a library's API docs (React, Prisma, Next.js, etc.) | mention the library by name; `rules/context7.md` sends the agent to the `ctx7` CLI. Claude Code loads that rule in every session, and Codex and Pi load it through `rulebook` |
 | Break a plan/PRD into independently-grabbable tracker issues | `/to-issues` |
 | Find architectural deepening opportunities in a codebase | `/improve-codebase-architecture` |
 | Write or edit a skill | `/write-a-skill` |

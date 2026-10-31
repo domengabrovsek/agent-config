@@ -33,7 +33,7 @@ Exit codes decide the outcome:
 - **0** lets the tool call run. JSON output with `additionalContext` adds text for the model.
 - **2** blocks a `PreToolUse` call, and the script's stderr reaches the model as feedback. A `PostToolUse` hook runs after the file is saved, so its exit 2 sends the feedback without undoing the edit.
 - Any other code lets the call run. Claude Code shows a non-blocking error, and `dispatch.sh` ignores the code, so a broken hook fails open on every host.
-- `dispatch.sh` kills a hook that runs past its `timeout`, 60 seconds when unset, and lets the call run.
+- A hook that runs past its `timeout` lets the call run on every host. Claude Code cancels it after 10 minutes when unset, as the [hooks reference](https://code.claude.com/docs/en/hooks) describes, unless the entry sets `onFailure: "block"`. No entry here does. `dispatch.sh` kills it after 60 seconds when unset.
 
 ## Host coverage
 
@@ -51,7 +51,7 @@ These run before the tool call and can block it. The rows follow registry order,
 
 | Hook | Runs on | Blocks when | Bypass |
 | --- | --- | --- | --- |
-| `deny-gate.sh` | Bash, Write, Edit, MCP tools | A command names a denied path, an edit targets one, or an MCP tool is denied. `Bash` rules apply on Codex only | None |
+| `deny-gate.sh` | Bash, Write, Edit, MCP tools | A command names a denied path, an edit targets one, or an MCP tool is denied. It applies `Bash` rules only on Codex, because Claude Code and Pi enforce those natively | None |
 | `pre-git-state-refresh.sh` | `git push`, `git commit`, and `gh pr` `edit`, `comment`, `merge`, `close`, `ready`, `review`; not `gh pr create` | Never. It adds a `[pr-state]` line with the branch's PR state | `SKIP_PR_STATE_REFRESH` |
 | `pre-pr-test-gate.sh` | `gh pr create`, `gh pr ready` | The title is not conventional, or HEAD has no passing verify run | `SKIP_PR_TEST_GATE` |
 | `pre-pr-evidence-gate.sh` | `gh pr create`, when a spec names the branch | A non-manual acceptance criterion lacks a PASS row at HEAD | `SKIP_EVIDENCE_GATE` |
@@ -93,13 +93,13 @@ The prose gate also prints advisories that never block: words to reconsider, sen
 | `SessionStart`, startup | `symlink-check.sh` | Warns when the Claude Code links drifted, with the fix command; `SKIP_SYMLINK_CHECK=1` turns it off |
 | `SessionStart`, after compaction | Inline `echo` | Reminds the model of the workflow, `/verify-done` before a PR, and the current year |
 | `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1`. herdr manages this file and overwrites it on reinstall |
-| `SessionStart`, `CwdChanged`, `Stop` | `herdr-pane-context.sh` | Reports `$repo`, `$branch`, and `$wt` pane tokens to the herdr sidebar when `HERDR_ENV=1`. On `SessionStart` it also reports `$model`, because only that event carries the model. It also sets one of `$c0` to `$c13`, a color marker that the herdr config styles. Each new repo in a space takes the lowest unused color, saved in `~/.local/state/herdr/repo-colors`. `Stop` catches a branch switch inside a session. On a fresh `SessionStart` (source `startup`) it also sorts the agent panel by repo through `agent.view.set`. Claude Code only |
+| `SessionStart`, `CwdChanged`, `Stop` | `herdr-pane-context.sh` | Reports `$repo`, `$branch`, and `$wt` pane tokens to the herdr sidebar when `HERDR_ENV=1`. On `SessionStart` it also reports `$model`, because only that event carries the model. It also sets one of `$c0` to `$c13`, a color marker that the herdr config styles. Each new repo in a space takes the lowest unused color, saved in `~/.local/state/herdr/repo-colors`. `Stop` catches a branch switch inside a session. On a fresh `SessionStart` (source `startup`) it also sorts the agent panel by repo through `agent.view.set`. Codex runs only the `SessionStart` entry, through `dispatch.sh` |
 | `SessionEnd` | `worktree-cleanup.sh` | Runs `scripts/worktree-prune.sh --apply`; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off. Pi's `worktree-cleanup` extension also reads `HARNESS_DISABLE_WORKTREE_CLEANUP=1` |
 | `Notification` | Inline `osascript` | Shows a macOS notification on a permission or idle prompt |
 
 ## Bypass variables
 
-Each `SKIP_*` variable takes the value `1` and is read from the environment of the hook process. Hooks inherit the host's environment, not the tool command's, so set the variable when you start the host, as in `SKIP_PROSE_GATE=1 claude`. `SKIP_PUSH_GATE=1` also works as a prefix on the `git push` command.
+Each `SKIP_*` variable takes the value `1` and is read from the environment of the hook process. Hooks inherit the host's environment, not the tool command's, so set the variable when you start the host, as in `SKIP_PROSE_GATE=1 claude` or `SKIP_PROSE_GATE=1 pi`. `SKIP_PUSH_GATE=1` also works as a prefix on the `git push` command.
 
 A bypass is a deliberate human override, not a tool for the agent. A pull request that relies on one says so in its description.
 
@@ -119,6 +119,18 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 - `deny-gate.sh` also blocks a shell command that names a denied path, so `cat .env` fails like a `Read` of `.env` on every host.
 - The rules match literal patterns. `rm -fr` and `git push --force-with-lease` do not match, so the deny list adds friction, not a sandbox.
 - `deny-gate.sh` needs Node.js 22.18 or later, and allows everything when `node` is missing.
+
+## Shared helpers
+
+`hooks/lib/` holds the code several hooks share, so a fix lands in one file:
+
+| File | Used by | Does |
+| --- | --- | --- |
+| `dispatch.sh` | Codex `hooks.json`, Pi `hook-bridge` | Runs the registry on hosts without native hooks. See [host coverage](#host-coverage) |
+| `deny-gate.ts` | `deny-gate.sh` | Matches a tool call against the deny list in `settings.json` |
+| `resolve-repo.sh` | The git and `gh pr` gates, `post-verify-stamp.sh` | Finds the repo a command targets, because a hook runs in its own cwd |
+| `pr-body.sh` | The prose, body, test, and reply gates | Extracts the PR body from a `gh pr` command |
+| `find-up.sh` | `auto-format.sh`, `post-edit-typecheck.sh`, `post-verify-stamp.sh` | Finds the nearest config, `package.json`, or tool binary above a path, for monorepo workspaces |
 
 ## Where each hook is tested
 

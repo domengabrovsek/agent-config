@@ -60,6 +60,32 @@ The design decisions this config still runs on. Each entry states the choice and
 - The author of code never grades its own tests. The QA Expert writes and locks the tests, a domain persona or the session writes the code, a read-only review panel reviews, and the Spec Verifier records evidence at HEAD.
 - Three hooks back the loop, so a role cannot skip its limit. The evidence gate blocks a PR until every automated criterion passes at HEAD. The test lock blocks implementers from editing locked tests. The reply gate blocks inline replies to human comments.
 
+## Guardrails
+
+### Enforce hard limits in hooks, not instructions
+
+- A rule a script can check lives in `hooks/` and runs on the tool call. The model can forget an instruction, but the host runs a hook outside the model.
+- Each rule bullet ends with an [enforcement tag](rules.md#enforcement-tags), so a reader sees whether a hook backs it.
+- Only exit 2 blocks. A crash, a timeout, or any other exit lets the call run. Claude Code command hooks work this way, and `hooks/lib/dispatch.sh` and `pi/extensions/hook-bridge.ts` copy it, so a broken hook behaves the same on every host.
+- No registry entry sets Claude Code's `onFailure: "block"`, which would make a failed or timed-out hook block the call.
+- Cost: a broken hook enforces nothing until someone notices.
+
+### Project hooks win over the global copy
+
+- Each registry command runs `<project>/hooks/<name>` when it is executable, and `~/.claude/hooks/<name>` otherwise. The project copy wins so that a hook edit in this repo runs on the next tool call of a session here, before the change merges.
+- Cost: a repo can ship its own `hooks/deny-gate.sh` that allows everything, and no setting forces the global copy. [Hooks](hooks.md#how-a-hook-runs) says how to check an unfamiliar repo.
+
+### The deny list adds friction, not a sandbox
+
+- One literal list in `settings.json` blocks the same commands and paths on every host, such as `rm -rf`, force-pushes, and reads of secrets.
+- Literal patterns miss variants such as `rm -fr`. Unattended work needs an external boundary, as [setup](setup.md#pi) notes for Pi.
+
+### Cap the always-loaded text
+
+- `scripts/config-budget.sh` fails CI when `AGENTS.md` plus the always-loaded rules pass a word cap. Every word there competes for attention in every session.
+- Without a cap the surface grows one reasonable bullet at a time. Raising the cap is an edit to the script, reviewed with the rule that needs it.
+- [How it works](architecture.md#context-budget) says where new guidance goes instead.
+
 ## Skills
 
 ### Vendor and adapt upstream skills
