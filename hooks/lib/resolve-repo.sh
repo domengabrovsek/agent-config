@@ -33,6 +33,10 @@ resolve_repo_dir() {
       cd_path=${cd_path%%";"*}
       cd_path=$(printf '%s\n' "$cd_path" \
         | sed "s/^[[:space:]]*//;s/[[:space:]]*\$//;s/^[\"']//;s/[\"']\$//")
+      case "$cd_path" in
+        \~) cd_path=$HOME ;;
+        \~/*) cd_path="$HOME/${cd_path#\~/}" ;;
+      esac
       ;;
   esac
 

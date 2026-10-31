@@ -341,6 +341,12 @@
             "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr ready *)",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-verify-stamp.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-verify-stamp.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(*npm run verify*)",
+            "timeout": 10
           }
         ]
       }
