@@ -40,6 +40,7 @@ Each skill runs on its own. Pick the ones a task needs, in the order that fits i
 | Hand this session to a fresh one | `/handoff` |
 | Spike a throwaway prototype to settle a design question | `/prototype` |
 | Review code for over-engineering only | `/prune` |
+| Understand how a product or feature you like works | `/reverse-engineer <target>` |
 
 ## When the slash IS the value
 
