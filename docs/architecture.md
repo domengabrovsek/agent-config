@@ -32,6 +32,22 @@ The repo answers with three design choices:
 | `tests/` | Tests for the hooks, host setup, and Pi extensions | Run by CI. See [contributing](contributing.md) |
 | `CONTEXT.md` | Glossary of the terms these docs use | Read by people and by `/grill-with-docs` |
 
+### Scripts
+
+Each script runs on its own. Hooks, skills, and CI call them, and you can run any of them by hand.
+
+| Script | Does | Called by |
+| --- | --- | --- |
+| `setup-hosts.sh` | Links each host to the checkout; `--check` reports drift | You, `symlink-check.sh`, Pi `drift-check` |
+| `setup-symlinks.sh` | Claude Code-only wrapper around `setup-hosts.sh` | You |
+| `config-budget.sh` | Caps the words in the always-loaded text | CI |
+| `config-integrity.sh` | Checks that JSON parses, no runtime keys are committed, and the git filter is declared | CI |
+| `shellcheck-all.sh` | Lints every tracked shell script at warning level | CI |
+| `pr-ready.sh` | Reports whether a PR is ready to merge; `--watch` polls until it settles | `post-pr-open-watch.sh`, `/mr`, `/deliver` |
+| `notify.sh` | Shows a macOS notification unless a terminal or IDE is in front | `/ci`, `/deliver` |
+| `worktree-prune.sh` | Removes worktrees whose branch merged or lost its upstream | `worktree-cleanup.sh`, Pi `worktree-cleanup`, `/worktrees`, `/worktree-merge`, `/summarize` |
+| `statusline.sh` | Draws the Claude Code status line | `statusLine` in `settings.json` |
+
 ## How each host finds the config
 
 ![Host wiring](diagrams/host-wiring.png)
@@ -40,8 +56,8 @@ The repo answers with three design choices:
 The diagram shows the checkout on the left and the four linked locations on the right. `scripts/setup-hosts.sh --apply` creates the links, and `--check` reports any that drifted.
 
 - **Claude Code** gets `CLAUDE.md` linked to `AGENTS.md`, because Claude Code reads `AGENTS.md` only at project level. It also gets `settings.json`, `rules/`, `skills/`, `agents/`, `hooks/`, `scripts/`, and a few more files, in `~/.claude` and `~/.claude-personal`. [Setup](setup.md) lists every link.
-- **Codex** gets `AGENTS.md`, a few `config.toml` defaults, and a generated `hooks.json` that sends hook events to `hooks/lib/dispatch.sh`.
-- **Pi** gets `AGENTS.md`, `agents/`, and the files in `pi/`.
+- **Codex** gets `AGENTS.md`, a few `config.toml` defaults, and a generated `hooks.json` that sends hook events to `hooks/lib/dispatch.sh`. The last two are written files, not links. `dispatch.sh` reads the registry on every call, so a hook edit reaches Codex at once. A change to a registry event or timeout needs `--apply --host codex` again, as [contributing](contributing.md#add-a-hook) says.
+- **Pi** gets `AGENTS.md`, `agents/`, and the files in `pi/`, in `~/.pi/agent` and `~/.pi-personal/agent`.
 - **The shared root `~/.agents/`** is set up with every host unless the machine scope skips `shared`. Codex and Pi find skills there. A shared skill names `~/.agents/...`, so one absolute path resolves everywhere.
 
 Codex and Pi run the hooks from the checkout, through `hooks/lib/dispatch.sh`. [Hooks](hooks.md#host-coverage) shows how each host runs them.
