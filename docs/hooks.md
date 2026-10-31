@@ -128,9 +128,9 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | --- | --- | --- |
 | `dispatch.sh` | Codex `hooks.json`, Pi `hook-bridge` | Runs the registry on hosts without native hooks. See [host coverage](#host-coverage) |
 | `deny-gate.ts` | `deny-gate.sh` | Matches a tool call against the deny list in `settings.json` |
-| `resolve-repo.sh` | The git and `gh pr` gates | Finds the repo a command targets, because a hook runs in its own cwd |
+| `resolve-repo.sh` | The git and `gh pr` gates, `post-verify-stamp.sh` | Finds the repo a command targets, because a hook runs in its own cwd |
 | `pr-body.sh` | The prose, body, test, and reply gates | Extracts the PR body from a `gh pr` command |
-| `find-up.sh` | `auto-format.sh`, `post-edit-typecheck.sh` | Finds a config or tool binary above the edited file, for monorepo workspaces |
+| `find-up.sh` | `auto-format.sh`, `post-edit-typecheck.sh`, `post-verify-stamp.sh` | Finds the nearest config, `package.json`, or tool binary above a path, for monorepo workspaces |
 
 ## Where each hook is tested
 
