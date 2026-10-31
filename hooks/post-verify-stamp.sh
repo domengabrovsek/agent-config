@@ -49,6 +49,8 @@ CORE=$(printf '%s\n' "$CORE" | sed -E \
 
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
+# The PostToolUse cwd may already be the cd target, so a relative cd path resolves twice.
+[ -d "$DIR" ] || [ -z "$CWD" ] || DIR="$CWD"
 # npm runs the script from the nearest package.json, as pre-pr-test-gate.sh reads it.
 PACKAGE=$(find_up "$DIR" package.json) || exit 0
 DIR=$(dirname "$PACKAGE")

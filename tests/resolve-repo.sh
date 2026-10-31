@@ -56,6 +56,9 @@ assert_eq "a leading cd beats the payload cwd" \
 assert_eq "a quoted cd path is unquoted" \
   "$OTHER" "$(resolve_repo_dir "cd \"$OTHER\" && git push" "$REPO" push)"
 
+assert_eq "a ~ cd path expands to HOME" \
+  "$OTHER" "$(HOME="$TEST_ROOT" resolve_repo_dir "cd ~/other && git push" "$REPO" push)"
+
 assert_eq "a cd terminated by a semicolon still parses" \
   "$OTHER" "$(resolve_repo_dir "cd $OTHER ; git push" "$REPO" push)"
 

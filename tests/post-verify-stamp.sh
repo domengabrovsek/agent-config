@@ -74,6 +74,11 @@ mkdir -p "$HUB" "$REPO/packages/sub"
 echo "== stamps =="
 assert_stamp "plain npm run verify stamps HEAD" "$REPO" head "$REPO" "npm run verify"
 assert_stamp "a leading cd from another dir stamps the target" "$REPO" head "$HUB" "cd $REPO && npm run verify"
+assert_stamp "a relative cd resolves from the cwd before the cd" "$REPO" head "$TEST_ROOT" \
+  "cd repo/packages/sub && npm run verify"
+assert_stamp "a relative cd still stamps when the cwd is already the target" "$REPO" head "$REPO/packages/sub" \
+  "cd repo/packages/sub && npm run verify"
+HOME="$TEST_ROOT" assert_stamp "a ~ cd path expands to HOME" "$REPO" head "$HUB" "cd ~/repo && npm run verify"
 assert_stamp "env assignments and a redirect outside the repo are allowed" "$REPO" head "$REPO" \
   "CI=1 PUBLIC_X=y npm run verify > $TEST_ROOT/out.log 2>&1"
 assert_stamp "a subdirectory finds the repo's package.json" "$REPO" head "$REPO/packages/sub" "npm run verify"
