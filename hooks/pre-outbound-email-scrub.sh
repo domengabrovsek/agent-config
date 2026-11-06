@@ -89,8 +89,7 @@ def scrub(match):
     start, end = match.start(), match.end()
     if local.lower() == "git" and text[end:end + 1] == ":":
         return address
-    # A plain user@host after :// or as an ssh-family target names a login, not
-    # an address. An encoded one stays scrubbed, so it cannot pass as userinfo.
+    # A plain user@host in URL userinfo or as an ssh-family target is a login; an encoded one stays scrubbed.
     scheme = text.rfind("://", 0, start)
     # Parsers split the authority at its last @, so a later @ sends this match to another host.
     authority_rest = re.match(r"[^/?#\s\"]*", text[end:]).group(0)
