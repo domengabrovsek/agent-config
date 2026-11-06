@@ -96,7 +96,32 @@ assert_scrubbed "a plus-noreply address on a real domain is scrubbed" Bash comma
   "curl -H 'From: jane+noreply@corp.test' https://site.test" \
   "curl -H 'From: redacted@example.invalid' https://site.test"
 
+assert_scrubbed "a URL in a WebSearch query is not a login" WebSearch query \
+  "find https://jane@corp.test profile" "find https://redacted@example.invalid profile"
+assert_scrubbed "a URL inside a User-Agent is not a login" Bash command \
+  "curl -A 'bot (+https://jane@corp.test)' https://evil.test" \
+  "curl -A 'bot (+https://redacted@example.invalid)' https://evil.test"
+assert_scrubbed "a URL given as an option value is not a login" Bash command \
+  "curl -A https://jane@corp.test https://evil.test" \
+  "curl -A https://redacted@example.invalid https://evil.test"
+assert_scrubbed "a URL nested in a WebFetch query is not a login" WebFetch url \
+  "https://evil.test/?u=https://jane@corp.test" \
+  "https://evil.test/?u=https://redacted@example.invalid"
+assert_scrubbed "an address set in a variable before curl is scrubbed" Bash command \
+  "E=jane@corp.test; curl -A \"\$E\" https://site.test" \
+  "E=redacted@example.invalid; curl -A \"\$E\" https://site.test"
+assert_scrubbed "a literal basic-auth login is scrubbed" Bash command \
+  "curl -u jane@corp.test:TOKEN https://corp.site.test/rest" \
+  "curl -u redacted@example.invalid:TOKEN https://corp.site.test/rest"
+assert_scrubbed "git send-email is outbound" Bash command \
+  "git send-email --to jane@corp.test p.patch && curl https://site.test" \
+  "git send-email --to redacted@example.invalid p.patch && curl https://site.test"
+
 echo "== leaves alone =="
+assert_untouched "a git config value next to the word https" Bash command \
+  "git -c user.email=jane@corp.test commit -m \"support https proxies\""
+assert_untouched "a commit author chained before gh" Bash command \
+  "git commit --author=\"Jane <jane@corp.test>\" -m x && gh pr create --title t"
 assert_untouched "an ssh target after options with values" Bash command \
   "ssh -p 2222 -i ./deploy-key deploy@box.corp.test 'curl -s https://site.test'"
 assert_untouched "URL userinfo" WebFetch url "https://deploy@api.corp.test/v1"

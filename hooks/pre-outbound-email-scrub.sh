@@ -13,12 +13,16 @@
 # hook blocks with exit 2 instead.
 #
 # A Bash command without a URL or network client is left alone, so local
-# commands such as `git log --author=<email>` keep working. The match is
-# literal: an address built at runtime or read from a variable gets through.
+# commands such as `git log --author=<email>` keep working. In a command that
+# is outbound, a git step without a URL is still left alone, so a chained
+# `git commit --author=...` keeps its author. The match is literal: an address
+# built at runtime or read from a variable gets through.
 #
 # Allowed: noreply addresses, the RFC 2606 example domains, `git@host:` SSH
-# remotes, URL userinfo such as `https://user@host/`, and the target of an
-# ssh, scp, sftp, rsync or mosh command.
+# remotes, the login of the URL being requested such as `https://user@host/`,
+# and the target of an ssh, scp, sftp, rsync or mosh command. A literal
+# `curl -u <email>:<token>` is scrubbed, because it sends the address to
+# whatever host the URL names; pass a basic-auth login through a variable.
 # Bypass with SKIP_EMAIL_SCRUB=1.
 
 [ "${SKIP_EMAIL_SCRUB:-}" = "1" ] && { cat >/dev/null; exit 0; }
@@ -55,13 +59,95 @@ if tool == "Bash" and not NETWORK.search(text):
 
 found = []
 
+def segment_bounds(s):
+    """Spans of the commands in s, split at ; & | and newlines outside quotes
+    and parentheses. A heredoc keeps the whole command as one span, because
+    its body lines are data for the command, not commands of their own."""
+    if "<<" in s:
+        return [(0, len(s))]
+    bounds, begin, quote, depth, i = [], 0, None, 0, 0
+    while i < len(s):
+        c = s[i]
+        if c == "\\" and quote != "\x27":
+            i += 2
+            continue
+        if quote:
+            if c == quote:
+                quote = None
+        elif c in "\"\x27":
+            quote = c
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth = max(0, depth - 1)
+        elif c in ";&|\n" and depth == 0:
+            bounds.append((begin, i))
+            begin = i + 1
+        i += 1
+    bounds.append((begin, len(s)))
+    return bounds
+
+SEGMENTS = segment_bounds(text) if tool == "Bash" else [(0, len(text))]
+
+def segment_at(start):
+    for begin, finish in SEGMENTS:
+        if begin <= start <= finish:
+            return text[begin:finish], begin
+    return text, 0
+
+def words(s):
+    try:
+        tokens = shlex.split(s)
+    except ValueError:
+        return None
+    while tokens and re.match(r"[A-Za-z_][A-Za-z0-9_]*=", tokens[0]):
+        tokens.pop(0)
+    return tokens
+
+def is_local_git(start):
+    """True when the match sits in a git command that names no URL, such as a
+    commit author or a config value. Rewriting it would leave a wrong commit,
+    not a failed request. git send-email and its kin still count as outbound."""
+    segment, _ = segment_at(start)
+    tokens = words(segment)
+    if not tokens or os.path.basename(tokens[0]) != "git" or "://" in segment:
+        return False
+    args = iter(tokens[1:])
+    for token in args:
+        if token in ("-c", "-C"):
+            next(args, None)
+        elif not token.startswith("-"):
+            return token not in ("send-email", "request-pull", "imap-send")
+    return True
+
+def is_userinfo(start, end):
+    """True when the match is the login of the URL being requested: the WebFetch
+    URL itself, or a Bash word that starts with a scheme and is not an option
+    value. A URL inside a header, a User-Agent or a search query is data sent to
+    another host, so its address stays scrubbed. Parsers split the authority at
+    its last @, so a later @ also means the match goes to another host."""
+    scheme = text.rfind("://", 0, start)
+    if tool == "WebSearch" or scheme < 0 or re.search(r"[/?#\s]", text[scheme + 3:start]):
+        return False
+    authority_rest = re.match(r"[^/?#\s\"\x27]*", text[end:]).group(0)
+    if "@" in authority_rest:
+        return False
+    if tool == "WebFetch":
+        return re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*", text[:scheme]) is not None
+    word_start = max(text.rfind(c, 0, scheme) for c in " \t\n") + 1
+    word = text[word_start:scheme].lstrip("\"\x27")
+    previous = text[:word_start].split()
+    return re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*", word) is not None \
+        and not (previous and previous[-1].startswith("-"))
+
 def is_login_target(start, end):
     """True when the match is the destination of an ssh-family command: the
     first non-option argument of ssh, mosh or sftp, or a user@host: operand of
     scp or rsync. An address inside the remote command is not a destination."""
     if start and not text[start - 1].isspace():
         return False
-    segment = re.split(r"[;&|\n]", text[:start])[-1]
+    whole, begin = segment_at(start)
+    segment = whole[:start - begin]
     try:
         tokens = shlex.split(segment)
     except ValueError:
@@ -89,14 +175,10 @@ def scrub(match):
     start, end = match.start(), match.end()
     if local.lower() == "git" and text[end:end + 1] == ":":
         return address
-    # A plain user@host in URL userinfo or as an ssh-family target is a login; an encoded one stays scrubbed.
-    scheme = text.rfind("://", 0, start)
-    # Parsers split the authority at its last @, so a later @ sends this match to another host.
-    authority_rest = re.match(r"[^/?#\s\"]*", text[end:]).group(0)
-    if not encoded and scheme >= 0 and not re.search(r"[/?#\s]", text[scheme + 3:start]) \
-            and "@" not in authority_rest:
+    # A plain user@host login stays; an encoded one is scrubbed so it cannot pose as a login.
+    if not encoded and is_userinfo(start, end):
         return address
-    if not encoded and tool == "Bash" and is_login_target(start, end):
+    if not encoded and tool == "Bash" and (is_login_target(start, end) or is_local_git(start)):
         return address
     if re.fullmatch(r"no-?reply", local, re.I) or ALLOWED_DOMAIN.search(domain):
         return address
