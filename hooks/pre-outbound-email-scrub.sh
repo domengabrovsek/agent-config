@@ -14,7 +14,8 @@
 #
 # A Bash command without a URL or network client is left alone, so local
 # commands such as `git log --author=<email>` keep working. In a command that
-# is outbound, a git step without a URL is still left alone, so a chained
+# is outbound, a local git step, one without a URL or a server subcommand such
+# as push, is still left alone, so a chained
 # `git commit --author=...` keeps its author. The match is literal: an address
 # built at runtime or read from a variable gets through.
 #
@@ -37,6 +38,8 @@ EMAIL = re.compile(
     r"[A-Za-z0-9._+-]+(?:@|%40)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}", re.I)
 # ssh options that take a value, so the value is not mistaken for the destination.
 SSH_VALUE_FLAGS = set("bcDEeFIiJLlmOopQRSWw")
+GIT_NETWORK = {"push", "fetch", "pull", "clone", "ls-remote", "remote", "submodule",
+               "send-email", "request-pull", "imap-send", "archive"}
 NETWORK = re.compile(
     r"https?://|(?:^|[^A-Za-z0-9_.-])"
     r"(?:curl|wget|http|https|xh|nc|ncat|socat|telnet|gh|Invoke-WebRequest|Invoke-RestMethod)"
@@ -107,7 +110,8 @@ def words(s):
 def is_local_git(start):
     """True when the match sits in a git command that names no URL, such as a
     commit author or a config value. Rewriting it would leave a wrong commit,
-    not a failed request. git send-email and its kin still count as outbound."""
+    not a failed request. Subcommands that talk to a server, such as push, still
+    count as outbound, because a -c http.userAgent value goes to that server."""
     segment, _ = segment_at(start)
     tokens = words(segment)
     if not tokens or os.path.basename(tokens[0]) != "git" or "://" in segment:
@@ -117,7 +121,7 @@ def is_local_git(start):
         if token in ("-c", "-C"):
             next(args, None)
         elif not token.startswith("-"):
-            return token not in ("send-email", "request-pull", "imap-send")
+            return token not in GIT_NETWORK
     return True
 
 def is_userinfo(start, end):
@@ -134,11 +138,17 @@ def is_userinfo(start, end):
         return False
     if tool == "WebFetch":
         return re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*", text[:scheme]) is not None
-    word_start = max(text.rfind(c, 0, scheme) for c in " \t\n") + 1
-    word = text[word_start:scheme].lstrip("\"\x27")
-    previous = text[:word_start].split()
-    return re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*", word) is not None \
-        and not (previous and previous[-1].startswith("-"))
+    segment, begin = segment_at(start)
+    prefix = segment[:start - begin]
+    for closing in ("", "\"", "\x27"):
+        tokens = words(prefix + closing)
+        if tokens is not None:
+            break
+    else:
+        return False
+    if not tokens or not re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*://[^/?#\s]*", tokens[-1]):
+        return False
+    return len(tokens) < 2 or not tokens[-2].startswith("-")
 
 def is_login_target(start, end):
     """True when the match is the destination of an ssh-family command: the
