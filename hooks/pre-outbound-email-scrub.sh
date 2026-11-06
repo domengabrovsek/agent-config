@@ -12,7 +12,8 @@
 # apply to the rewritten input. Codex and Pi drop updatedInput, so there the
 # hook blocks with exit 2 instead.
 #
-# A Bash command without a URL or network client is left alone, so local
+# A Bash command without a URL, a network client, or a git subcommand that
+# talks to a server, such as push or send-email, is left alone, so local
 # commands such as `git log --author=<email>` keep working. In a command that
 # is outbound, a local git step, one without a URL or a server subcommand such
 # as push, is still left alone, so a chained
@@ -40,6 +41,8 @@ EMAIL = re.compile(
 SSH_VALUE_FLAGS = set("bcDEeFIiJLlmOopQRSWw")
 GIT_NETWORK = {"push", "fetch", "pull", "clone", "ls-remote", "remote", "submodule",
                "send-email", "request-pull", "imap-send", "archive"}
+# Commands whose URL argument is the request itself, so its userinfo is a login.
+URL_CLIENTS = {"curl", "wget", "git", "http", "https", "xh"}
 NETWORK = re.compile(
     r"https?://|(?:^|[^A-Za-z0-9_.-])"
     r"(?:curl|wget|http|https|xh|nc|ncat|socat|telnet|gh|Invoke-WebRequest|Invoke-RestMethod)"
@@ -57,9 +60,6 @@ field = FIELDS.get(tool)
 text = tool_input.get(field) if field else None
 if not isinstance(text, str) or not text:
     sys.exit(0)
-if tool == "Bash" and not NETWORK.search(text):
-    sys.exit(0)
-
 found = []
 
 def segment_bounds(s):
@@ -91,6 +91,7 @@ def segment_bounds(s):
     return bounds
 
 SEGMENTS = segment_bounds(text) if tool == "Bash" else [(0, len(text))]
+HEREDOC = tool == "Bash" and "<<" in text
 
 def segment_at(start):
     for begin, finish in SEGMENTS:
@@ -107,22 +108,38 @@ def words(s):
         tokens.pop(0)
     return tokens
 
+def git_step(segment):
+    """The subcommand and its arguments when segment is a git command, else None."""
+    tokens = words(segment)
+    if not tokens or os.path.basename(tokens[0]) != "git":
+        return None
+    args, i = tokens[1:], 0
+    while i < len(args):
+        if args[i] in ("-c", "-C"):
+            i += 2
+        elif args[i].startswith("-"):
+            i += 1
+        else:
+            return args[i], args[i + 1:]
+    return "", []
+
 def is_local_git(start):
     """True when the match sits in a git command that names no URL, such as a
     commit author or a config value. Rewriting it would leave a wrong commit,
     not a failed request. Subcommands that talk to a server, such as push, still
-    count as outbound, because a -c http.userAgent value goes to that server."""
-    segment, _ = segment_at(start)
-    tokens = words(segment)
-    if not tokens or os.path.basename(tokens[0]) != "git" or "://" in segment:
+    count as outbound, because a -c http.userAgent value goes to that server, and
+    so does a git config http.* value, which a later push sends. A heredoc span
+    may hold several commands, so it never counts as local."""
+    if HEREDOC:
         return False
-    args = iter(tokens[1:])
-    for token in args:
-        if token in ("-c", "-C"):
-            next(args, None)
-        elif not token.startswith("-"):
-            return token not in GIT_NETWORK
-    return True
+    segment, _ = segment_at(start)
+    step = git_step(segment)
+    if step is None or "://" in segment:
+        return False
+    subcommand, rest = step
+    if subcommand in GIT_NETWORK:
+        return False
+    return not (subcommand == "config" and any(t.lower().startswith("http.") for t in rest))
 
 def is_userinfo(start, end):
     """True when the match is the login of the URL being requested: the WebFetch
@@ -140,15 +157,18 @@ def is_userinfo(start, end):
         return re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*", text[:scheme]) is not None
     segment, begin = segment_at(start)
     prefix = segment[:start - begin]
+    if "$(" in prefix or "`" in prefix:
+        return False
     for closing in ("", "\"", "\x27"):
         tokens = words(prefix + closing)
         if tokens is not None:
             break
     else:
         return False
-    if not tokens or not re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*://[^/?#\s]*", tokens[-1]):
+    if len(tokens) < 2 or os.path.basename(tokens[0]) not in URL_CLIENTS \
+            or not re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*://[^/?#\s]*", tokens[-1]):
         return False
-    return len(tokens) < 2 or not tokens[-2].startswith("-")
+    return not tokens[-2].startswith("-")
 
 def is_login_target(start, end):
     """True when the match is the destination of an ssh-family command: the
@@ -194,6 +214,14 @@ def scrub(match):
         return address
     found.append(address)
     return REPLACEMENT.replace("@", "%40") if encoded else REPLACEMENT
+
+def is_outbound():
+    if NETWORK.search(text):
+        return True
+    return any((git_step(text[b:f]) or ("",))[0] in GIT_NETWORK for b, f in SEGMENTS)
+
+if tool == "Bash" and not is_outbound():
+    sys.exit(0)
 
 scrubbed = EMAIL.sub(scrub, text)
 if not found:

