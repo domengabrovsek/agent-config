@@ -92,11 +92,14 @@ def scrub(match):
     # A plain user@host after :// or as an ssh-family target names a login, not
     # an address. An encoded one stays scrubbed, so it cannot pass as userinfo.
     scheme = text.rfind("://", 0, start)
-    if not encoded and scheme >= 0 and not re.search(r"[/?#\s]", text[scheme + 3:start]):
+    # Parsers split the authority at its last @, so a later @ sends this match to another host.
+    authority_rest = re.match(r"[^/?#\s\"]*", text[end:]).group(0)
+    if not encoded and scheme >= 0 and not re.search(r"[/?#\s]", text[scheme + 3:start]) \
+            and "@" not in authority_rest:
         return address
     if not encoded and tool == "Bash" and is_login_target(start, end):
         return address
-    if re.fullmatch(r"no-?reply|.*\+noreply", local, re.I) or ALLOWED_DOMAIN.search(domain):
+    if re.fullmatch(r"no-?reply", local, re.I) or ALLOWED_DOMAIN.search(domain):
         return address
     found.append(address)
     return REPLACEMENT.replace("@", "%40") if encoded else REPLACEMENT

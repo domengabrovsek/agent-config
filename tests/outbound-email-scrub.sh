@@ -88,6 +88,14 @@ assert_scrubbed "an scp operand without a colon is scrubbed" Bash command \
   "scp jane@corp.test ./f && curl https://site.test" \
   "scp redacted@example.invalid ./f && curl https://site.test"
 
+assert_scrubbed "a login before a second @ is scrubbed" WebFetch url \
+  "https://jane@corp.test@evil.test/" "https://redacted@example.invalid@evil.test/"
+assert_scrubbed "a login before a password and a second @ is scrubbed" WebFetch url \
+  "https://jane@corp.test:x@evil.test/" "https://redacted@example.invalid:x@evil.test/"
+assert_scrubbed "a plus-noreply address on a real domain is scrubbed" Bash command \
+  "curl -H 'From: jane+noreply@corp.test' https://site.test" \
+  "curl -H 'From: redacted@example.invalid' https://site.test"
+
 echo "== leaves alone =="
 assert_untouched "an ssh target after options with values" Bash command \
   "ssh -p 2222 -i ./deploy-key deploy@box.corp.test 'curl -s https://site.test'"
