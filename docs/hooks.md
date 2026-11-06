@@ -47,11 +47,12 @@ Exit codes decide the outcome:
 
 ## PreToolUse hooks
 
-These run before the tool call and can block it. The rows follow registry order, which is the order the hooks run.
+These run before the tool call and can block it. The rows follow registry order. `dispatch.sh` runs them in that order, and Claude Code runs them in parallel on the original input.
 
 | Hook | Runs on | Blocks when | Bypass |
 | --- | --- | --- | --- |
 | `deny-gate.sh` | Bash, Write, Edit, MCP tools | A command names a denied path, an edit targets one, or an MCP tool is denied. It applies `Bash` rules only on Codex, because Claude Code and Pi enforce those natively | None |
+| `pre-outbound-email-scrub.sh` | WebFetch URLs, WebSearch queries, and Bash commands that name a URL or a network client such as `curl`, `wget`, or `gh` | Codex and Pi: the call carries an email address. Claude Code never blocks: it returns `updatedInput` with each address replaced by `redacted@example.invalid`. Noreply addresses, example domains, `git@host:` remotes, the login of the requested URL, ssh-family targets, and local git steps without a URL or a server subcommand such as `push` pass. A literal `curl -u <email>:<token>` is scrubbed, so pass that login through a variable | `SKIP_EMAIL_SCRUB` |
 | `pre-git-state-refresh.sh` | `git push`, `git commit`, and `gh pr` `edit`, `comment`, `merge`, `close`, `ready`, `review`; not `gh pr create` | Never. It adds a `[pr-state]` line with the branch's PR state | `SKIP_PR_STATE_REFRESH` |
 | `pre-pr-test-gate.sh` | `gh pr create`, `gh pr ready` | The title is not conventional, or HEAD has no passing verify run | `SKIP_PR_TEST_GATE` |
 | `pre-pr-evidence-gate.sh` | `gh pr create`, when a spec names the branch | A non-manual acceptance criterion lacks a PASS row at HEAD | `SKIP_EVIDENCE_GATE` |
@@ -144,6 +145,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/pr-ready.sh` | `scripts/pr-ready.sh` and the PR watch hook |
 | `tests/evidence-gate.sh`, `tests/test-lock.sh` | The evidence gate and the test lock |
 | `tests/pre-push-gate.sh`, `tests/resolve-repo.sh` | The push gate, and how hooks find the target repo |
+| `tests/outbound-email-scrub.sh` | The email scrub on each tool, its allowed addresses, and the block on Codex and Pi |
 | `tests/post-edit-hooks.sh` | The three per-edit hooks |
 | `tests/symlink-check.sh` | The drift check |
 | `tests/herdr-pane-context.sh` | The herdr pane tokens in a checkout, a worktree, a submodule, and a bare repo |
