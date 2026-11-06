@@ -16,8 +16,9 @@
 # commands such as `git log --author=<email>` keep working. The match is
 # literal: an address built at runtime or read from a variable gets through.
 #
-# Allowed: noreply addresses, the RFC 2606 example domains, and `git@host:`
-# SSH remotes.
+# Allowed: noreply addresses, the RFC 2606 example domains, `git@host:` SSH
+# remotes, URL userinfo such as `https://user@host/`, and the target of an
+# ssh, scp, sftp, rsync or mosh command.
 # Bypass with SKIP_EMAIL_SCRUB=1.
 
 [ "${SKIP_EMAIL_SCRUB:-}" = "1" ] && { cat >/dev/null; exit 0; }
@@ -26,7 +27,11 @@ exec python3 -c '
 import json, os, re, sys
 
 REPLACEMENT = "redacted@example.invalid"
-EMAIL = re.compile(r"[A-Za-z0-9._%+-]+(?:@|%40)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}", re.I)
+# A match starts after a %XX escape, so ?contact%3Djane%40corp.test keeps its key.
+EMAIL = re.compile(
+    r"(?:(?<=%[0-9A-F]{2})|(?<![A-Za-z0-9._%+-]))"
+    r"[A-Za-z0-9._+-]+(?:@|%40)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}", re.I)
+SSH_SEGMENT = re.compile(r"^\s*(?:ssh|scp|sftp|rsync|mosh)\s")
 NETWORK = re.compile(
     r"https?://|(?:^|[^A-Za-z0-9_.-])"
     r"(?:curl|wget|http|https|xh|nc|ncat|socat|telnet|gh|Invoke-WebRequest|Invoke-RestMethod)"
@@ -53,7 +58,17 @@ def scrub(match):
     address = match.group(0)
     encoded = "@" not in address
     local, domain = re.split(r"@|%40", address, maxsplit=1, flags=re.I)
-    if local.lower() == "git" and text[match.end():match.end() + 1] == ":":
+    start, end = match.start(), match.end()
+    if local.lower() == "git" and text[end:end + 1] == ":":
+        return address
+    # A plain user@host after :// or as an ssh-family target names a login, not
+    # an address. An encoded one stays scrubbed, so it cannot pass as userinfo.
+    scheme = text.rfind("://", 0, start)
+    if not encoded and scheme >= 0 and not re.search(r"[/?#\s]", text[scheme + 3:start]):
+        return address
+    if not encoded and tool == "Bash" and (start == 0 or text[start - 1].isspace()) \
+            and (end == len(text) or text[end] in " \t\n:") \
+            and SSH_SEGMENT.match(re.split(r"[;&|\n]", text[:start])[-1]):
         return address
     if re.fullmatch(r"no-?reply|.*\+noreply", local, re.I) or ALLOWED_DOMAIN.search(domain):
         return address

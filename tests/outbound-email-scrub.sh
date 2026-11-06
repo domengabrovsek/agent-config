@@ -64,7 +64,28 @@ assert_scrubbed "every address in one command is replaced" Bash command \
   "curl -H 'From: a@corp.test' -H 'Reply-To: b@corp.test' https://site.test" \
   "curl -H 'From: redacted@example.invalid' -H 'Reply-To: redacted@example.invalid' https://site.test"
 
+assert_scrubbed "an encoded query keeps its key" WebFetch url \
+  "https://site.test/?contact%3Djane%40corp.test" \
+  "https://site.test/?contact%3Dredacted%40example.invalid"
+assert_scrubbed "an encoded query keeps the words before the address" WebSearch query \
+  "q=hi%20jane%40corp.test" "q=hi%20redacted%40example.invalid"
+assert_scrubbed "an encoded address in URL userinfo is still scrubbed" WebFetch url \
+  "https://jane%40corp.test:pw@site.test/" \
+  "https://redacted%40example.invalid:pw@site.test/"
+assert_scrubbed "an address in a URL path is scrubbed" WebFetch url \
+  "https://site.test/u/jane@corp.test" "https://site.test/u/redacted@example.invalid"
+assert_scrubbed "an address inside an ssh command's remote curl is scrubbed" Bash command \
+  "ssh box.corp.test 'curl -A \"bot (jane@corp.test)\" https://site.test'" \
+  "ssh box.corp.test 'curl -A \"bot (redacted@example.invalid)\" https://site.test'"
+
 echo "== leaves alone =="
+assert_untouched "URL userinfo" WebFetch url "https://deploy@api.corp.test/v1"
+assert_untouched "a clone URL with userinfo" Bash command \
+  "git clone https://oauth2@gitlab.corp.test/o/r.git"
+assert_untouched "an ssh target" Bash command \
+  "ssh deploy@box.corp.test 'curl -s https://site.test'"
+assert_untouched "an scp target after a chain" Bash command \
+  "cd /tmp && scp ./f deploy@box.corp.test:/srv/ && curl -s https://site.test"
 assert_untouched "a local git command with an address" Bash command \
   "git log --author=jane@corp.test"
 assert_untouched "an SSH remote next to a network call" Bash command \
