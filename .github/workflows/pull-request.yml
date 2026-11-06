@@ -123,6 +123,9 @@ jobs:
       - name: Test the verify stamp writer
         run: bash tests/post-verify-stamp.sh
 
+      - name: Test the outbound email scrub
+        run: bash tests/outbound-email-scrub.sh
+
       - name: Test the per-edit hooks
         run: bash tests/post-edit-hooks.sh
 
