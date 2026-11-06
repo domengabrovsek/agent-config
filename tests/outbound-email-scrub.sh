@@ -78,7 +78,19 @@ assert_scrubbed "an address inside an ssh command's remote curl is scrubbed" Bas
   "ssh box.corp.test 'curl -A \"bot (jane@corp.test)\" https://site.test'" \
   "ssh box.corp.test 'curl -A \"bot (redacted@example.invalid)\" https://site.test'"
 
+assert_scrubbed "a bare address inside a quoted remote command is scrubbed" Bash command \
+  "ssh box.corp.test 'curl -A jane@corp.test https://site.test'" \
+  "ssh box.corp.test 'curl -A redacted@example.invalid https://site.test'"
+assert_scrubbed "a bare address in an unquoted remote command is scrubbed" Bash command \
+  "ssh box curl -H From: jane@corp.test https://site.test" \
+  "ssh box curl -H From: redacted@example.invalid https://site.test"
+assert_scrubbed "an scp operand without a colon is scrubbed" Bash command \
+  "scp jane@corp.test ./f && curl https://site.test" \
+  "scp redacted@example.invalid ./f && curl https://site.test"
+
 echo "== leaves alone =="
+assert_untouched "an ssh target after options with values" Bash command \
+  "ssh -p 2222 -i ./deploy-key deploy@box.corp.test 'curl -s https://site.test'"
 assert_untouched "URL userinfo" WebFetch url "https://deploy@api.corp.test/v1"
 assert_untouched "a clone URL with userinfo" Bash command \
   "git clone https://oauth2@gitlab.corp.test/o/r.git"

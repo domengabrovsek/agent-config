@@ -24,14 +24,15 @@
 [ "${SKIP_EMAIL_SCRUB:-}" = "1" ] && { cat >/dev/null; exit 0; }
 
 exec python3 -c '
-import json, os, re, sys
+import json, os, re, shlex, sys
 
 REPLACEMENT = "redacted@example.invalid"
 # A match starts after a %XX escape, so ?contact%3Djane%40corp.test keeps its key.
 EMAIL = re.compile(
     r"(?:(?<=%[0-9A-F]{2})|(?<![A-Za-z0-9._%+-]))"
     r"[A-Za-z0-9._+-]+(?:@|%40)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}", re.I)
-SSH_SEGMENT = re.compile(r"^\s*(?:ssh|scp|sftp|rsync|mosh)\s")
+# ssh options that take a value, so the value is not mistaken for the destination.
+SSH_VALUE_FLAGS = set("bcDEeFIiJLlmOopQRSWw")
 NETWORK = re.compile(
     r"https?://|(?:^|[^A-Za-z0-9_.-])"
     r"(?:curl|wget|http|https|xh|nc|ncat|socat|telnet|gh|Invoke-WebRequest|Invoke-RestMethod)"
@@ -54,6 +55,33 @@ if tool == "Bash" and not NETWORK.search(text):
 
 found = []
 
+def is_login_target(start, end):
+    """True when the match is the destination of an ssh-family command: the
+    first non-option argument of ssh, mosh or sftp, or a user@host: operand of
+    scp or rsync. An address inside the remote command is not a destination."""
+    if start and not text[start - 1].isspace():
+        return False
+    segment = re.split(r"[;&|\n]", text[:start])[-1]
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        return False
+    if not tokens:
+        return False
+    command = os.path.basename(tokens[0])
+    if command in ("scp", "rsync"):
+        return text[end:end + 1] == ":"
+    if command not in ("ssh", "mosh", "sftp"):
+        return False
+    args = iter(tokens[1:])
+    for token in args:
+        if token.startswith("-") and len(token) > 1:
+            if len(token) == 2 and token[1] in SSH_VALUE_FLAGS:
+                next(args, None)
+            continue
+        return False
+    return end == len(text) or text[end] in " \t\n:"
+
 def scrub(match):
     address = match.group(0)
     encoded = "@" not in address
@@ -66,9 +94,7 @@ def scrub(match):
     scheme = text.rfind("://", 0, start)
     if not encoded and scheme >= 0 and not re.search(r"[/?#\s]", text[scheme + 3:start]):
         return address
-    if not encoded and tool == "Bash" and (start == 0 or text[start - 1].isspace()) \
-            and (end == len(text) or text[end] in " \t\n:") \
-            and SSH_SEGMENT.match(re.split(r"[;&|\n]", text[:start])[-1]):
+    if not encoded and tool == "Bash" and is_login_target(start, end):
         return address
     if re.fullmatch(r"no-?reply|.*\+noreply", local, re.I) or ALLOWED_DOMAIN.search(domain):
         return address
