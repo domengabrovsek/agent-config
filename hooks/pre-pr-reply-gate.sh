@@ -56,9 +56,7 @@ if [ "$KIND" = api ]; then
   if [ -n "$PARENT" ]; then
     REPO=$(printf '%s\n' "$COMMAND" \
       | sed -nE 's#.*repos/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/pulls/.*#\1#p' | head -1)
-    case "$REPO" in
-      ""|"{owner}/{repo}") REPO="{owner}/{repo}" ;;
-    esac
+    REPO=${REPO:-"{owner}/{repo}"}
 
     CLASS=$(cd "$DIR" 2>/dev/null && gh api "repos/$REPO/pulls/comments/$PARENT" \
       --jq 'if .user.type == "Bot" or (.user.login | endswith("[bot]")) then "bot" else "human:" + .user.login end' 2>/dev/null)
