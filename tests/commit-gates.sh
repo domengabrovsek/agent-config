@@ -1,10 +1,10 @@
 #!/bin/bash
-# Tests for the PreToolUse commit gates: conventional format, and the commit
-# mode of the prose gate.
+# Tests for the PreToolUse commit gates: conventional format, co-author
+# trailer, and the commit mode of the prose gate.
 #
-# Both extract the message from the command string, and both used to take the
-# first heredoc anywhere in it. A command that writes a PR body and then
-# commits therefore had someone elses prose read as its commit subject.
+# The gates read the message from the command string, so only a heredoc or
+# -m value belonging to the commit call counts. A heredoc earlier in the
+# chain, such as a PR body written to a file, is someone else's prose.
 
 set -u
 
@@ -12,9 +12,11 @@ PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 # shellcheck source=lib/harness.sh
 . "$PROJECT_DIR/tests/lib/harness.sh"
 CONVENTIONAL="$PROJECT_DIR/hooks/pre-commit-conventional-gate.sh"
+COAUTHOR="$PROJECT_DIR/hooks/pre-commit-coauthor-gate.sh"
 PROSE="$PROJECT_DIR/hooks/prose-gate.sh"
 # Assembled so this file never carries the literal phrase the hooks trigger on.
 GIT_COMMIT="git ""commit"
+GIT_C="git"" -C"
 
 # assert_gate <name> <hook-invocation> <command> <expected-exit>
 assert_gate() {
@@ -40,6 +42,50 @@ assert_gate "amend is skipped" "$CONVENTIONAL" \
   "$GIT_COMMIT --amend --no-edit" 0
 assert_gate "a merge subject is skipped" "$CONVENTIONAL" \
   "$GIT_COMMIT -m \"Merge branch main\"" 0
+
+assert_gate "--help is skipped" "$CONVENTIONAL" "$GIT_COMMIT --help" 0
+
+echo
+echo "== global options between git and commit =="
+assert_gate "a quoted git -C commit is checked" "$CONVENTIONAL" \
+  "$GIT_C \"/tmp/a b\" commit -m \"just some words\"" 2
+assert_gate "a quoted git -C conventional commit passes" "$CONVENTIONAL" \
+  "$GIT_C \"/tmp/a b\" commit -m \"fix: a subject\"" 0
+assert_gate "git -c before commit is checked" "$CONVENTIONAL" \
+  "git -c user.name=x commit -m \"just some words\"" 2
+assert_gate "git --no-pager before commit is checked" "$CONVENTIONAL" \
+  "git --no-pager commit -m \"just some words\"" 2
+assert_gate "git -C is not read as commit -C" "$CONVENTIONAL" \
+  "$GIT_COMMIT -m \"just some words\" && $GIT_C ../other push" 2
+assert_gate "commit -C after git -C reuses the message" "$CONVENTIONAL" \
+  "$GIT_C /tmp/x commit -C HEAD~1" 0
+assert_gate "a quoted mention of the commit command is not a commit" "$CONVENTIONAL" \
+  "echo \"$GIT_COMMIT -m 'just some words'\"" 0
+assert_gate "a git -C heredoc message is read" "$CONVENTIONAL" \
+  "$GIT_C /tmp/x commit -F- <<'MSG'
+not a conventional subject
+MSG" 2
+
+echo
+echo "== is_conventional =="
+# shellcheck source=../hooks/lib/commit-msg.sh
+. "$PROJECT_DIR/hooks/lib/commit-msg.sh"
+check "every listed type passes" is_conventional "revert(api)!: undo it"
+check "a type outside CONVENTIONAL_TYPES fails" not is_conventional "feature: add it"
+check "a missing description fails" not is_conventional "fix: "
+
+echo
+echo "== co-author trailer =="
+assert_gate "a co-author trailer blocks" "$COAUTHOR" \
+  "$GIT_COMMIT -m \"fix: x
+
+Co-Authored-By: A <a@example.com>\"" 2
+assert_gate "a co-author trailer behind git -C blocks" "$COAUTHOR" \
+  "$GIT_C \"/tmp/a b\" commit -m \"fix: x
+
+co-authored-by: A <a@example.com>\"" 2
+assert_gate "a commit without a trailer passes" "$COAUTHOR" "$GIT_COMMIT -m \"fix: x\"" 0
+assert_gate "a non-commit command is skipped" "$COAUTHOR" "echo \"Co-Authored-By: A\"" 0
 
 echo
 echo "== the message comes from this command, not an unrelated heredoc =="

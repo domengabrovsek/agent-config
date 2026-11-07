@@ -1,6 +1,7 @@
 #!/bin/bash
 # Pre-commit branch gate.
-# Blocks `git commit` when HEAD is on main or master.
+# Blocks `git commit` when HEAD is on main or master, and when the commit
+# targets a directory that is not a git repo, since its branch is unknown.
 # PreToolUse hook for Bash(git commit *) and Bash(git -C *). Exit 2 blocks the
 # action and feeds the message back to Claude as a tool result.
 # Bypass with SKIP_COMMIT_BRANCH_GATE=1 in the environment.
@@ -13,25 +14,26 @@
 INPUT=$(cat)
 first_run_for_call "$INPUT" pre-commit-branch-gate || exit 0
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
-# `git -C <path> commit` never contains the literal "git commit", so a -C
-# command is ours to gate only when commit follows the path.
 case "$COMMAND" in
-  *"git commit --help"*|*"git commit -h"*) exit 0 ;;
-  *"git commit"*) ;;
-  *"git -C "*) printf '%s\n' "$COMMAND" | grep -q 'git -C  *[^ ]*  *commit' || exit 0 ;;
+  *git*) ;;
   *) exit 0 ;;
 esac
+parse_git_command "$COMMAND" "$CWD" commit || exit 0
+git_args_ask_help && exit 0
 
 [ "$SKIP_COMMIT_BRANCH_GATE" = "1" ] && exit 0
 
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-DIR=$(resolve_repo_dir "$COMMAND" "$CWD" commit)
-BRANCH=$(git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)
+DIR=$GIT_REPO_DIR
+if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "[pre-commit-branch-gate] $DIR is not a git repo, so the commit's branch cannot be checked." >&2
+  echo "Run the commit from inside the repo, or name it with git -C <repo>." >&2
+  exit 2
+fi
 
-# Not in a git repo, or detached HEAD - let it through. Caller handles their own state.
-[ -z "$BRANCH" ] && exit 0
-[ "$BRANCH" = "HEAD" ] && exit 0
+# Detached HEAD prints nothing: no branch to protect.
+BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
 
 case "$BRANCH" in
   main|master)

@@ -1,8 +1,8 @@
 #!/bin/bash
 # Pre-commit conventional-commit format gate.
-# PreToolUse hook on Bash(git commit *). Extracts the subject line from the
-# commit command and checks it against the conventional-commits regex from
-# rules/git-conventions.md.
+# PreToolUse hook on Bash(git commit *) and Bash(git -C *). Extracts the
+# subject line from the commit command and checks it with is_conventional
+# from lib/commit-msg.sh, per rules/git-conventions.md.
 #
 # Skips amend / fixup / squash / no-edit (auto-generated messages or reusing
 # existing) and Merge / Revert subjects (git auto-generated).
@@ -15,11 +15,8 @@
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-case "$COMMAND" in
-  *"git commit --help"*|*"git commit -h"*) exit 0 ;;
-  *"git commit"*) ;;
-  *) exit 0 ;;
-esac
+git_runs "$COMMAND" commit || exit 0
+git_args_ask_help && exit 0
 
 [ "$SKIP_CONVENTIONAL_GATE" = "1" ] && exit 0
 commit_reuses_message "$COMMAND" && exit 0
@@ -27,7 +24,8 @@ commit_reuses_message "$COMMAND" && exit 0
 # The subject is the first non-blank line of the message.
 SUBJECT=$(extract_commit_msg "$COMMAND" | awk 'NF { sub(/^[[:space:]]+/, ""); sub(/[[:space:]]+$/, ""); print; exit }')
 
-# Could not extract a subject - let it through; not our concern to second-guess.
+# A message from a file or the editor is not in the command, so there is
+# nothing to check here.
 [ -z "$SUBJECT" ] && exit 0
 
 # Git auto-generates Merge / Revert subjects on certain operations.
@@ -35,11 +33,11 @@ case "$SUBJECT" in
   "Merge "*|"Revert "*) exit 0 ;;
 esac
 
-if ! echo "$SUBJECT" | grep -qE '^(feat|fix|refactor|docs|chore|test|ci|perf|build|style|revert)(\([^)]+\))?!?: .+'; then
+if ! is_conventional "$SUBJECT"; then
   echo "[pre-commit-conventional-gate] Commit subject does not match the conventional-commits format." >&2
   echo "Subject: $SUBJECT" >&2
   echo "Expected: <type>(<scope>)?!?: <description>" >&2
-  echo "Allowed types: feat|fix|refactor|docs|chore|test|ci|perf|build|style|revert" >&2
+  echo "Allowed types: $CONVENTIONAL_TYPES" >&2
   echo "Per rules/git-conventions.md." >&2
   echo "(Bypass: SKIP_CONVENTIONAL_GATE=1)" >&2
   exit 2
