@@ -49,10 +49,6 @@ check() {
 
 not() { ! "$@"; }
 
-# contains|lacks <name> <haystack> <needle>
-contains() { case "$2" in *"$3"*) pass "$1" ;; *) echo "    output: $2" >&2; fail "$1" ;; esac; }
-lacks() { case "$2" in *"$3"*) echo "    output: $2" >&2; fail "$1" ;; *) pass "$1" ;; esac; }
-
 # Predicates on the OUT and STATUS a suite's runner sets. Each runs any
 # arguments left after its own, so `exited 2 says "x"` checks both.
 exited() { [ "${STATUS:-}" -eq "$1" ] || return 1; shift; [ $# -eq 0 ] || "$@"; }
