@@ -40,14 +40,13 @@ if find_up . biome.json biome.jsonc >/dev/null; then
   exit 0
 fi
 
-# Try Prettier (if configured or available)
-if [ -f ".prettierrc" ] || [ -f ".prettierrc.json" ] || [ -f ".prettierrc.yml" ] || [ -f "prettier.config.js" ] || [ -f "prettier.config.mjs" ]; then
-  npx prettier --write "$FILE" 2>/dev/null && exit 0
-fi
-
-# Fallback: try prettier if it's in node_modules
-if [ -f "node_modules/.bin/prettier" ]; then
-  npx prettier --write "$FILE" 2>/dev/null && exit 0
+# Prettier runs only where the repo declares a config. Prettier's defaults
+# would rewrite a repo with its own style, such as one formatted by standard.
+for CONFIG in .prettierrc .prettierrc.* prettier.config.*; do
+  [ -f "$CONFIG" ] && { npx prettier --write "$FILE" 2>/dev/null; exit 0; }
+done
+if jq -e 'has("prettier")' package.json >/dev/null 2>&1; then
+  npx prettier --write "$FILE" 2>/dev/null
 fi
 
 exit 0

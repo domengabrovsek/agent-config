@@ -122,6 +122,36 @@ if [ -s "$STUB_LOG" ]; then
   echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a biome config above the repo is ignored"
 else pass "a biome config above the repo is ignored"; fi
 
+echo
+echo "== prettier config =="
+
+# An installed prettier alone does not opt a repo into Prettier's defaults.
+STYLED="$TEST_ROOT/styled"
+mkdir -p "$STYLED/src" "$STYLED/node_modules/.bin"
+echo '{ "name": "styled", "private": true }' > "$STYLED/package.json"
+: > "$STYLED/node_modules/.bin/prettier"
+printf 'export const c = 3;\n' > "$STYLED/src/c.ts"
+: > "$STUB_LOG"
+PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts" >/dev/null
+if [ -s "$STUB_LOG" ]; then
+  echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a repo without a prettier config is not formatted"
+else pass "a repo without a prettier config is not formatted"; fi
+
+echo '{ "name": "styled", "private": true, "prettier": {} }' > "$STYLED/package.json"
+: > "$STUB_LOG"
+PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts" >/dev/null
+if grep -qxF -- "npx prettier --write $STYLED/src/c.ts" "$STUB_LOG"; then
+  pass "a prettier key in package.json formats the file"
+else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a prettier key in package.json formats the file"; fi
+
+echo '{ "name": "styled", "private": true }' > "$STYLED/package.json"
+echo '{}' > "$STYLED/.prettierrc.cjs"
+: > "$STUB_LOG"
+PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts" >/dev/null
+if grep -qxF -- "npx prettier --write $STYLED/src/c.ts" "$STUB_LOG"; then
+  pass "a .prettierrc.cjs config formats the file"
+else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a .prettierrc.cjs config formats the file"; fi
+
 echo ""
 echo "$PASSED passed; $FAILED failed"
 [ "$FAILED" -eq 0 ]
