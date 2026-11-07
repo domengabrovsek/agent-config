@@ -6,7 +6,7 @@ Every change lands through a pull request to `main`, and CI runs the same checks
 
 - **Edits are live.** Every linked host sees a change in the main checkout at once. Work in a worktree to keep an unfinished change out of other sessions.
 - **Run setup from the main checkout.** `setup-hosts.sh` links the repo it runs from. Run in a worktree, it points your hosts at that worktree. Set `AGENT_CONFIG_REPO` to run it elsewhere.
-- **Hooks run from the project first.** A session in this repo runs its own `hooks/` copy. Open a session in your worktree to try a hook change.
+- **Hooks run from `~/.claude/hooks`.** Every session runs the main checkout's hooks, never a project or worktree copy. Verify a hook change with its `tests/*.sh` suite or `npm test`, not in a live session.
 
 ## Add a rule
 
@@ -20,7 +20,7 @@ Every change lands through a pull request to `main`, and CI runs the same checks
 
 1. Write `hooks/<name>.sh`. Exit 2 with a message on stderr to block; exit 0 to allow. Read a `SKIP_<NAME>` variable if a human may need to bypass it.
 2. Make it pass `./scripts/shellcheck-all.sh`, which lints every tracked shell script at warning level.
-3. Register it in `settings.json` under its event, with a `matcher`, an optional `if` pattern, and a timeout. Copy the command wrapper of an existing entry, such as `HOOK="$CLAUDE_PROJECT_DIR/hooks/<name>.sh"; [ -x "$HOOK" ] || HOOK="$HOME/.claude/hooks/<name>.sh"; [ -x "$HOOK" ] && exec "$HOOK"`, so the project's copy wins over `~/.claude/hooks`. Timeouts are in seconds. [Hooks](hooks.md) describes the `if` pattern.
+3. Register it in `settings.json` under its event, with a `matcher`, an optional `if` pattern, and a timeout. Copy the command wrapper of an existing entry, `HOOK="$HOME/.claude/hooks/<name>.sh"; [ -x "$HOOK" ] && exec "$HOOK"`. Never point a command at `$CLAUDE_PROJECT_DIR/hooks`, because any repo you open could then replace the hook. Timeouts are in seconds. [Hooks](hooks.md) describes the `if` pattern.
 4. Add `tests/<name>.sh`. Copy an existing one, such as `tests/commit-gates.sh`, which sources `tests/lib/harness.sh`, runs the hook on sample input, and asserts its exit code. CI runs every `tests/*.sh` file, so the suite needs no workflow change.
 5. Change the tag of the rule it backs to `(hook)`.
 6. If you use Codex, run `bash scripts/setup-hosts.sh --apply --host codex` from the main checkout once the change reaches it. The generated `hooks.json` sums the hook timeouts of each event, so it goes stale when the registry changes.
@@ -48,7 +48,7 @@ A mod is a Claude Code plugin under `mods/`. `setup-hosts.sh` links the whole di
 1. Write `mods/<name>/` with a `.claude-plugin/plugin.json` manifest. Copy the layout of `mods/pr-band/`.
 2. Add `~/.claude/mods/<name>` to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` block of `settings.json`. Separate paths with `:`, as the [env var reference](https://code.claude.com/docs/en/env-vars#variables) says.
 3. Update the variable's value in [Claude Code environment](setup.md#claude-code-environment) and in the default-dir caveats under [scope a machine](setup.md#scope-a-machine).
-4. Run `claude plugin validate mods/<name>`. CI does not validate mods, so this is the only check.
+4. Run `claude plugin validate mods/<name>`, then `claude plugin test mods/<name>` when the mod has `tests/*.test.ts`. CI runs neither, so these are the only checks.
 5. Write `mods/<name>/README.md` and link it from the [README docs table](../README.md#docs).
 
 ## Change the deny list
