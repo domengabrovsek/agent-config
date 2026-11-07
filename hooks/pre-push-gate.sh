@@ -2,12 +2,14 @@
 # Pre-push gate: block a `git push` that the repo's checks would fail.
 # Runs as a PreToolUse hook on Bash(git push *) and Bash(git -C *).
 #
-# Order: a repo whose hooks directory is missing blocks, a repo with its own
-# pre-push hook gates itself, a repo declaring `verify:fast` runs only that,
-# and any other repo gets the guessed lint/typecheck/knip/test/build/audit run.
+# Order: a target that is not a git repo blocks, a repo whose hooks directory
+# is missing blocks, a repo with its own pre-push hook gates itself, a repo
+# declaring `verify:fast` runs only that, and any other repo gets the guessed
+# lint/typecheck/knip/test/build/audit run. A push of a branch whose PR
+# already merged blocks after the checks, whatever they decide.
 # Node checks run through the repo's own package manager.
 # Exit code 2 blocks the action and sends the error message to Claude.
-# Bypass with SKIP_PUSH_GATE=1, in the environment or inline in the command.
+# Bypass with SKIP_PUSH_GATE=1 in the host's environment.
 
 # shellcheck source=lib/resolve-repo.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
@@ -50,48 +52,44 @@ install_cmd() {
 INPUT=$(cat)
 first_run_for_call "$INPUT" pre-push-gate || exit 0
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
-# Only gate on `git push` (and not `git push --help`, etc.). `git -C <path>
-# push` never contains the literal "git push", so it needs its own match.
 case "$COMMAND" in
-  *"git push --help"*|*"git push -h"*) exit 0 ;;
-  *"git push"*) ;;
-  *"git -C "*) printf '%s\n' "$COMMAND" | grep -q 'git -C  *[^ ]*  *push' || exit 0 ;;
+  *git*) ;;
   *) exit 0 ;;
 esac
+parse_git_command "$COMMAND" "$CWD" push || exit 0
+git_args_ask_help && exit 0
 
-# Honor escape hatch. PreToolUse hooks inherit the Claude Code process env,
-# not the tool command's, so an inline SKIP_PUSH_GATE=1 prefix is only
-# visible in the command string.
-if [ "$SKIP_PUSH_GATE" = "1" ] || [[ $COMMAND == *"SKIP_PUSH_GATE=1"* ]]; then
-  echo "SKIP_PUSH_GATE=1 - bypassing pre-push gate." >&2
+# Hooks inherit the host's environment, not the tool command's, so only a
+# human starting the host can set this.
+if [ "$SKIP_PUSH_GATE" = "1" ]; then
+  echo "[pre-push-gate] SKIP_PUSH_GATE=1 - bypassing pre-push gate." >&2
   exit 0
 fi
 
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
+DIR=$GIT_REPO_DIR
+if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "[pre-push-gate] $DIR is not a git repo, so the push cannot be checked. Run the push from inside the repo, or name it with git -C <repo>." >&2
+  exit 2
+fi
 
 # A push to a branch whose PR already merged recreates the deleted remote
 # branch, and its commits land in no open PR.
 # Only a push of the checked-out branch is checked: bare `gh pr view` resolves
 # its PR through the upstream, while a bare name also matches fork PRs.
 pushes_current_branch() {
-  local rest word dst value=""
+  local word dst value=""
   local -a refspecs=()
-  # The greedy prefix lands on the last push, past a chained commit message.
-  [[ $COMMAND =~ ^.*git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push(.*)$ ]] || return 1
-  rest=${BASH_REMATCH[2]%%[;&|]*}
-  set -f
-  for word in $rest; do
+  for word in ${GIT_ARGS[@]+"${GIT_ARGS[@]}"}; do
     if [ -n "$value" ]; then value=""; continue; fi
     case "$word" in
-      --delete|-d|--tags|:*) set +f; return 1 ;;
+      --delete|-d|--tags|:*) return 1 ;;
       -o|--push-option|--repo|--receive-pack|--exec) value=1 ;;
       -*) ;;
       *) refspecs+=("$word") ;;
     esac
   done
-  set +f
   # The first word is the remote; none or one refspec after it is supported.
   [ "${#refspecs[@]}" -le 1 ] && return 0
   [ "${#refspecs[@]}" -gt 2 ] && return 1
@@ -103,14 +101,43 @@ pushes_current_branch() {
   return 1
 }
 
-BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
-if [ -n "$BRANCH" ] && command -v gh >/dev/null 2>&1 && pushes_current_branch "$BRANCH"; then
-  PR_STATE=$(cd "$DIR" && gh pr view --json state,url -q '.state + " " + .url' 2>/dev/null)
-  if [ "${PR_STATE%% *}" = "MERGED" ]; then
-    echo "[pre-push-gate] $BRANCH already merged in ${PR_STATE#* }. Start a new branch from the default branch for new work (or bypass with SKIP_PUSH_GATE=1)." >&2
+block_merged_branch() {
+  local pr_state=""
+  IFS= read -r pr_state <&3
+  if [ "${pr_state%% *}" = "MERGED" ]; then
+    echo "[pre-push-gate] $BRANCH already merged in ${pr_state#* }. Start a new branch from the default branch for new work." >&2
     exit 2
   fi
+}
+
+# The lookup is a network call, so it runs on fd 3 alongside the checks. The
+# EXIT trap reads its answer, so a merged branch blocks on every outcome,
+# including a failed check whose own message would otherwise hide it.
+BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
+if [ -n "$BRANCH" ] && command -v gh >/dev/null 2>&1 && pushes_current_branch "$BRANCH"; then
+  exec 3< <(cd "$DIR" && gh pr view --json state,url -q '.state + " " + .url' 2>/dev/null)
+  trap block_merged_branch EXIT
 fi
+
+# lockfile_changed <lockfile>
+# Fails only when this branch provably leaves the lockfile as upstream has
+# it, so its dependencies were audited on an earlier push. Without an
+# upstream or origin/HEAD to compare, it succeeds and the audit runs.
+lockfile_changed() {
+  local base
+  for base in '@{upstream}' origin/HEAD; do
+    git rev-parse --verify -q "$base" >/dev/null 2>&1 || continue
+    git diff --quiet "$base...HEAD" -- "$1" ":(top)$1" 2>/dev/null && return 1
+    return 0
+  done
+  return 0
+}
+
+# declares_dependencies: ./package.json lists dependencies or devDependencies,
+# so the checks need node_modules to run.
+declares_dependencies() {
+  jq -e '((.dependencies // {}) + (.devDependencies // {})) | length > 0' package.json >/dev/null 2>&1
+}
 
 # Husky points the repo-local core.hooksPath at a directory the install creates.
 # A checkout that never ran it has the setting but not the directory, and git
@@ -173,7 +200,7 @@ run_step() {
   OUT=$(bash -c "$cmd" 2>&1)
   STATUS=$?
   if [ $STATUS -ne 0 ]; then
-    echo "[pre-push-gate] $label FAILED. Fix before pushing (or set SKIP_PUSH_GATE=1 to bypass):" >&2
+    echo "[pre-push-gate] $label FAILED. Fix before pushing:" >&2
     echo "$OUT" | tail -40 >&2
     exit 2
   fi
@@ -182,13 +209,14 @@ run_step() {
 if [ "$PROJECT_TYPE" = "node" ]; then
   PM=$(detect_package_manager "$PROJECT_ROOT")
   if ! command -v "$PM" >/dev/null 2>&1; then
-    echo "[pre-push-gate] $PROJECT_ROOT uses $PM, which is not on PATH. Install it or enable corepack (or bypass with SKIP_PUSH_GATE=1)." >&2
+    echo "[pre-push-gate] $PROJECT_ROOT uses $PM, which is not on PATH. Install it or enable corepack." >&2
     exit 2
   fi
   # A fresh worktree has no node_modules; the checks below would fail with
-  # noise unrelated to the branch. Fail with the actionable step instead.
-  if [ ! -d "$PROJECT_ROOT/node_modules" ]; then
-    echo "[pre-push-gate] $PROJECT_ROOT has no node_modules - run '$(install_cmd "$PM")' there first (or bypass with SKIP_PUSH_GATE=1)." >&2
+  # noise unrelated to the branch. Fail with the actionable step instead. A
+  # manifest with no dependencies installs nothing, so it needs none.
+  if [ ! -d "$PROJECT_ROOT/node_modules" ] && declares_dependencies; then
+    echo "[pre-push-gate] $PROJECT_ROOT has no node_modules - run '$(install_cmd "$PM")' there first." >&2
     exit 2
   fi
   # pnpm hands flags after the script name to the script, so --silent goes
@@ -226,7 +254,15 @@ if [ "$PROJECT_TYPE" = "node" ]; then
     fi
   else
     case "$PM" in
-      npm) run_step "audit" "npm audit --audit-level=critical" ;;
+      # An unchanged lockfile adds no dependency to audit, and the audit is
+      # the slowest step of a push.
+      npm)
+        if lockfile_changed package-lock.json; then
+          run_step "audit" "npm audit --audit-level=critical"
+        else
+          echo "[pre-push-gate] audit skipped: package-lock.json matches upstream." >&2
+        fi
+        ;;
       # Not --json: that form exits 1 on a finding of any severity.
       pnpm) run_step "audit" "pnpm audit --audit-level critical" ;;
       # Yarn Classic ignores --level for its exit code, a severity bitmask where
