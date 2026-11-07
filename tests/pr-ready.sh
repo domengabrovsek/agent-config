@@ -15,8 +15,7 @@ GH_READY="gh ""pr ready"
 
 harness_init pr-ready TEST_DIR
 
-mkdir -p "$TEST_DIR/bin"
-cat > "$TEST_DIR/bin/gh" <<'STUB'
+stub "$TEST_DIR/bin" gh <<'STUB'
 #!/bin/bash
 [ -f "$STUB_DIR/fail" ] && exit 1
 case "$1 $2" in
@@ -26,7 +25,6 @@ case "$1 $2" in
   *) exit 1 ;;
 esac
 STUB
-chmod +x "$TEST_DIR/bin/gh"
 export PATH="$TEST_DIR/bin:$PATH"
 export STUB_DIR="$TEST_DIR"
 echo 1 > "$TEST_DIR/workflows"

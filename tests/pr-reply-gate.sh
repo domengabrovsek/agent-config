@@ -12,8 +12,7 @@ GATE="$PROJECT_DIR/hooks/pre-pr-reply-gate.sh"
 
 harness_init pr-reply-gate TEST_DIR
 
-mkdir -p "$TEST_DIR/bin"
-cat > "$TEST_DIR/bin/gh" <<'STUB'
+stub "$TEST_DIR/bin" gh <<'STUB'
 #!/bin/bash
 case "$*" in
   *repos/other/*) exit 1 ;;
@@ -22,7 +21,6 @@ case "$*" in
   *) exit 1 ;;
 esac
 STUB
-chmod +x "$TEST_DIR/bin/gh"
 export PATH="$TEST_DIR/bin:$PATH"
 
 # assert_gate <name> <command> <expected-exit>
