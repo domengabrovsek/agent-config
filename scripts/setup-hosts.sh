@@ -110,7 +110,6 @@ if [ ! -d "$REPO" ]; then
 fi
 REPO=$(cd "$REPO" && pwd)
 
-CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 SHARED_DIR="$HOME/.agents"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -144,12 +143,11 @@ next_backup() {
   printf "%s\n" "$BACKUP_CANDIDATE"
 }
 
-ensure_parent() {
-  PARENT=$(dirname "$1")
-  if [ -d "$PARENT" ]; then
-    return 0
-  fi
-  mkdir -p "$PARENT"
+home_tag() {
+  case "$1" in
+    "$HOME"/*) printf '~%s\n' "${1#"$HOME"}" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
 }
 
 manage_link() {
@@ -163,40 +161,30 @@ manage_link() {
     return
   fi
 
+  CONFLICT=""
   if [ -L "$LIVE" ]; then
     CURRENT=$(readlink "$LIVE")
     if [ "$CURRENT" = "$TARGET" ]; then
       report "$LABEL" "OK" "already correct"
       return
     fi
-    if [ "$MODE" = "check" ]; then
-      report "$LABEL" "WRONG-LINK" "$CURRENT (expected $TARGET)"
-      mark_issue
-      return
-    fi
-    if [ "$ADOPT" -eq 0 ]; then
-      report "$LABEL" "REFUSED" "wrong link; re-run with --adopt"
-      mark_issue
-      return
-    fi
-    BACKUP=$(next_backup "$LIVE")
-    if mv "$LIVE" "$BACKUP" && ln -s "$TARGET" "$LIVE"; then
-      report "$LABEL" "ADOPTED" "backup: $BACKUP"
-    else
-      report "$LABEL" "FAILED" "could not back up and link"
-      mark_issue
-    fi
-    return
+    CONFLICT="wrong link"
+    CHECK_STATE="WRONG-LINK"
+    CHECK_DETAIL="$CURRENT (expected $TARGET)"
+  elif [ -e "$LIVE" ]; then
+    CONFLICT="real path"
+    CHECK_STATE="CONFLICT"
+    CHECK_DETAIL="real path (requires --adopt)"
   fi
 
-  if [ -e "$LIVE" ]; then
+  if [ -n "$CONFLICT" ]; then
     if [ "$MODE" = "check" ]; then
-      report "$LABEL" "CONFLICT" "real path (requires --adopt)"
+      report "$LABEL" "$CHECK_STATE" "$CHECK_DETAIL"
       mark_issue
       return
     fi
     if [ "$ADOPT" -eq 0 ]; then
-      report "$LABEL" "REFUSED" "real path; re-run with --adopt"
+      report "$LABEL" "REFUSED" "$CONFLICT; re-run with --adopt"
       mark_issue
       return
     fi
@@ -216,12 +204,49 @@ manage_link() {
     return
   fi
 
-  if ensure_parent "$LIVE" && ln -s "$TARGET" "$LIVE"; then
+  if mkdir -p "$(dirname "$LIVE")" && ln -s "$TARGET" "$LIVE"; then
     report "$LABEL" "CREATED" "$TARGET"
   else
     report "$LABEL" "FAILED" "could not create link"
     mark_issue
   fi
+}
+
+refuse_config() {
+  report "codex/config.toml" "REFUSED" "$1"
+  mark_issue
+}
+
+# Sets KEY_STATE to none, root, table, or multi, and KEY_LINE to the match.
+root_key_info() {
+  KEY_LINE=$(awk -v key="$1" '
+    /^[[:space:]]*\[/ { in_table=1 }
+    $0 ~ "^[[:space:]]*" key "[[:space:]]*=" { print (in_table ? "table:" : "root:") $0 }
+  ' "$CONFIG")
+  case "$(printf "%s\n" "$KEY_LINE" | awk 'NF { count++ } END { print count+0 }')" in
+    0) KEY_STATE="none" ;;
+    1) KEY_STATE="${KEY_LINE%%:*}" ;;
+    *) KEY_STATE="multi" ;;
+  esac
+}
+
+# Sets KEY_COUNT for KEY under [TABLE] or as root TABLE.KEY, KEY_LINE to the
+# last match, TABLE_COUNT for [TABLE] headers, and NESTED when a [TABLE.x]
+# header or root TABLE.x key exists.
+table_key_info() {
+  TABLE_INFO=$(awk -v t="$1" -v k="$2" '
+    /^[[:space:]]*\[/ {
+      seen_table=1
+      in_t = ($0 ~ "^[[:space:]]*\\[" t "\\][[:space:]]*(#.*)?$")
+      if (in_t) tables++
+      if ($0 ~ "^[[:space:]]*\\[" t "[.]") nested=1
+    }
+    !seen_table && $0 ~ "^[[:space:]]*" t "[.]" { nested=1 }
+    (!seen_table && $0 ~ "^[[:space:]]*" t "[.]" k "[[:space:]]*=") ||
+      (in_t && $0 ~ "^[[:space:]]*" k "[[:space:]]*=") { keys++; line=$0 }
+    END { print keys+0, tables+0, nested+0, line }
+  ' "$CONFIG")
+  read -r KEY_COUNT TABLE_COUNT NESTED KEY_LINE <<<"$TABLE_INFO"
 }
 
 manage_codex_config() {
@@ -241,165 +266,69 @@ manage_codex_config() {
   ADD_COMPACT=1
   ADD_STATUS=1
   ADD_HOOKS=1
-  TUI_COUNT=0
 
   if [ -L "$CONFIG" ] || { [ -e "$CONFIG" ] && [ ! -f "$CONFIG" ]; }; then
-    report "codex/config.toml" "REFUSED" "must be a regular file; $FALLBACK_MANUAL"
-    mark_issue
+    refuse_config "must be a regular file; $FALLBACK_MANUAL"
     return
   fi
 
   if [ -f "$CONFIG" ]; then
-    KEY_INFO=$(awk '
-      /^[[:space:]]*\[/ { in_table=1 }
-      /^[[:space:]]*project_doc_fallback_filenames[[:space:]]*=/ {
-        if (in_table) print "table:" $0; else print "root:" $0
-      }
-    ' "$CONFIG")
-    KEY_COUNT=$(printf "%s\n" "$KEY_INFO" | awk 'NF { count++ } END { print count+0 }')
+    root_key_info project_doc_fallback_filenames
+    case "$KEY_STATE" in
+      multi) refuse_config "multiple fallback keys; $FALLBACK_MANUAL"; return ;;
+      table) refuse_config "fallback is not at TOML root; $FALLBACK_MANUAL"; return ;;
+      root)
+        case "$KEY_LINE" in
+          *'['*CLAUDE.md*']'*) ADD_FALLBACK=0 ;;
+          *) refuse_config "fallback differs or is multiline; $FALLBACK_MANUAL"; return ;;
+        esac
+        ;;
+    esac
 
+    root_key_info model_context_window
+    case "$KEY_STATE" in
+      multi) refuse_config "multiple context-window keys; $CONTEXT_MANUAL"; return ;;
+      table) refuse_config "context window is not at TOML root; $CONTEXT_MANUAL"; return ;;
+      root) ADD_CONTEXT=0 ;;
+    esac
+
+    root_key_info model_auto_compact_token_limit
+    case "$KEY_STATE" in
+      multi) refuse_config "multiple auto-compact keys; $COMPACT_MANUAL"; return ;;
+      table) refuse_config "auto-compact limit is not at TOML root; $COMPACT_MANUAL"; return ;;
+      root) ADD_COMPACT=0 ;;
+    esac
+
+    table_key_info tui status_line
     if [ "$KEY_COUNT" -gt 1 ]; then
-      report "codex/config.toml" "REFUSED" "multiple fallback keys; $FALLBACK_MANUAL"
-      mark_issue
+      refuse_config "multiple status lines; $STATUS_MANUAL"
       return
-    fi
-    if [ "$KEY_COUNT" -eq 1 ]; then
-      case "$KEY_INFO" in
-        root:*'['*CLAUDE.md*']'*)
-          ADD_FALLBACK=0
-          ;;
-        root:*)
-          report "codex/config.toml" "REFUSED" "fallback differs or is multiline; $FALLBACK_MANUAL"
-          mark_issue
-          return
-          ;;
-        table:*)
-          report "codex/config.toml" "REFUSED" "fallback is not at TOML root; $FALLBACK_MANUAL"
-          mark_issue
-          return
-          ;;
-      esac
-    fi
-
-    CONTEXT_INFO=$(awk '
-      /^[[:space:]]*\[/ { in_table=1 }
-      /^[[:space:]]*model_context_window[[:space:]]*=/ {
-        if (in_table) print "table:" $0; else print "root:" $0
-      }
-    ' "$CONFIG")
-    CONTEXT_COUNT=$(printf "%s\n" "$CONTEXT_INFO" | awk 'NF { count++ } END { print count+0 }')
-    if [ "$CONTEXT_COUNT" -gt 1 ]; then
-      report "codex/config.toml" "REFUSED" "multiple context-window keys; $CONTEXT_MANUAL"
-      mark_issue
-      return
-    elif [ "$CONTEXT_COUNT" -eq 1 ]; then
-      case "$CONTEXT_INFO" in
-        root:*) ADD_CONTEXT=0 ;;
-        table:*)
-          report "codex/config.toml" "REFUSED" "context window is not at TOML root; $CONTEXT_MANUAL"
-          mark_issue
-          return
-          ;;
-      esac
-    fi
-
-    COMPACT_INFO=$(awk '
-      /^[[:space:]]*\[/ { in_table=1 }
-      /^[[:space:]]*model_auto_compact_token_limit[[:space:]]*=/ {
-        if (in_table) print "table:" $0; else print "root:" $0
-      }
-    ' "$CONFIG")
-    COMPACT_COUNT=$(printf "%s\n" "$COMPACT_INFO" | awk 'NF { count++ } END { print count+0 }')
-    if [ "$COMPACT_COUNT" -gt 1 ]; then
-      report "codex/config.toml" "REFUSED" "multiple auto-compact keys; $COMPACT_MANUAL"
-      mark_issue
-      return
-    elif [ "$COMPACT_COUNT" -eq 1 ]; then
-      case "$COMPACT_INFO" in
-        root:*) ADD_COMPACT=0 ;;
-        table:*)
-          report "codex/config.toml" "REFUSED" "auto-compact limit is not at TOML root; $COMPACT_MANUAL"
-          mark_issue
-          return
-          ;;
-      esac
-    fi
-
-    STATUS_INFO=$(awk '
-      /^[[:space:]]*\[/ {
-        if (!seen_table) seen_table=1
-        in_tui = ($0 ~ /^[[:space:]]*\[tui\][[:space:]]*(#.*)?$/)
-      }
-      !seen_table && /^[[:space:]]*tui[.]status_line[[:space:]]*=/ { print "root:" $0 }
-      in_tui && /^[[:space:]]*status_line[[:space:]]*=/ { print "tui:" $0 }
-    ' "$CONFIG")
-    STATUS_COUNT=$(printf "%s\n" "$STATUS_INFO" | awk 'NF { count++ } END { print count+0 }')
-    TUI_COUNT=$(awk '/^[[:space:]]*\[tui\][[:space:]]*(#.*)?$/ { count++ } END { print count+0 }' "$CONFIG")
-
-    if [ "$STATUS_COUNT" -gt 1 ]; then
-      report "codex/config.toml" "REFUSED" "multiple status lines; $STATUS_MANUAL"
-      mark_issue
-      return
-    fi
-    if [ "$STATUS_COUNT" -eq 1 ]; then
+    elif [ "$KEY_COUNT" -eq 1 ]; then
       ADD_STATUS=0
-    elif [ "$TUI_COUNT" -gt 1 ]; then
-      report "codex/config.toml" "REFUSED" "multiple [tui] tables; $STATUS_MANUAL"
-      mark_issue
+    elif [ "$TABLE_COUNT" -gt 1 ]; then
+      refuse_config "multiple [tui] tables; $STATUS_MANUAL"
       return
-    elif [ "$TUI_COUNT" -eq 0 ]; then
-      TUI_AMBIGUOUS=$(awk '
-        /^[[:space:]]*\[/ { seen_table=1 }
-        /^[[:space:]]*\[tui[.]/ { found=1 }
-        !seen_table && /^[[:space:]]*tui[.]/ { found=1 }
-        END { print found+0 }
-      ' "$CONFIG")
-      if [ "$TUI_AMBIGUOUS" -eq 1 ]; then
-        report "codex/config.toml" "REFUSED" "nested or dotted tui config; $STATUS_MANUAL"
-        mark_issue
-        return
-      fi
-    fi
-
-    HOOKS_INFO=$(awk '
-      /^[[:space:]]*\[/ {
-        if (!seen_table) seen_table=1
-        in_features = ($0 ~ /^[[:space:]]*\[features\][[:space:]]*(#.*)?$/)
-      }
-      !seen_table && /^[[:space:]]*features[.]hooks[[:space:]]*=/ { print "root:" $0 }
-      in_features && /^[[:space:]]*hooks[[:space:]]*=/ { print "features:" $0 }
-    ' "$CONFIG")
-    HOOKS_COUNT=$(printf "%s\n" "$HOOKS_INFO" | awk 'NF { count++ } END { print count+0 }')
-    FEATURES_COUNT=$(awk '/^[[:space:]]*\[features\][[:space:]]*(#.*)?$/ { count++ } END { print count+0 }' "$CONFIG")
-
-    if [ "$HOOKS_COUNT" -gt 1 ]; then
-      report "codex/config.toml" "REFUSED" "multiple hooks feature keys; $HOOKS_MANUAL"
-      mark_issue
+    elif [ "$TABLE_COUNT" -eq 0 ] && [ "$NESTED" -eq 1 ]; then
+      refuse_config "nested or dotted tui config; $STATUS_MANUAL"
       return
     fi
-    if [ "$HOOKS_COUNT" -eq 1 ]; then
-      if ! printf "%s\n" "$HOOKS_INFO" | grep -Eq '=[[:space:]]*true[[:space:]]*(#.*)?$'; then
-        report "codex/config.toml" "REFUSED" "hooks feature is not true; $HOOKS_MANUAL"
-        mark_issue
+
+    table_key_info features hooks
+    if [ "$KEY_COUNT" -gt 1 ]; then
+      refuse_config "multiple hooks feature keys; $HOOKS_MANUAL"
+      return
+    elif [ "$KEY_COUNT" -eq 1 ]; then
+      if ! printf "%s\n" "$KEY_LINE" | grep -Eq '=[[:space:]]*true[[:space:]]*(#.*)?$'; then
+        refuse_config "hooks feature is not true; $HOOKS_MANUAL"
         return
       fi
       ADD_HOOKS=0
-    elif [ "$FEATURES_COUNT" -gt 1 ]; then
-      report "codex/config.toml" "REFUSED" "multiple [features] tables; $HOOKS_MANUAL"
-      mark_issue
+    elif [ "$TABLE_COUNT" -gt 1 ]; then
+      refuse_config "multiple [features] tables; $HOOKS_MANUAL"
       return
-    elif [ "$FEATURES_COUNT" -eq 0 ]; then
-      FEATURES_AMBIGUOUS=$(awk '
-        /^[[:space:]]*\[/ { seen_table=1 }
-        /^[[:space:]]*\[features[.]/ { found=1 }
-        !seen_table && /^[[:space:]]*features[.]/ { found=1 }
-        END { print found+0 }
-      ' "$CONFIG")
-      if [ "$FEATURES_AMBIGUOUS" -eq 1 ]; then
-        report "codex/config.toml" "REFUSED" "nested or dotted features config; $HOOKS_MANUAL"
-        mark_issue
-        return
-      fi
+    elif [ "$TABLE_COUNT" -eq 0 ] && [ "$NESTED" -eq 1 ]; then
+      refuse_config "nested or dotted features config; $HOOKS_MANUAL"
+      return
     fi
   fi
 
@@ -409,30 +338,21 @@ manage_codex_config() {
   fi
 
   if [ "$MODE" = "check" ]; then
-    if [ "$ADD_FALLBACK" -eq 1 ]; then
-      report "codex/config.toml" "MISSING" "would add root fallback key"
+    while IFS='|' read -r ADD DETAIL; do
+      [ "$ADD" -eq 1 ] || continue
+      report "codex/config.toml" "MISSING" "$DETAIL"
       mark_issue
-    fi
-    if [ "$ADD_CONTEXT" -eq 1 ]; then
-      report "codex/config.toml" "MISSING" "would add 1.05M context window"
-      mark_issue
-    fi
-    if [ "$ADD_COMPACT" -eq 1 ]; then
-      report "codex/config.toml" "MISSING" "would add long-context compaction limit"
-      mark_issue
-    fi
-    if [ "$ADD_STATUS" -eq 1 ]; then
-      report "codex/config.toml" "MISSING" "would add default status line"
-      mark_issue
-    fi
-    if [ "$ADD_HOOKS" -eq 1 ]; then
-      report "codex/config.toml" "MISSING" "would enable the hooks feature"
-      mark_issue
-    fi
+    done <<EOF
+$ADD_FALLBACK|would add root fallback key
+$ADD_CONTEXT|would add 1.05M context window
+$ADD_COMPACT|would add long-context compaction limit
+$ADD_STATUS|would add default status line
+$ADD_HOOKS|would enable the hooks feature
+EOF
     return
   fi
 
-  if ! ensure_parent "$CONFIG"; then
+  if ! mkdir -p "$(dirname "$CONFIG")"; then
     report "codex/config.toml" "FAILED" "could not create parent directory"
     mark_issue
     return
@@ -600,7 +520,7 @@ manage_codex_hooks() {
     fi
     HOOKS_DETAIL="$TRUST_NOTE; backup: $HOOKS_BACKUP"
   fi
-  if ensure_parent "$HOOKS_FILE" && printf '%s\n' "$EXPECTED" > "$HOOKS_FILE"; then
+  if mkdir -p "$(dirname "$HOOKS_FILE")" && printf '%s\n' "$EXPECTED" > "$HOOKS_FILE"; then
     case "$HOOKS_STATE" in
       missing) report "codex/hooks.json" "CREATED" "$HOOKS_DETAIL" ;;
       stale) report "codex/hooks.json" "UPDATED" "$HOOKS_DETAIL" ;;
@@ -641,7 +561,7 @@ fi
 # CLAUDE.md slot carries it. Always-loaded rules come from the linked rules/.
 if host_enabled claude; then
   for CLAUDE_DIR in $CLAUDE_DIRS; do
-    TAG="$(printf %s "$CLAUDE_DIR" | sed "s#^$HOME#~#")"
+    TAG=$(home_tag "$CLAUDE_DIR")
     while IFS='|' read -r NAME RELATIVE; do
       [ -n "$NAME" ] || continue
       manage_link "$TAG/$NAME" "$CLAUDE_DIR/$NAME" "$REPO/$RELATIVE"
@@ -671,10 +591,7 @@ fi
 
 if host_enabled pi; then
   for PI_DIR in $PI_DIRS; do
-    TAG="$PI_DIR"
-    case "$TAG" in
-      "$HOME"/*) TAG="~${TAG#"$HOME"}" ;;
-    esac
+    TAG=$(home_tag "$PI_DIR")
     manage_link "$TAG/AGENTS.md" "$PI_DIR/AGENTS.md" "$REPO/AGENTS.md"
     manage_link "$TAG/extensions" "$PI_DIR/extensions" "$REPO/pi/extensions"
     manage_link "$TAG/settings.json" "$PI_DIR/settings.json" "$REPO/pi/settings.json"
