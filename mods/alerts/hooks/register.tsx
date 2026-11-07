@@ -56,7 +56,7 @@ async function load($: EngineInterface): Promise<Alerts> {
   }
   const text = textOf(result)
   if (result.isError) {
-    return { status: 'error', checkedAt, message: `Sentry search failed: ${text.split('\n')[0] ?? 'no detail'}` }
+    return { status: 'error', checkedAt, message: `Sentry search failed: ${text.trim().split('\n')[0] || 'no detail'}` }
   }
   try {
     return { status: 'ok', checkedAt, ...parse(text) }
@@ -130,7 +130,7 @@ export const register: Register = on => {
         {header}
         {current.issues.length === 0 ? <Text color="success">No unresolved issues in the last 24 hours.</Text> : null}
         {current.issues.map(issue => (
-          <Box flexDirection="column">
+          <Box key={issue.url} flexDirection="column">
             <Box gap={1}>
               <Text color="error" bold>✗</Text>
               <Text bold><Link href={issue.url} label={issue.shortId} /></Text>
