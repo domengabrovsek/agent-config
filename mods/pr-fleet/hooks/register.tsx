@@ -70,11 +70,18 @@ async function load($: EngineInterface): Promise<Fleet> {
   try {
     ran = await $.process.run(['gh', 'api', 'graphql', '-f', `query=${QUERY}`], { timeoutMs: 20000 })
   } catch {
-    return { status: 'error', checkedAt, message: 'gh is not installed or not on PATH. Install the GitHub CLI.' }
+    /* `$.process.run` rejects both when gh cannot start and when it outlives
+       the timeout, so a quick `gh --version` tells the two apart. */
+    const installed = await $.process.run(['gh', '--version'], { timeoutMs: 5000 }).then(
+      () => true,
+      () => false,
+    )
+    const message = installed ? 'gh timed out searching your PRs. Refresh to try again.' : 'gh is not installed or not on PATH. Install the GitHub CLI.'
+    return { status: 'error', checkedAt, message }
   }
   if (ran.exitCode !== 0) {
     const signedOut = /auth login|not logged in|authenticat/i.test(ran.stderr)
-    const message = signedOut ? 'gh is not signed in. Run gh auth login.' : `gh failed: ${ran.stderr.trim().split('\n')[0] ?? 'no output'}`
+    const message = signedOut ? 'gh is not signed in. Run gh auth login.' : `gh failed: ${ran.stderr.trim().split('\n')[0] || 'no output'}`
     return { status: 'error', checkedAt, message }
   }
   try {
@@ -168,7 +175,7 @@ export const register: Register = on => {
           const review = reviewFlag(pr.review)
           const merge = mergeFlag(pr.mergeState)
           return (
-            <Box flexDirection="column">
+            <Box key={pr.url} flexDirection="column">
               <Box gap={1}>
                 <Text color={ci.color} bold>{ci.icon}</Text>
                 <Text bold><Link href={pr.url} label={`${pr.repo}#${pr.number}`} /></Text>

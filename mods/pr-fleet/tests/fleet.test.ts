@@ -109,3 +109,18 @@ test('a signed-out gh asks for gh auth login', async ($, on) => {
   expect((await ui.find({ type: 'Text', text: /gh auth login/ }))?.text).toBe('gh is not signed in. Run gh auth login.')
   await ui.unmount()
 })
+
+test('a gh that times out is not reported as missing', async ($, on) => {
+  engine(on)
+  on('process.run', (_, e) => {
+    if (e.argv.includes('--version')) return ran(0, 'gh version 2.0.0')
+    throw new Error('timed out')
+  })
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.command.run(FLEET)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /timed out/ }))?.text).toBe('gh timed out searching your PRs. Refresh to try again.')
+  await ui.unmount()
+})
