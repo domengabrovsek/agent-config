@@ -81,14 +81,17 @@ DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
 # Only a push of the checked-out branch is checked: bare `gh pr view` resolves
 # its PR through the upstream, while a bare name also matches fork PRs.
 pushes_current_branch() {
-  local rest word dst
+  local rest word dst value=""
   local -a refspecs=()
-  rest=${COMMAND#* push}
-  rest=${rest%%[;&|]*}
+  # The greedy prefix lands on the last push, past a chained commit message.
+  [[ $COMMAND =~ ^.*git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push(.*)$ ]] || return 1
+  rest=${BASH_REMATCH[2]%%[;&|]*}
   set -f
   for word in $rest; do
+    if [ -n "$value" ]; then value=""; continue; fi
     case "$word" in
       --delete|-d|:*) set +f; return 1 ;;
+      -o|--push-option|--repo|--receive-pack|--exec) value=1 ;;
       -*) ;;
       *) refspecs+=("$word") ;;
     esac

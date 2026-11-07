@@ -207,7 +207,9 @@ case "$OUT" in
   *) echo "    got: $OUT" >&2; fail "a push to a merged branch blocks" ;;
 esac
 
-for CMD in "git push origin HEAD" "git push -u origin feature/x" "git push origin HEAD:feature/x"; do
+for CMD in "git push origin HEAD" "git push -u origin feature/x" "git push origin HEAD:feature/x" \
+  "git push -o ci.skip origin HEAD" "git commit -m 'update push gate docs' && git push origin HEAD" \
+  "git -C $MERGEDREPO push origin feature/x"; do
   OUT=$(STUB_PR_STATE="MERGED https://github.com/o/r/pull/7" PATH="$TEST_ROOT/ghbin:$PATH" \
     run_gate_cmd "$MERGEDREPO" "$CMD"); STATUS=$?
   [ "$STATUS" -eq 2 ] && pass "'$CMD' on a merged branch blocks" \
