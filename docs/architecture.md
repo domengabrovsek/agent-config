@@ -26,6 +26,7 @@ The repo answers with three design choices:
 | `agents/` | 18 expert personas | Spawned as subagents. See [personas](personas.md) |
 | `settings.json` | Hook registry, deny list, and Claude Code settings | Read by each host. See [hooks](hooks.md) |
 | `hooks/` | Guardrail scripts | Run on tool calls and session events |
+| `mods/` | Claude Code plugins, such as the [pr-band](../mods/pr-band/README.md) status band | Linked at `~/.claude/mods`, loaded through `CLAUDE_CODE_PLUGIN_DIRS`. See [setup](setup.md#claude-code-environment) |
 | `pi/` | Pi extensions, settings, models, and MCP servers | Linked into each Pi agent dir |
 | `scripts/` | Host setup, CI checks, status line, notifications, worktree pruning | Run by you, CI, hooks, and skills |
 | `templates/`, `references/` | Doc templates; security and testing checklists | Named by skills and personas through `~/.agents/` |
@@ -55,16 +56,9 @@ Each script runs on its own. Hooks, skills, and CI call them, and you can run an
 
 The diagram shows the checkout on the left and the four linked locations on the right. `scripts/setup-hosts.sh --apply` creates the links, and `--check` reports any that drifted.
 
-- **Claude Code** gets `CLAUDE.md` linked to `AGENTS.md`, because Claude Code reads `AGENTS.md` only at project level. It also gets `settings.json`, `rules/`, `skills/`, `agents/`, `hooks/`, `scripts/`, and a few more files, in `~/.claude` and `~/.claude-personal`. [Setup](setup.md) lists every link.
-- **Codex** gets `AGENTS.md`, a few `config.toml` defaults, and a generated `hooks.json` that sends hook events to `hooks/lib/dispatch.sh`. The last two are written files, not links. `dispatch.sh` reads the registry on every call, so a hook edit reaches Codex at once. A change to a registry event or timeout needs `--apply --host codex` again, as [contributing](contributing.md#add-a-hook) says.
-- **Pi** gets `AGENTS.md`, `agents/`, and the files in `pi/`, in `~/.pi/agent` and `~/.pi-personal/agent`.
-- **The shared root `~/.agents/`** is set up with every host unless the machine scope skips `shared`. Codex and Pi find skills there. A shared skill names `~/.agents/...`, so one absolute path resolves everywhere.
-
-Codex and Pi run the hooks from the checkout, through `hooks/lib/dispatch.sh`. [Hooks](hooks.md#host-coverage) shows how each host runs them.
-
-Because the hosts hold links, not copies, an edit in the checkout is live at once. Moving the checkout breaks every host together. Run `bash scripts/setup-hosts.sh --apply --adopt` from the new location to relink them, including the Codex `hooks.json`. [Setup](setup.md) lists every link and the variables that change the defaults.
-
-A session start checks for drift. Claude Code runs `hooks/symlink-check.sh`, and Pi runs the `drift-check` extension. Claude Code prints the exact fix command, and Pi points to `setup-hosts.sh --apply`. Codex shows no drift warning, so run `--check` there by hand.
+- [Setup](setup.md#links-per-host) lists every link per host, and [scope a machine](setup.md#scope-a-machine) the variables that change the default dirs.
+- [Hooks](hooks.md#host-coverage) shows how each host runs the hooks.
+- [Decisions](decisions.md#hosts) records why every host links to one checkout.
 
 ## What a session loads
 
@@ -81,13 +75,13 @@ Most of the config costs nothing until a task needs it.
 | A tool call matches a registry entry | Hooks run; they add text only when they block or report | Claude Code, Codex |
 | A `bash`, `edit`, or `write` call | Hooks run through the `hook-bridge` extension | Pi |
 
-The main session never reads a persona file. Persona text in the main thread costs thousands of tokens and biases later, unrelated work.
+The main session never reads a persona file. [Decisions](decisions.md#spawn-personas-as-subagents) gives the reason.
 
 ## Enforcement layers
 
 A rule the model must remember is weaker than a check the model cannot skip. Every rule bullet in `rules/`, persona guardrails, and skill rules ends with a tag naming what enforces it: `(hook)`, `(lint)`, `(CI)`, `(persona)`, or `(review-time: <why>)`. The tag tells a reader how much to trust a rule. A `(review-time)` tag must say why no hook can check it, so each one marks a candidate for a stronger check. [Rules](rules.md#enforcement-tags) explains each tag and its cost of a miss.
 
-The deny list in `settings.json` sits beside the hooks. It blocks reads and edits of secrets and credential stores, and commands such as `rm -rf`, `sudo`, force-pushes, pushes to `main`, and `gh pr merge`. It matches literal patterns, so it adds friction rather than a sandbox. [Hooks](hooks.md) lists every hook and deny rule group.
+The deny list in `settings.json` sits beside the hooks. [Hooks](hooks.md#the-deny-list) lists its rule groups and what it cannot catch.
 
 ## Context budget
 

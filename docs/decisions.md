@@ -55,7 +55,7 @@ The design decisions this config still runs on. Each entry states the choice and
 ### Deliver a feature with one human gate
 
 - `deliver` runs research, spec, plan, the tests-first slice loop, spec verification, the PR, CI, and bot comments in one run.
-- The user approves the spec, which is the one decision gate. After that the run stops only to post a reply to a human reviewer, or before a force-push, merge, push to `main`, production change, data deletion, or change outside the repo. `/plan` also asks about an architectural choice the spec left open. The user merges the PR.
+- The user approves the spec, which is the one decision gate, and merges the PR. [Skills](skills.md#how-deliver-runs) lists the few other points where the run stops.
 - One gate is enough because the approved spec fixes the acceptance criteria. The Spec Verifier and the evidence gate check later stages against them.
 - The author of code never grades its own tests. The QA Expert writes and locks the tests, a domain persona or the session writes the code, a read-only review panel reviews, and the Spec Verifier records evidence at HEAD.
 - Three hooks back the loop, so a role cannot skip its limit. The evidence gate blocks a PR until every automated criterion passes at HEAD. The test lock blocks implementers from editing locked tests. The reply gate blocks inline replies to human comments.

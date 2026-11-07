@@ -16,7 +16,7 @@ Coding agents write code well and judge "done" badly. They start before they und
 
 ## Quick start
 
-Requirements: `git`, `bash`, `jq`, `python3`, Node.js 22.19 or later, and at least one of Claude Code, Codex, or Pi.
+[Setup](docs/setup.md#requirements) lists the requirements.
 
 ```bash
 git clone git@github.com:domengabrovsek/agent-config.git
@@ -73,4 +73,5 @@ git config filter.strip-ephemeral-state.smudge cat
 | [Contributing](docs/contributing.md) | Changing the config and running the checks |
 | [Decisions](docs/decisions.md) | Why it works this way, and what each choice costs |
 | [Cheatsheet](CHEATSHEET.md) | Which skill fits a task |
+| [pr-band](mods/pr-band/README.md) | The Claude Code mod that shows the branch's PR and CI state |
 | [Context](CONTEXT.md) | Glossary |

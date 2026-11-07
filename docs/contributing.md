@@ -41,6 +41,15 @@ Every change lands through a pull request to `main`, and CI runs the same checks
 3. Add a routing row to `rules/agent-routing.md`, then run `./scripts/config-budget.sh`, because that rule loads in every session.
 4. Add the persona to the tables in [personas](personas.md).
 
+## Add a mod
+
+A mod is a Claude Code plugin under `mods/`. `setup-hosts.sh` links the whole dir at `~/.claude/mods`, so a new mod needs no setup change.
+
+1. Write `mods/<name>/` with a `.claude-plugin/plugin.json` manifest. Copy the layout of `mods/pr-band/`.
+2. Add `~/.claude/mods/<name>` to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` block of `settings.json`. [Setup](setup.md#claude-code-environment) lists the current value.
+3. Run `claude plugin validate mods/<name>`. CI does not validate mods, so this is the only check.
+4. Write `mods/<name>/README.md` and link it from the [README docs table](../README.md#docs).
+
 ## Change the deny list
 
 1. Edit `permissions.deny` in `settings.json`.

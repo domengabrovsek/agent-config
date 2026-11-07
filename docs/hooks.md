@@ -144,14 +144,17 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/deny-gate.test.ts` | `hooks/lib/deny-gate.ts` and its wrapper |
 | `tests/dispatch.sh` | `hooks/lib/dispatch.sh`: matching, tool aliases, exit codes, timeouts |
 | `tests/hook-bridge.test.ts`, `tests/permission-gate.test.ts` | The Pi bridge, and the policy derived from the real deny list |
+| `tests/drift-check.test.ts`, `tests/worktree-cleanup.test.ts`, `tests/statusline.test.ts` | The Pi extensions that replace session hooks, and the Pi status line usage parser |
 | `tests/commit-gates.sh` | The conventional-commit gate and the prose gate on commits |
 | `tests/pr-gates.sh`, `tests/pre-pr-test-gate.sh`, `tests/pr-reply-gate.sh` | The PR body, prose, test, and reply gates |
+| `tests/post-verify-stamp.sh` | The `verify-passed` stamp, and the commands that leave none |
 | `tests/pr-ready.sh` | `scripts/pr-ready.sh` and the PR watch hook |
 | `tests/evidence-gate.sh`, `tests/test-lock.sh` | The evidence gate and the test lock |
 | `tests/pre-push-gate.sh`, `tests/resolve-repo.sh` | The push gate, and how hooks find the target repo |
 | `tests/outbound-email-scrub.sh` | The email scrub on each tool, its allowed addresses, and the block on Codex and Pi |
 | `tests/post-edit-hooks.sh` | The three per-edit hooks |
 | `tests/symlink-check.sh` | The drift check |
+| `tests/worktree-prune.sh` | `scripts/worktree-prune.sh`, which `worktree-cleanup.sh` runs |
 | `tests/herdr-pane-context.sh` | The herdr pane tokens in a checkout, a worktree, a submodule, and a bare repo |
 | `hooks/prose-gate.test.sh` | Prose gate fixtures, plus every tracked Markdown file |
 
