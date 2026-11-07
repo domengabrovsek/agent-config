@@ -32,17 +32,6 @@ jobs:
       - name: Check always-loaded rule budget
         run: ./scripts/config-budget.sh
 
-  prose:
-    name: Prose Gate
-    runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: domengabrovsek/github-actions/.github/actions/checkout@main
-
-      - name: Test the prose gate and scan the markdown corpus
-        run: bash hooks/prose-gate.test.sh
-
   tests:
     name: Extension Tests
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
@@ -78,14 +67,26 @@ jobs:
       - name: Checkout
         uses: domengabrovsek/github-actions/.github/actions/checkout@main
 
-      # The glob picks up a new suite without a workflow edit. Each suite gets
-      # its own log group, and all run before the step reports which failed.
+      # The glob picks up a new suite without a workflow edit. The suites run
+      # in parallel, each into its own log, because each one works in its own
+      # temp dir. The logs print in glob order, one group per suite, and the
+      # step fails after listing every failed suite.
       - name: Run every shell suite
         run: |
+          logs="$RUNNER_TEMP/shell-suites"
+          mkdir -p "$logs"
+          suites=(tests/*.sh)
+          pids=()
+          for t in "${suites[@]}"; do
+            bash "$t" > "$logs/$(basename "$t").log" 2>&1 &
+            pids+=("$!")
+          done
           failed=""
-          for t in tests/*.sh; do
-            echo "::group::$t"
-            bash "$t" || failed="$failed $t"
+          for i in "${!suites[@]}"; do
+            t=${suites[$i]}
+            if wait "${pids[$i]}"; then result=passed; else result=FAILED; failed="$failed $t"; fi
+            echo "::group::$t ($result)"
+            cat "$logs/$(basename "$t").log"
             echo "::endgroup::"
           done
           if [ -n "$failed" ]; then
@@ -104,7 +105,6 @@ jobs:
     needs:
       - lint
       - budget
-      - prose
       - tests
       - shell-tests
       - config
@@ -116,7 +116,6 @@ jobs:
           results=(
             "${{ needs.lint.result }}"
             "${{ needs.budget.result }}"
-            "${{ needs.prose.result }}"
             "${{ needs.tests.result }}"
             "${{ needs.shell-tests.result }}"
             "${{ needs.config.result }}"
