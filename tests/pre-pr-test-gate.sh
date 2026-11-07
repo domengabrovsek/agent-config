@@ -59,6 +59,16 @@ rm "$REPO/dirty"
 git -C "$REPO" commit -q --allow-empty -m "fix: move head"
 assert_gate "a stamp for an older commit blocks" "$REPO" "$GH_READY 12" 2 "npm run verify"
 assert_gate "a draft create skips the stamp" "$REPO" "$GH_CREATE --draft $TITLE" 0
+assert_gate "a -d flag skips the stamp" "$REPO" "$GH_CREATE -d $TITLE" 0
+assert_gate "a -d inside the body is not a draft" "$REPO" \
+  "$GH_CREATE --title \"feat: a thing\" --body \"run it with -d to dry-run\"" 2 "npm run verify"
+assert_gate "a --draft inside a heredoc body is not a draft" "$REPO" \
+  "$GH_CREATE --title \"feat: a thing\" --body-file - <<'EOF'
+mention --draft here
+EOF" 2 "npm run verify"
+assert_gate "a --help inside the body is not a help call" "$REPO" \
+  "$GH_CREATE --title \"feat: a thing\" --body \"see --help\"" 2 "npm run verify"
+assert_gate "--help is skipped" "$REPO" "$GH_CREATE --help" 0
 assert_gate "ready --undo is not gated" "$REPO" "$GH_READY 12 --undo" 0
 
 echo
@@ -80,7 +90,7 @@ assert_gate "a -t inside the body is not read as the title" "$REPO" "$GH_CREATE 
 
 echo
 echo "== fallback without verify =="
-assert_gate "a repo without verify runs npm test" "$HUB" "$GH_CREATE $TITLE" 0 "All tests passed"
+assert_gate "a repo without verify runs npm test" "$HUB" "$GH_CREATE $TITLE" 0 "[pre-pr-test-gate] All tests passed"
 assert_gate "an unrelated command is skipped" "$REPO" "npm test" 0
 
 finish
