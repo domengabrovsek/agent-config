@@ -18,15 +18,12 @@ GH_READY="gh ""pr ready"
 harness_init pre-pr-test-gate
 
 # The verify and test scripts both fail, so a pass proves the hook ran neither.
-make_repo() {
-  local dir="$1"
-  mkdir -p "$dir"
-  git -C "$dir" init -q
-  cat > "$dir/package.json" <<'JSON'
+probe_repo() {
+  mkdir -p "$1"
+  cat > "$1/package.json" <<'JSON'
 { "name": "probe", "private": true, "scripts": { "verify": "exit 1", "test": "exit 1" } }
 JSON
-  git -C "$dir" add package.json
-  git -C "$dir" -c user.name=t -c user.email=t@example.com commit -qm "chore: init"
+  make_repo "$1"
 }
 
 stamp() { git -C "$1" rev-parse HEAD > "$(git -C "$1" rev-parse --path-format=absolute --git-dir)/verify-passed"; }
@@ -46,7 +43,7 @@ assert_gate() {
 
 REPO="$TEST_ROOT/repo"
 HUB="$TEST_ROOT/hub"
-make_repo "$REPO"
+probe_repo "$REPO"
 mkdir -p "$HUB"
 printf '{ "name": "hub", "private": true, "scripts": { "test": "exit 0" } }\n' > "$HUB/package.json"
 TITLE='--title "feat(api): add a thing" --body "Adds it."'
@@ -59,7 +56,7 @@ assert_gate "ready reads the same stamp" "$REPO" "$GH_READY 12" 0
 touch "$REPO/dirty"
 assert_gate "a dirty tree blocks" "$REPO" "$GH_CREATE $TITLE" 2 "npm run verify"
 rm "$REPO/dirty"
-git -C "$REPO" -c user.name=t -c user.email=t@example.com commit -q --allow-empty -m "fix: move head"
+git -C "$REPO" commit -q --allow-empty -m "fix: move head"
 assert_gate "a stamp for an older commit blocks" "$REPO" "$GH_READY 12" 2 "npm run verify"
 assert_gate "a draft create skips the stamp" "$REPO" "$GH_CREATE --draft $TITLE" 0
 assert_gate "ready --undo is not gated" "$REPO" "$GH_READY 12 --undo" 0

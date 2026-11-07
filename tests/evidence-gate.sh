@@ -14,8 +14,7 @@ GH_CREATE="gh ""pr create --title t --body b"
 harness_init evidence-gate TEST_DIR
 
 REPO="$TEST_DIR/repo"
-git init -q -b main "$REPO"
-git -C "$REPO" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "chore: init"
+make_repo "$REPO"
 git -C "$REPO" checkout -q -b feat/x
 HEAD_SHA=$(git -C "$REPO" rev-parse HEAD)
 STATE="$REPO/.claude/state"
@@ -75,7 +74,7 @@ git -C "$REPO" checkout -q main
 git -C "$REPO" worktree add -q "$TEST_DIR/wt" feat/x
 assert_gate "a worktree finds the spec and ledger in the main checkout" "$TEST_DIR/wt" 0
 
-git -C "$TEST_DIR/wt" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "fix: later"
+git -C "$TEST_DIR/wt" commit -q --allow-empty -m "fix: later"
 assert_gate "a new commit makes the evidence stale" "$TEST_DIR/wt" 2
 
 git -C "$REPO" checkout -q -b feat/no-spec

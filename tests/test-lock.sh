@@ -12,12 +12,10 @@ GATE="$PROJECT_DIR/hooks/pre-edit-test-lock.sh"
 harness_init test-lock TEST_DIR
 
 REPO="$TEST_DIR/repo"
-git init -q -b main "$REPO"
 mkdir -p "$REPO/src"
 echo "test" > "$REPO/src/date.test.ts"
 echo "code" > "$REPO/src/date.ts"
-git -C "$REPO" add -A
-git -C "$REPO" -c user.name=t -c user.email=t@t commit -q -m "test: add date tests"
+make_repo "$REPO"
 git -C "$REPO" branch -q feat/x
 mkdir -p "$REPO/.claude/state/runs/feat-x"
 echo "src/date.test.ts" > "$REPO/.claude/state/runs/feat-x/tests.lock"

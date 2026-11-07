@@ -14,13 +14,11 @@ PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 HOOK="$PROJECT_DIR/hooks/post-verify-stamp.sh"
 harness_init post-verify-stamp
 
-# make_repo <dir> <scripts-json>
-make_repo() {
+# probe_repo <dir> <scripts-json>
+probe_repo() {
   mkdir -p "$1"
-  git -C "$1" init -q
   printf '{ "name": "probe", "private": true, "scripts": %s }\n' "$2" > "$1/package.json"
-  git -C "$1" add package.json
-  git -C "$1" -c user.name=t -c user.email=t@example.com commit -qm "chore: init"
+  make_repo "$1"
 }
 
 stamp_file() { echo "$(git -C "$1" rev-parse --path-format=absolute --git-dir)/verify-passed"; }
@@ -55,8 +53,8 @@ assert_stamp() {
 REPO="$TEST_ROOT/repo"
 HUB="$TEST_ROOT/hub"
 BARE="$TEST_ROOT/no-verify"
-make_repo "$REPO" '{ "verify": "exit 0" }'
-make_repo "$BARE" '{ "test": "exit 0" }'
+probe_repo "$REPO" '{ "verify": "exit 0" }'
+probe_repo "$BARE" '{ "test": "exit 0" }'
 mkdir -p "$HUB" "$REPO/packages/sub"
 
 echo "== stamps =="
