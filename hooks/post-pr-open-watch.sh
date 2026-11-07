@@ -9,8 +9,11 @@
 
 # shellcheck source=lib/context.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
+# shellcheck source=lib/once.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 
 INPUT=$(cat)
+first_run_for_call "$INPUT" post-pr-open-watch || exit 0
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 case "$COMMAND" in

@@ -16,8 +16,11 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/context.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
+# shellcheck source=lib/once.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 
 INPUT=$(cat)
+first_run_for_call "$INPUT" pre-git-state-refresh || exit 0
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 [ "$SKIP_PR_STATE_REFRESH" = "1" ] && exit 0
