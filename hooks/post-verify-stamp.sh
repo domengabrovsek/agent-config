@@ -21,6 +21,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/find-up.sh"
 # shellcheck source=lib/package-json.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
+# shellcheck source=lib/context.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
@@ -66,11 +68,5 @@ HEAD_SHA=$(git rev-parse HEAD 2>/dev/null) || exit 0
 
 printf '%s\n' "$HEAD_SHA" > "$GIT_DIR/verify-passed" || exit 0
 
-jq -n --arg ctx "[verify-stamp] Recorded a verify pass for HEAD $HEAD_SHA in $DIR." '{
-  continue: true,
-  hookSpecificOutput: {
-    hookEventName: "PostToolUse",
-    additionalContext: $ctx
-  }
-}'
+emit_context PostToolUse "[verify-stamp] Recorded a verify pass for HEAD $HEAD_SHA in $DIR."
 exit 0

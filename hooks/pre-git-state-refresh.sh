@@ -14,6 +14,8 @@
 
 # shellcheck source=lib/resolve-repo.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+# shellcheck source=lib/context.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
@@ -35,14 +37,7 @@ case "$COMMAND" in
 esac
 
 emit() {
-  # Inject as additionalContext so Claude sees the state line.
-  jq -n --arg ctx "$1" '{
-    continue: true,
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      additionalContext: $ctx
-    }
-  }'
+  emit_context PreToolUse "$1"
   exit 0
 }
 
