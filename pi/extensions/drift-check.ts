@@ -9,9 +9,8 @@
  * symlink-check.sh. It is deliberately loud once per session, not a widget:
  * drift never degrades the already-running session (see CONTEXT.md "Drift").
  *
- * Module top imports only node builtins so `node --test` can exercise the
- * pure helpers without resolving pi packages; the factory resolves
- * @earendil-works/pi-coding-agent dynamically at runtime.
+ * The module imports only node builtins at runtime, so `node --test` loads
+ * it without resolving pi packages.
  */
 
 import { execFile } from 'node:child_process';
@@ -103,31 +102,17 @@ function driftMessage(summary: CheckSummary): string {
   return `${head}\n${summary.sample.map((row) => `- ${row}`).join('\n')}\nRun setup-hosts.sh --apply to converge.`;
 }
 
-export default async function (pi: ExtensionAPI) {
-  const { getAgentDir } = await import('@earendil-works/pi-coding-agent');
-
+export default function (pi: ExtensionAPI) {
   pi.on('session_start', async (_event, ctx) => {
-    let moduleDir: string;
-    try {
-      moduleDir = dirname(realpathSync(fileURLToPath(import.meta.url)));
-    } catch {
-      moduleDir = dirname(fileURLToPath(import.meta.url));
-    }
-    /* Same layout assumption as permission-gate's source resolution: the
-     * extension file lives under <checkout>/pi/extensions, so the bootstrap
-     * script is two levels up. The agent-dir path covers standalone installs. */
-    const candidates = [
-      join(moduleDir, '../../scripts/setup-hosts.sh'),
-      join(getAgentDir(), 'scripts/setup-hosts.sh'),
-    ];
-    const scriptPath = candidates.find((candidate) => existsSync(candidate));
+    /* The extension dir links into the checkout, so scripts/ is two levels up. */
+    const scriptPath = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '../../scripts/setup-hosts.sh');
     const warn = (message: string): void => {
       if (ctx.hasUI) ctx.ui.notify(message, 'warning');
       else console.error(message);
     };
 
-    if (scriptPath === undefined) {
-      warn('Drift check skipped: scripts/setup-hosts.sh not found in the checkout or agent dir.');
+    if (!existsSync(scriptPath)) {
+      warn('Drift check skipped: scripts/setup-hosts.sh not found in the checkout.');
       return;
     }
 

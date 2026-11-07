@@ -38,8 +38,6 @@ import {
 	type UsageWindow,
 } from "./statusline/usage.ts";
 
-export type { UsageWindow } from "./statusline/usage.ts";
-
 /* ---------------------------------------------------------------------------
  * Pure helpers
  * --------------------------------------------------------------------------- */
@@ -121,8 +119,7 @@ export function parseUnifiedHeaders(
 
 /** Green/yellow/red at the statusline's 50%/80% thresholds. */
 export function usageColorName(pct: number, binding: boolean): ColorToken {
-	if (binding) return "error";
-	if (pct >= 80) return "error";
+	if (binding || pct >= 80) return "error";
 	if (pct >= 50) return "warning";
 	return "success";
 }
@@ -146,7 +143,7 @@ function usageSegments(
 	theme: FooterStyle,
 	windows: UsageWindows,
 	nowSec: number,
-): Seg[] | undefined {
+): Seg | undefined {
 	const ageSec = nowSec - Math.floor(windows.capturedAt / 1000);
 	if (ageSec >= 3600) return undefined; // too stale to be honest
 	const parts: string[] = [];
@@ -163,7 +160,7 @@ function usageSegments(
 				: "";
 		parts.push(`${theme.fg(color, `${label} ${win.pct ?? 0}%`)}${resetSuffix}`);
 	}
-	return parts.length > 0 ? [{ text: parts.join(" "), drop: 2 }] : undefined;
+	return parts.length > 0 ? { text: parts.join(" "), drop: 2 } : undefined;
 }
 
 /**
@@ -193,8 +190,8 @@ export function buildSegs(theme: FooterStyle, live: Omit<LiveFooter, "windows"> 
 	}
 
 	if (live.windows) {
-		const segs5 = usageSegments(theme, live.windows, live.nowSec);
-		if (segs5) segs.push(...segs5);
+		const usage = usageSegments(theme, live.windows, live.nowSec);
+		if (usage) segs.push(usage);
 	}
 
 	if (live.modelId) {
@@ -369,28 +366,18 @@ export default function (pi: ExtensionAPI) {
 
 					const spend = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
 					for (const entry of ctx.sessionManager.getEntries()) {
-						if (entry.type === "message" && entry.message.role === "assistant") {
-							const u = entry.message.usage;
-							spend.input += u.input;
-							spend.output += u.output;
-							spend.cacheRead += u.cacheRead;
-							spend.cacheWrite += u.cacheWrite;
-							spend.cost += u.cost.total;
-						} else if (entry.type === "message" && entry.message.role === "toolResult" && entry.message.usage) {
-							const u = entry.message.usage;
-							spend.input += u.input;
-							spend.output += u.output;
-							spend.cacheRead += u.cacheRead;
-							spend.cacheWrite += u.cacheWrite;
-							spend.cost += u.cost.total;
-						} else if ((entry.type === "branch_summary" || entry.type === "compaction") && entry.usage) {
-							const u = entry.usage;
-							spend.input += u.input;
-							spend.output += u.output;
-							spend.cacheRead += u.cacheRead;
-							spend.cacheWrite += u.cacheWrite;
-							spend.cost += u.cost.total;
-						}
+						const u =
+							entry.type === "message" && (entry.message.role === "assistant" || entry.message.role === "toolResult")
+								? entry.message.usage
+								: entry.type === "branch_summary" || entry.type === "compaction"
+									? entry.usage
+									: undefined;
+						if (!u) continue;
+						spend.input += u.input;
+						spend.output += u.output;
+						spend.cacheRead += u.cacheRead;
+						spend.cacheWrite += u.cacheWrite;
+						spend.cost += u.cost.total;
 					}
 
 					const spendParts: string[] = [];
@@ -422,7 +409,7 @@ export default function (pi: ExtensionAPI) {
 					};
 
 					const segs = buildSegs(theme, live);
-					return [assembleLine({ fg: (t, s) => theme.fg(t, s), bold: (s) => theme.bold(s) }, segs, width)];
+					return [assembleLine(theme, segs, width)];
 				},
 			};
 		});

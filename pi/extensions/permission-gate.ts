@@ -2,8 +2,8 @@
  * permission-gate - derives pi's permission policy from the harness deny list.
  *
  * The mechanical enforcement itself is the adopted @gotgenes/pi-permission-system
- * package (pinned in pi/settings.json). This extension no longer gates tool
- * calls; it is the translation step that keeps that package's config a Derived
+ * package (pinned in pi/settings.json). This extension is the translation step
+ * that keeps that package's config a Derived
  * policy (CONTEXT.md): regenerated from the permissions block of the tracked
  * root settings.json at every session start, never hand-edited.
  *
@@ -11,9 +11,8 @@
  *
  *   Read(...)   -> path_read  (cross-cutting: read tool, bash reads, ls/find/grep)
  *   Edit/Write  -> path_write (cross-cutting: write/edit tools, redirects)
- *   Bash(...)   -> bash       (their tree-sitter command enumeration is a
- *                              superset of our old segment matching)
- *   mcp__srv__t -> mcp        (previously a skip notice; now enforced)
+ *   Bash(...)   -> bash       (tree-sitter command enumeration)
+ *   mcp__srv__t -> mcp
  *
  * The universal fallback is "allow": unmatched actions pass, so semantics stay
  * deny-wins/default-allow and headless -p/json/rpc sessions never prompt.
@@ -34,7 +33,6 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
@@ -82,9 +80,8 @@ export function classifyRule(source: string): { family: RuleFamily; pattern: str
 /**
  * Translate a Claude path glob to a gotgenes wildcard pattern. Their `*`
  * crosses `/` (anchored regex with the `s` flag), so collapsing `**` to `*`
- * preserves coverage; a trailing double-star loses only the directory entry itself,
- * which is narrower than the old gate for reads of the bare directory and a
- * superset for everything else (ls/find/grep were never gated before).
+ * preserves coverage; a trailing double-star loses only the directory entry
+ * itself.
  */
 export function translatePathPattern(pattern: string): string {
   return pattern.replaceAll('**', '*');
@@ -120,7 +117,6 @@ function denyMap(patterns: string[]): SurfaceMap {
  * rules only. A merged `path` surface would block writes absent from the source.
  */
 export function derivePermissionPolicy(config: Extract<GateConfig, { status: 'ok' }>): {
-  universal: 'allow';
   pathRead: SurfaceMap;
   pathWrite: SurfaceMap;
   bash: SurfaceMap;
@@ -140,7 +136,6 @@ export function derivePermissionPolicy(config: Extract<GateConfig, { status: 'ok
     }
   }
   return {
-    universal: 'allow',
     pathRead: denyMap(read),
     pathWrite: denyMap(write),
     bash: denyMap(bash),
@@ -156,13 +151,13 @@ export function buildPolicyDocument(policy: ReturnType<typeof derivePermissionPo
   $schema: string;
   permission: Record<string, unknown>;
 } {
-  const surfaces: Record<string, unknown> = { '*': policy.universal };
+  const surfaces: Record<string, unknown> = { '*': 'allow' };
   if (Object.keys(policy.pathRead).length > 0) surfaces.path_read = policy.pathRead;
   if (Object.keys(policy.pathWrite).length > 0) surfaces.path_write = policy.pathWrite;
   /* The package applies the last matching bash rule, so the catch-all goes first
      and every deny after it still wins. Stating it explicitly silences the
      package's warning about bash inheriting the top-level allow. */
-  surfaces.bash = { '*': policy.universal, ...policy.bash };
+  surfaces.bash = { '*': 'allow', ...policy.bash };
   if (Object.keys(policy.mcp).length > 0) surfaces.mcp = policy.mcp;
   return { $schema: PERMISSIONS_SCHEMA_URL, permission: surfaces };
 }
@@ -217,29 +212,6 @@ export function loadGateConfig(settingsPath: string): GateConfig {
   return { status: 'ok', rules, skipped, allowCount };
 }
 
-export type SourceSelection =
-  | { status: 'ok'; path: string; config: Extract<GateConfig, { status: 'ok' }> }
-  | { status: 'unavailable'; reason: string };
-
-/**
- * First candidate that exists and carries a permissions block wins. A parseable
- * settings file without permissions (pi's own settings.json, for instance) is
- * not the permission source and is skipped, not fatal.
- */
-export function resolvePermissionSource(candidates: string[]): SourceSelection {
-  let unavailableReason: string | undefined;
-  for (const candidate of candidates) {
-    if (!existsSync(candidate)) continue;
-    const config = loadGateConfig(candidate);
-    if (config.status === 'ok') return { status: 'ok', path: candidate, config };
-    unavailableReason = config.reason;
-  }
-  if (unavailableReason !== undefined) {
-    return { status: 'unavailable', reason: unavailableReason };
-  }
-  return { status: 'unavailable', reason: 'no permission source found in candidate paths' };
-}
-
 /* ---------------------------------------------------------------------------
  * Extension wiring
  * --------------------------------------------------------------------------- */
@@ -251,21 +223,10 @@ export default async function (pi: ExtensionAPI) {
   const { getAgentDir } = await import('@earendil-works/pi-coding-agent');
 
   pi.on('session_start', (_event, ctx) => {
-    let moduleDir: string;
-    try {
-      moduleDir = dirname(realpathSync(fileURLToPath(import.meta.url)));
-    } catch {
-      moduleDir = dirname(fileURLToPath(import.meta.url));
-    }
-    /* Order: the tracked root settings.json next to the extension (symlinks
-     * resolved, i.e. the checkout), then Claude's config-dir symlink to the
-     * same tracked file, then the pi agent dir for standalone installs. */
-    const candidates = [
-      join(moduleDir, '../../settings.json'),
-      join(homedir(), '.claude', 'settings.json'),
-      join(getAgentDir(), 'settings.json'),
-    ];
-    const selection = resolvePermissionSource(candidates);
+    /* The extension dir links into the checkout, so the tracked root
+     * settings.json is two levels above this module's real path. */
+    const sourcePath = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '../../settings.json');
+    const config = loadGateConfig(sourcePath);
 
     const failLoud = (message: string): void => {
       if (ctx.hasUI) {
@@ -276,8 +237,8 @@ export default async function (pi: ExtensionAPI) {
       }
     };
 
-    if (selection.status !== 'ok') {
-      failLoud(`Derived policy STALE (${selection.reason}); the permission system keeps the last generated config.`);
+    if (config.status !== 'ok') {
+      failLoud(`Derived policy STALE (${config.reason}); the permission system keeps the last generated config.`);
       return;
     }
 
@@ -285,8 +246,7 @@ export default async function (pi: ExtensionAPI) {
      * tracked file via the extensions symlink; it is also the path the
      * consumer resolves (<agent dir>/extensions/pi-permission-system/config.json). */
     const configPath = join(getAgentDir(), 'extensions', CONSUMER_DIR, 'config.json');
-    const document = buildPolicyDocument(derivePermissionPolicy(selection.config));
-    const serialized = serializePolicyDocument(document);
+    const serialized = serializePolicyDocument(buildPolicyDocument(derivePermissionPolicy(config)));
     let unchanged = false;
     try {
       const existing = existsSync(configPath) ? readFileSync(configPath, 'utf8') : '';
@@ -304,12 +264,12 @@ export default async function (pi: ExtensionAPI) {
 
     if (ctx.hasUI) ctx.ui.setWidget(WIDGET_ID, undefined);
 
-    const summary = [`derived ${selection.config.rules.length} deny rules from ${selection.path}`];
-    if (selection.config.skipped.length > 0) {
-      summary.push(`skipped ${selection.config.skipped.length} (no translation): ${selection.config.skipped.join(', ')}`);
+    const summary = [`derived ${config.rules.length} deny rules from ${sourcePath}`];
+    if (config.skipped.length > 0) {
+      summary.push(`skipped ${config.skipped.length} (no translation): ${config.skipped.join(', ')}`);
     }
-    if (selection.config.allowCount > 0) {
-      summary.push(`${selection.config.allowCount} allow rules inert (deny-wins)`);
+    if (config.allowCount > 0) {
+      summary.push(`${config.allowCount} allow rules inert (deny-wins)`);
     }
     summary.push(`policy -> ${configPath}${unchanged ? ' (unchanged)' : ''}`);
     if (ctx.hasUI) ctx.ui.notify(`Derived policy: ${summary.join('; ')}`, 'info');
