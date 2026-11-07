@@ -12,7 +12,7 @@ Create or update the diagram for: $ARGUMENTS
 Read `rules/diagrams.md` if uncertain.
 
 - Use **drawio** for every diagram. `(review-time: see section note)`
-- Use **mermaid** only when the drawio MCP server is unavailable in the current host. `(review-time: see section note)`
+- Use **mermaid** only when the drawio MCP server is unavailable in the current host. Run ToolSearch for `drawio` first, because deferred MCP tools stay hidden until loaded. `(review-time: see section note)`
 
 ## Step 2 - Locate the doc
 

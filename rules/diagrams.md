@@ -36,6 +36,8 @@ For each drawio diagram:
 
 Use mermaid only when the drawio MCP server is unavailable in the current host `(review-time: host capability check)`
 
+- Run ToolSearch for `drawio` before calling it unavailable. Deferred MCP tools stay hidden until loaded `(review-time: host capability check)`
+
 - Write inline in the doc using ```` ```mermaid ```` fenced blocks. GitHub renders natively. `(review-time: format guidance for diagram authoring)`
 - Say in the PR description that the diagram is mermaid because drawio was unavailable. `(review-time: PR text)`
 - Convert an existing mermaid diagram to drawio when a change edits it. `(review-time: requires knowing the diff touches the diagram)`

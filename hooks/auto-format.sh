@@ -40,14 +40,17 @@ if find_up . biome.json biome.jsonc >/dev/null; then
   exit 0
 fi
 
-# Try Prettier (if configured or available)
-if [ -f ".prettierrc" ] || [ -f ".prettierrc.json" ] || [ -f ".prettierrc.yml" ] || [ -f "prettier.config.js" ] || [ -f "prettier.config.mjs" ]; then
-  npx prettier --write "$FILE" 2>/dev/null && exit 0
-fi
-
-# Fallback: try prettier if it's in node_modules
-if [ -f "node_modules/.bin/prettier" ]; then
-  npx prettier --write "$FILE" 2>/dev/null && exit 0
+# Prettier runs only where the repo declares a config. Prettier's defaults
+# would rewrite a repo with its own style, such as one formatted by standard.
+# A workspace package inherits the config at the monorepo root.
+PRETTIER_CONFIGS=(.prettierrc .prettierrc.json .prettierrc.json5 .prettierrc.yaml .prettierrc.yml
+  .prettierrc.toml .prettierrc.js .prettierrc.mjs .prettierrc.cjs .prettierrc.ts .prettierrc.mts
+  .prettierrc.cts prettier.config.js prettier.config.mjs prettier.config.cjs prettier.config.ts
+  prettier.config.mts prettier.config.cts)
+TOP=$(git rev-parse --show-toplevel 2>/dev/null) || TOP=.
+if find_up . "${PRETTIER_CONFIGS[@]}" >/dev/null \
+  || jq -e 'has("prettier")' package.json "$TOP/package.json" 2>/dev/null | grep -q true; then
+  npx prettier --write "$FILE" 2>/dev/null
 fi
 
 exit 0

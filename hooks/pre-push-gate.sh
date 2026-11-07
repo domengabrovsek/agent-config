@@ -76,6 +76,47 @@ esac
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
 
+# A push to a branch whose PR already merged recreates the deleted remote
+# branch, and its commits land in no open PR.
+# Only a push of the checked-out branch is checked: bare `gh pr view` resolves
+# its PR through the upstream, while a bare name also matches fork PRs.
+pushes_current_branch() {
+  local rest word dst value=""
+  local -a refspecs=()
+  # The greedy prefix lands on the last push, past a chained commit message.
+  [[ $COMMAND =~ ^.*git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push(.*)$ ]] || return 1
+  rest=${BASH_REMATCH[2]%%[;&|]*}
+  set -f
+  for word in $rest; do
+    if [ -n "$value" ]; then value=""; continue; fi
+    case "$word" in
+      --delete|-d|--tags|:*) set +f; return 1 ;;
+      -o|--push-option|--repo|--receive-pack|--exec) value=1 ;;
+      -*) ;;
+      *) refspecs+=("$word") ;;
+    esac
+  done
+  set +f
+  # The first word is the remote; none or one refspec after it is supported.
+  [ "${#refspecs[@]}" -le 1 ] && return 0
+  [ "${#refspecs[@]}" -gt 2 ] && return 1
+  dst=${refspecs[1]#+}
+  dst=${dst#*:}
+  case "$dst" in
+    HEAD|"$1"|"refs/heads/$1") return 0 ;;
+  esac
+  return 1
+}
+
+BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
+if [ -n "$BRANCH" ] && command -v gh >/dev/null 2>&1 && pushes_current_branch "$BRANCH"; then
+  PR_STATE=$(cd "$DIR" && gh pr view --json state,url -q '.state + " " + .url' 2>/dev/null)
+  if [ "${PR_STATE%% *}" = "MERGED" ]; then
+    echo "[pre-push-gate] $BRANCH already merged in ${PR_STATE#* }. Start a new branch from the default branch for new work (or bypass with SKIP_PUSH_GATE=1)." >&2
+    exit 2
+  fi
+fi
+
 # Husky points the repo-local core.hooksPath at a directory the install creates.
 # A checkout that never ran it has the setting but not the directory, and git
 # then skips every repo hook without a word, so the push would go out ungated.
