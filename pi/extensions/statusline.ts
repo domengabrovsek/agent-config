@@ -139,7 +139,7 @@ interface Seg {
 	drop?: 1 | 2 | 3;
 }
 
-function usageSegments(
+function usageSegment(
 	theme: FooterStyle,
 	windows: UsageWindows,
 	nowSec: number,
@@ -190,7 +190,7 @@ export function buildSegs(theme: FooterStyle, live: Omit<LiveFooter, "windows"> 
 	}
 
 	if (live.windows) {
-		const usage = usageSegments(theme, live.windows, live.nowSec);
+		const usage = usageSegment(theme, live.windows, live.nowSec);
 		if (usage) segs.push(usage);
 	}
 

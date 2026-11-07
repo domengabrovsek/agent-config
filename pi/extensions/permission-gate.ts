@@ -3,9 +3,9 @@
  *
  * The mechanical enforcement itself is the adopted @gotgenes/pi-permission-system
  * package (pinned in pi/settings.json). This extension is the translation step
- * that keeps that package's config a Derived
- * policy (CONTEXT.md): regenerated from the permissions block of the tracked
- * root settings.json at every session start, never hand-edited.
+ * that keeps that package's config a Derived policy (CONTEXT.md): regenerated
+ * from the permissions block of the tracked root settings.json at every
+ * session start, never hand-edited.
  *
  * Translation (deny list -> gotgenes surfaces), deny-only, never "ask":
  *
