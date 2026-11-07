@@ -6,23 +6,11 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd -P)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 DISPATCH="$PROJECT_DIR/hooks/lib/dispatch.sh"
-PASSED=0
-FAILED=0
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/dispatch-test.XXXXXX")" && pwd)
-
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/dispatch-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+harness_init dispatch TEST_DIR
 
 STUBS="$TEST_DIR/stubs"
 LOG="$TEST_DIR/log"
@@ -189,6 +177,4 @@ bash_call "ls" | HOOK_REGISTRY="$HOST_REGISTRY" bash "$DISPATCH" PreToolUse >/de
 bash_call "ls" | AGENT_HOOK_HOST=pi HOOK_REGISTRY="$HOST_REGISTRY" bash "$DISPATCH" PreToolUse >/dev/null 2>&1
 check "$(tr '\n' ' ' < "$HOST_LOG")" "codex pi " "hooks see codex by default and the caller's host when set"
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

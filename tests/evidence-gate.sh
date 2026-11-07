@@ -5,25 +5,13 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 GATE="$PROJECT_DIR/hooks/pre-pr-evidence-gate.sh"
 # Assembled so this file never carries the literal command the hooks match.
 GH_CREATE="gh ""pr create --title t --body b"
-PASSED=0
-FAILED=0
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/evidence-gate-test.XXXXXX")" && pwd)
-
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/evidence-gate-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+harness_init evidence-gate TEST_DIR
 
 REPO="$TEST_DIR/repo"
 git init -q -b main "$REPO"
@@ -207,5 +195,4 @@ SPEC
 assert_gate "a spec with only manual criteria passes" "$REPO" 0
 
 echo
-echo "$PASSED passed, $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

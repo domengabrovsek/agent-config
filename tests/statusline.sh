@@ -5,22 +5,10 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 SCRIPT="$PROJECT_DIR/scripts/statusline.sh"
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/statusline-test.XXXXXX")" && pwd)
-PASSED=0
-FAILED=0
-
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/statusline-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+harness_init statusline TEST_DIR
 
 # render <json>: prints the status line with ANSI codes stripped
 render() {
@@ -54,5 +42,4 @@ out=$(render "{\"cwd\":\"$TEST_DIR\"}")
 assert_lacks "omits the model block when no model is sent" "$out" "null"
 
 echo
-echo "$PASSED passed, $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

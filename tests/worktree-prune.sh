@@ -9,29 +9,15 @@
 set -euo pipefail
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 SCRIPT="$PROJECT_DIR/scripts/worktree-prune.sh"
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd -P)
-TEST_ROOT=$(cd "$(mktemp -d "$TMP_ROOT/worktree-prune-test.XXXXXX")" && pwd -P)
-PASSED=0
-FAILED=0
+harness_init -P worktree-prune
 OUT=""
 AGENT_REASON="claude agent agent-a1b2c3 (pid 4242)"
 QUOTED_REASON='held by "agent" at C:\tmp, café'
 
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
-export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
-export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
-
-cleanup() {
-  case "$TEST_ROOT" in
-    "$TMP_ROOT"/worktree-prune-test.*) rm -rf "$TEST_ROOT" ;;
-    *) printf 'Refusing to clean unexpected test path: %s\n' "$TEST_ROOT" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); printf 'ok - %s\n' "$1"; }
-fail() { FAILED=$((FAILED + 1)); printf 'not ok - %s\n' "$1" >&2; }
 
 # add_worktree <repo> <branch> [option...]: a worktree at <repo>.wt/<branch> on
 # a new branch cut from main's current tip.
@@ -148,18 +134,7 @@ assert_verdict() {
   fi
 }
 
-# check <name> <command...>: passes when the command succeeds.
-check() {
-  local name="$1"
-  shift
-  if "$@"; then pass "$name"; else
-    printf '    failed: %s\n    output:\n%s\n' "$*" "$OUT" >&2
-    fail "$name"
-  fi
-}
-
-output_has() { [[ "$OUT" == *"$1"* ]]; }
-output_lacks() { [[ "$OUT" != *"$1"* ]]; }
+diagnose() { printf '    output:\n%s\n' "$OUT"; }
 absent() { [[ ! -e "$1" ]]; }
 has_branch() { git -C "$1" show-ref --verify --quiet "refs/heads/$2"; }
 no_branch() { ! has_branch "$1" "$2"; }
@@ -213,7 +188,7 @@ assert_verdict "a detached worktree is kept as detached" \
   "$WT/detached" "KEEP detached-HEAD-no-branch"
 assert_verdict "a locked detached worktree is kept as detached" \
   "$WT/detached-locked" "KEEP detached-HEAD-no-branch"
-check "a detached worktree lists no branch" output_has "$WT/detached  branch=?  reason="
+check "a detached worktree lists no branch" says "$WT/detached  branch=?  reason="
 assert_verdict "a lock reason git quotes leaves the row intact" \
   "$WT/merged-dirty-quoted" "SAFE merged-into-main"
 assert_verdict "a second checkout of the default branch is kept" \
@@ -248,17 +223,16 @@ check "the worktree at that path's first word survives" test -d "$WT/twin"
 check "a dirty merged worktree stays on disk" test -d "$WT/merged-dirty"
 check "a failed removal keeps the branch" has_branch "$REPO" merged-dirty
 check "a failed removal is reported with git's reason" \
-  output_has "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
-check "a failed removal is not reported as pruned" output_lacks "pruned (disk gone)"
+  says "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
+check "a failed removal is not reported as pruned" omits "pruned (disk gone)"
 check "a dirty locked worktree stays on disk" test -d "$WT/merged-dirty-locked"
 check "a failed removal re-locks with the original reason" \
   lock_line_is "$REPO" "$WT/merged-dirty-locked" "locked $AGENT_REASON"
 check "a reason git quotes is restored unchanged" \
   lock_line_is "$REPO" "$WT/merged-dirty-quoted" \
   'locked "held by \"agent\" at C:\\tmp, caf\303\251"'
-check "a restored lock prints no warning" output_lacks "left unlocked"
+check "a restored lock prints no warning" omits "left unlocked"
 check "the summary counts the failures apart from removals" \
-  output_has "19 total, 5 removed, 11 kept, 3 failed"
+  says "19 total, 5 removed, 11 kept, 3 failed"
 
-printf '\n%s passed; %s failed\n' "$PASSED" "$FAILED"
-[[ "$FAILED" -eq 0 ]]
+finish

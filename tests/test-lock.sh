@@ -5,23 +5,11 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 GATE="$PROJECT_DIR/hooks/pre-edit-test-lock.sh"
-PASSED=0
-FAILED=0
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/test-lock-test.XXXXXX")" && pwd)
-
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/test-lock-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+harness_init test-lock TEST_DIR
 
 REPO="$TEST_DIR/repo"
 git init -q -b main "$REPO"
@@ -60,5 +48,4 @@ assert_gate "a new untracked file is not locked" "$TEST_DIR/wt/src/new.test.ts" 
 assert_gate "a branch with no lock is not gated" "$REPO/src/date.test.ts" "Backend Staff Engineer" 0
 
 echo
-echo "$PASSED passed, $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

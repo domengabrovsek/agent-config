@@ -9,24 +9,12 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 # shellcheck source=../hooks/lib/resolve-repo.sh
 . "$PROJECT_DIR/hooks/lib/resolve-repo.sh"
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_ROOT=$(cd "$(mktemp -d "$TMP_ROOT/resolve-repo-test.XXXXXX")" && pwd)
-PASSED=0
-FAILED=0
-
-cleanup() {
-  case "$TEST_ROOT" in
-    "$TMP_ROOT"/resolve-repo-test.*) rm -rf "$TEST_ROOT" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_ROOT" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+harness_init resolve-repo
 
 assert_eq() {
   local name="$1" want="$2" got="$3"
@@ -147,6 +135,4 @@ else
   fail "pre-push-gate skips a project with no manifest"
 fi
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

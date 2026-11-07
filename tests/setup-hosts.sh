@@ -5,29 +5,11 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 SETUP="$PROJECT_DIR/scripts/setup-hosts.sh"
 WRAPPER="$PROJECT_DIR/scripts/setup-symlinks.sh"
-TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/setup-hosts-test.XXXXXX")
-PASSED=0
-FAILED=0
-
-cleanup() {
-  case "$TEST_ROOT" in
-    "${TMPDIR:-/tmp}"/setup-hosts-test.*) rm -rf "$TEST_ROOT" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_ROOT" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() {
-  PASSED=$((PASSED + 1))
-  echo "ok - $1"
-}
-
-fail() {
-  FAILED=$((FAILED + 1))
-  echo "not ok - $1" >&2
-}
+harness_init setup-hosts
 
 assert_success() {
   NAME="$1"
@@ -487,6 +469,4 @@ assert_true "relocated scope file skips codex" test ! -e "$TEST_HOME/.codex"
 assert_true "relocated scope file skips pi" test ! -e "$TEST_HOME/.pi"
 assert_true "relocated scope file still links claude" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$TEST_REPO/AGENTS.md"
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

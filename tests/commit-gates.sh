@@ -9,15 +9,12 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 CONVENTIONAL="$PROJECT_DIR/hooks/pre-commit-conventional-gate.sh"
 PROSE="$PROJECT_DIR/hooks/prose-gate.sh"
 # Assembled so this file never carries the literal phrase the hooks trigger on.
 GIT_COMMIT="git ""commit"
-PASSED=0
-FAILED=0
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
 
 payload() {
   COMMAND="$1" python3 -c 'import json,os,sys; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]}}))'
@@ -78,6 +75,4 @@ fix(x): a fine subject
 This body will utilize a blocked word.
 MSG" 2
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

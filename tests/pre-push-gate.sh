@@ -14,21 +14,9 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_ROOT=$(cd "$(mktemp -d "$TMP_ROOT/pre-push-gate-test.XXXXXX")" && pwd)
-PASSED=0
-FAILED=0
-
-cleanup() {
-  case "$TEST_ROOT" in
-    "$TMP_ROOT"/pre-push-gate-test.*) rm -rf "$TEST_ROOT" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_ROOT" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
+harness_init pre-push-gate
 
 # The build passes only when GATE_PROBE carries the template's value.
 make_project() {
@@ -394,6 +382,4 @@ check "Yarn Berry audits every workspace and transitive dep" \
 STUB_VERSION=4.5.0 STUB_AUDIT_EXIT=1 run_pm_gate "$REPO"
 check "a failing Yarn Berry audit blocks" exited 2
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

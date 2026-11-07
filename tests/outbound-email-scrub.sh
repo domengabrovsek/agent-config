@@ -5,12 +5,9 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 HOOK="$PROJECT_DIR/hooks/pre-outbound-email-scrub.sh"
-PASSED=0
-FAILED=0
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
 
 # payload <tool> <field> <value>
 payload() {
@@ -192,5 +189,4 @@ for host in codex pi; do
 done
 
 echo
-echo "passed: $PASSED   failed: $FAILED"
-[ "$FAILED" -eq 0 ]
+finish

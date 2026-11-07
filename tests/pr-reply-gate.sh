@@ -6,20 +6,11 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 GATE="$PROJECT_DIR/hooks/pre-pr-reply-gate.sh"
-PASSED=0
-FAILED=0
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/pr-reply-gate-test.XXXXXX")" && pwd)
-
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/pr-reply-gate-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
+harness_init pr-reply-gate TEST_DIR
 
 mkdir -p "$TEST_DIR/bin"
 cat > "$TEST_DIR/bin/gh" <<'STUB'
@@ -33,9 +24,6 @@ esac
 STUB
 chmod +x "$TEST_DIR/bin/gh"
 export PATH="$TEST_DIR/bin:$PATH"
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
 
 payload() {
   COMMAND="$1" CWD="$TEST_DIR" python3 -c 'import json,os; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]},"cwd":os.environ["CWD"]}))'
@@ -150,5 +138,4 @@ assert_gate "a release body passes" \
   "$GH_API repos/acme/app/releases -f tag_name=v1 -f body=\"Notes.\"" 0
 
 echo
-echo "$PASSED passed, $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

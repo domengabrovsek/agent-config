@@ -8,22 +8,10 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_ROOT=$(cd "$(mktemp -d "$TMP_ROOT/post-edit-hooks-test.XXXXXX")" && pwd)
-PASSED=0
-FAILED=0
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
+harness_init post-edit-hooks
 EM=$'\xe2\x80\x94'
-
-cleanup() {
-  case "$TEST_ROOT" in
-    "$TMP_ROOT"/post-edit-hooks-test.*) rm -rf "$TEST_ROOT" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_ROOT" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
 
 run_hook() {
   printf '{"tool_input":{"file_path":"%s"}}' "$2" \
@@ -175,6 +163,4 @@ if grep -qxF -- "npx prettier --write $PPKG/src/d.ts" "$STUB_LOG"; then
   pass "a workspace package uses the root package.json prettier key"
 else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a workspace package uses the root package.json prettier key"; fi
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

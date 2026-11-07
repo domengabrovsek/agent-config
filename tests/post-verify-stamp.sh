@@ -9,22 +9,10 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 HOOK="$PROJECT_DIR/hooks/post-verify-stamp.sh"
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_ROOT=$(cd "$(mktemp -d "$TMP_ROOT/post-verify-stamp-test.XXXXXX")" && pwd)
-PASSED=0
-FAILED=0
-
-cleanup() {
-  case "$TEST_ROOT" in
-    "$TMP_ROOT"/post-verify-stamp-test.*) rm -rf "$TEST_ROOT" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_ROOT" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+harness_init post-verify-stamp
 
 # make_repo <dir> <scripts-json>
 make_repo() {
@@ -114,6 +102,4 @@ echo '{"cwd":"'"$REPO"'","tool_input":{"command":"npm run verify"}}' \
   | (cd "$TEST_ROOT" && SKIP_VERIFY_STAMP=1 bash "$HOOK") > /dev/null
 if [ -e "$(stamp_file "$REPO")" ]; then fail "the bypass writes nothing"; else pass "the bypass writes nothing"; fi
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

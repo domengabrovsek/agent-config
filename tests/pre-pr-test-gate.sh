@@ -9,25 +9,13 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 HOOK="$PROJECT_DIR/hooks/pre-pr-test-gate.sh"
 # Assembled so this file never carries the literal phrases the hooks trigger on.
 GH_CREATE="gh ""pr create"
 GH_READY="gh ""pr ready"
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_ROOT=$(cd "$(mktemp -d "$TMP_ROOT/pre-pr-test-gate-test.XXXXXX")" && pwd)
-PASSED=0
-FAILED=0
-
-cleanup() {
-  case "$TEST_ROOT" in
-    "$TMP_ROOT"/pre-pr-test-gate-test.*) rm -rf "$TEST_ROOT" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_ROOT" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+harness_init pre-pr-test-gate
 
 # The verify and test scripts both fail, so a pass proves the hook ran neither.
 make_repo() {
@@ -100,6 +88,4 @@ echo "== fallback without verify =="
 assert_gate "a repo without verify runs npm test" "$HUB" "$GH_CREATE $TITLE" 0 "All tests passed"
 assert_gate "an unrelated command is skipped" "$REPO" "npm test" 0
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish
