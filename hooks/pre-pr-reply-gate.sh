@@ -36,7 +36,10 @@ case "$COMMAND" in
 esac
 
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
+# The body is free text, so a `git -C <dir>` inside it must not pick the repo.
+REPO_CMD=${COMMAND%%body=*}
+for flag in --body -b -F; do REPO_CMD=${REPO_CMD%%[[:space:]]"$flag"[[:space:]=]*}; done
+DIR=$(resolve_repo_dir "$REPO_CMD" "$CWD")
 
 if [ "$KIND" = api ]; then
   PARENT=$(printf '%s\n' "$COMMAND" \
