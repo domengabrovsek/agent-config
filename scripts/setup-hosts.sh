@@ -110,6 +110,28 @@ if [ ! -d "$REPO" ]; then
 fi
 REPO=$(cd "$REPO" && pwd)
 
+# Hosts keep their links for good, while worktree cleanup deletes worktrees,
+# so a link must never point into a linked worktree. The script's own checkout
+# resolves to its main checkout; an explicit override naming a worktree is a
+# mistake worth stopping on.
+REPO_COMMON=$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+REPO_GITDIR=$(git -C "$REPO" rev-parse --path-format=absolute --git-dir 2>/dev/null)
+REPO_TOP=$(cd "$REPO" && git rev-parse --show-toplevel 2>/dev/null)
+if [ -n "$REPO_COMMON" ] && [ "$REPO_COMMON" != "$REPO_GITDIR" ] \
+  && [ "$(cd "$REPO_TOP" 2>/dev/null && pwd -P)" = "$(cd "$REPO" && pwd -P)" ]; then
+  MAIN_CHECKOUT=$(dirname "$REPO_COMMON")
+  if [ -n "${AGENT_CONFIG_REPO:-}${CLAUDE_DOTFILES_REPO:-}" ]; then
+    echo "Refusing to link hosts to the worktree $REPO." >&2
+    echo "Worktree cleanup deletes it later. Point AGENT_CONFIG_REPO at the main checkout: $MAIN_CHECKOUT" >&2
+    exit 1
+  fi
+  if [ "$(basename "$REPO_COMMON")" != ".git" ] || [ ! -d "$MAIN_CHECKOUT" ]; then
+    echo "Refusing to link hosts to the worktree $REPO: its repo has no main checkout." >&2
+    exit 1
+  fi
+  REPO=$(cd "$MAIN_CHECKOUT" && pwd)
+fi
+
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 SHARED_DIR="$HOME/.agents"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
