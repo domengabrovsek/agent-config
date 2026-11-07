@@ -47,5 +47,4 @@ assert_gate "an implementer may edit source code" "$TEST_DIR/wt/src/date.ts" "Ba
 assert_gate "a new untracked file is not locked" "$TEST_DIR/wt/src/new.test.ts" "Backend Staff Engineer" 0
 assert_gate "a branch with no lock is not gated" "$REPO/src/date.test.ts" "Backend Staff Engineer" 0
 
-echo
 finish

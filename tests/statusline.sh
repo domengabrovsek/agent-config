@@ -41,5 +41,4 @@ assert_contains "omits the effort when it is absent" "$out" "Haiku 4.5 │"
 out=$(render "{\"cwd\":\"$TEST_DIR\"}")
 assert_lacks "omits the model block when no model is sent" "$out" "null"
 
-echo
 finish

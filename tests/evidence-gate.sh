@@ -194,5 +194,4 @@ branch: feat/bold
 SPEC
 assert_gate "a spec with only manual criteria passes" "$REPO" 0
 
-echo
 finish

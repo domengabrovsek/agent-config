@@ -168,5 +168,4 @@ assert_hook "help stays silent" "$GH_CREATE --help" "$URL" ""
 OUT=$(SKIP_PR_WATCH=1 bash "$HOOK" <<< '{"tool_input":{"command":"gh pr create"}}')
 if [ -z "$OUT" ]; then pass "SKIP_PR_WATCH bypasses"; else fail "SKIP_PR_WATCH bypasses"; fi
 
-echo
 finish

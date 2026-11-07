@@ -137,5 +137,4 @@ assert_gate "a PR body edit through gh api passes" \
 assert_gate "a release body passes" \
   "$GH_API repos/acme/app/releases -f tag_name=v1 -f body=\"Notes.\"" 0
 
-echo
 finish
