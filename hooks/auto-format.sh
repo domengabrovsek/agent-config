@@ -5,6 +5,8 @@
 
 # shellcheck source=lib/find-up.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/find-up.sh"
+# shellcheck source=lib/package-json.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 
 FILE=$(jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
@@ -12,25 +14,13 @@ FILE=$(jq -r '.tool_input.file_path // empty' 2>/dev/null)
 [ -z "$FILE" ] && exit 0
 [ -f "$FILE" ] || exit 0
 
-# Skip binary files
+# Skip binary files, and lockfiles, which are text but generated.
 file "$FILE" 2>/dev/null | grep -q "text" || exit 0
-
-# Skip files that formatters don't handle
 case "$FILE" in
-  *.png|*.jpg|*.gif|*.ico|*.woff|*.woff2|*.ttf|*.eot|*.lock) exit 0 ;;
+  *.lock) exit 0 ;;
 esac
 
-# Find project root (look for package.json)
-DIR=$(dirname "$FILE")
-PROJECT_ROOT=""
-while [ "$DIR" != "/" ]; do
-  [ -f "$DIR/package.json" ] && PROJECT_ROOT="$DIR" && break
-  DIR=$(dirname "$DIR")
-done
-
-# No project root found, skip
-[ -z "$PROJECT_ROOT" ] && exit 0
-
+PROJECT_ROOT=$(package_root "$(dirname "$FILE")") || exit 0
 cd "$PROJECT_ROOT" || exit 0
 
 # hooks/post-edit-typecheck.sh runs `biome check --write` on the same file.

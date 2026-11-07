@@ -19,6 +19,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/find-up.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/find-up.sh"
+# shellcheck source=lib/package-json.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
@@ -56,7 +58,7 @@ PACKAGE=$(find_up "$DIR" package.json) || exit 0
 DIR=$(dirname "$PACKAGE")
 cd "$DIR" || exit 0
 
-node -e "process.exit(require('./package.json').scripts?.verify ? 0 : 1)" 2>/dev/null || exit 0
+has_script verify || exit 0
 
 GIT_DIR=$(git rev-parse --path-format=absolute --git-dir 2>/dev/null) || exit 0
 HEAD_SHA=$(git rev-parse HEAD 2>/dev/null) || exit 0

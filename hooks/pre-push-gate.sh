@@ -11,6 +11,8 @@
 
 # shellcheck source=lib/resolve-repo.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+# shellcheck source=lib/package-json.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 
 # detect_package_manager <dir>
 # The packageManager field, then the lockfile, walking up to the git top level
@@ -202,9 +204,6 @@ if [ "$PROJECT_TYPE" = "node" ]; then
     yarn) RUN="yarn run" ;;
     *) RUN="$PM --silent run" ;;
   esac
-  has_script() {
-    node -e "const p=require('./package.json'); process.exit(p.scripts?.['$1'] ? 0 : 1)" 2>/dev/null
-  }
   # A repo that declares its fast gate owns the push checks.
   if has_script "verify:fast"; then
     run_step "verify:fast" "$PM run verify:fast"

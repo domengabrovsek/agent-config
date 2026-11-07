@@ -17,6 +17,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/pr-body.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
+# shellcheck source=lib/package-json.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
@@ -48,20 +50,9 @@ fi
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
 
-PROJECT_ROOT=""
-while [ "$DIR" != "/" ] && [ -n "$DIR" ]; do
-  [ -f "$DIR/package.json" ] && PROJECT_ROOT="$DIR" && break
-  DIR=$(dirname "$DIR")
-done
-
 # No package.json - skip (not a JS/TS project)
-[ -z "$PROJECT_ROOT" ] && exit 0
-
+PROJECT_ROOT=$(package_root "$DIR") || exit 0
 cd "$PROJECT_ROOT" || exit 0
-
-has_script() {
-  node -e "const p=require('./package.json'); process.exit(p.scripts?.['$1'] ? 0 : 1)" 2>/dev/null
-}
 
 if has_script verify; then
   if [ "$ACTION" = create ]; then
