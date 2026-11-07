@@ -449,16 +449,17 @@
     "command": "~/.claude/statusline.sh"
   },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true
+    "frontend-design@claude-plugins-official": true,
+    "figma@claude-plugins-official": true
   },
   "outputStyle": "Concise",
+  "subagentPromptCacheTtl": "1h",
   "effortLevel": "xhigh",
   "modelSettings": {
     "claude-opus-5-5": {
       "effortLevel": "medium"
     }
   },
-  "subagentPromptCacheTtl": "1h",
   "askUserQuestionTimeout": "never",
   "autoUpdatesChannel": "latest",
   "minimumVersion": "2.1.92",
