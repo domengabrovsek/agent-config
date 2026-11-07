@@ -1,6 +1,6 @@
 # Hooks and the deny list
 
-`settings.json` holds one hook registry and one deny list for every host. Claude Code runs the registry itself; Codex and Pi run the same scripts through `hooks/lib/dispatch.sh`. A hook that exits 2 blocks the tool call, and its message goes back to the model.
+`settings.json` holds one hook registry and one deny list for every host. Claude Code runs the registry itself; Codex and Pi run the same scripts through `hooks/lib/dispatch.sh`. A hook that exits 2 blocks the tool call, and its message goes back to the model. A Bash hook registered under several `if` rules, before or after the call, runs once per tool call, because `hooks/lib/once.sh` lets only the first matching run do the work.
 
 ## Why hooks
 
@@ -43,7 +43,7 @@ Exit codes decide the outcome:
 | Codex | `~/.codex/hooks.json` calls `dispatch.sh` | `SessionStart` and `SessionEnd` through `dispatch.sh`; no `Notification` | `deny-gate.sh`, including the `Bash` rules |
 | Pi | The `hook-bridge` extension calls `dispatch.sh` for `bash`, `edit`, and `write` | Extensions instead: `drift-check` at start, `worktree-cleanup` at shutdown | The `permission-gate` extension derives a policy for the pinned `pi-permission-system` package; `deny-gate.sh` runs through the bridge |
 
-`dispatch.sh` makes one registry serve three hosts. It reads `settings.json` from the checkout on every call, so a registry edit reaches Codex and Pi at once. It maps each host's tool names to Claude Code's, so Codex shell tools become `Bash` and each file in an `apply_patch` becomes an `Edit`. It runs the matching hooks in registry order, stops at the first exit 2, and merges the context the others print.
+`dispatch.sh` makes one registry serve three hosts. It reads `settings.json` from the checkout on every call, so a registry edit reaches Codex and Pi at once. It maps each host's tool names to Claude Code's, so Codex shell tools become `Bash` and each file in an `apply_patch` becomes an `Edit`. It runs the matching hooks in registry order, stops at the first exit 2, and merges the context the others print. A command that several matching rules name runs once per call.
 
 ## PreToolUse hooks
 
@@ -136,6 +136,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `commit-msg.sh` | The conventional-commit and prose gates | Extracts the message from a `git commit` command and spots a reused one |
 | `context.sh` | The verify stamp, PR watch, and PR state hooks | Prints the JSON that adds text to the model's context |
 | `state-roots.sh` | The test lock and the evidence gate | Finds `.claude/state/` in a worktree, then in the main checkout |
+| `once.sh` | The Bash hooks registered under several `if` rules | Lets only the first run on a tool call do the work, keyed by `tool_use_id` |
 
 ## Where each hook is tested
 
