@@ -62,77 +62,49 @@ assert_eq "the default subcommand matches any git verb" \
 echo
 echo "== hooks resolve the repo from the payload, not their own cwd =="
 
-git -C "$REPO" init -q
-git -C "$REPO" config user.email test@example.com
-git -C "$REPO" config user.name Test
 : > "$REPO/file"
-git -C "$REPO" add file
-git -C "$REPO" commit -q -m "chore: seed"
+make_repo "$REPO"
 git -C "$REPO" checkout -q -b feature/branch
 
 # Run every hook from a directory that is not a repo, with no project dir,
-# exactly as the harness does.
+# exactly as the harness does. Sets OUT and STATUS.
 run_hook() {
-  local hook="$1" command="$2"
-  printf '{"cwd":"%s","tool_input":{"command":"%s"}}' "$REPO" "$command" \
-    | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" bash "$PROJECT_DIR/hooks/$hook" 2>&1)
+  OUT=$(payload "$2" "$REPO" | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" bash "$PROJECT_DIR/hooks/$1" 2>&1))
+  STATUS=$?
 }
+diagnose() { echo "    exit $STATUS, got: $OUT"; }
 
-OUT=$(run_hook pre-git-state-refresh.sh "git push origin feature/branch")
-case "$OUT" in
-  *"not-a-repo"*) fail "pre-git-state-refresh finds the repo (got not-a-repo)" ;;
-  *"branch=feature/branch"*) pass "pre-git-state-refresh finds the repo and branch" ;;
-  *) echo "    got: $OUT" >&2; fail "pre-git-state-refresh finds the repo and branch" ;;
-esac
+run_hook pre-git-state-refresh.sh "git push origin feature/branch"
+check "pre-git-state-refresh finds the repo and branch" omits "not-a-repo" says "branch=feature/branch"
 
 # gh reads the branch from its cwd, so this stub answers only when it runs in
 # the payload repo. Run anywhere else, the probe reports the wrong PR state.
 BIN="$TEST_ROOT/bin"
-mkdir -p "$BIN"
-cat > "$BIN/gh" <<'STUB'
+stub "$BIN" gh <<'STUB'
 #!/bin/bash
 [ "$(pwd -P)" = "$GH_STUB_DIR" ] || exit 1
 echo '{"state":"MERGED","mergedAt":"2026-01-01T00:00:00Z","url":"https://example.test/pull/1"}'
 STUB
-chmod +x "$BIN/gh"
 git init -q --bare "$TEST_ROOT/origin.git"
 git -C "$REPO" remote add origin "$TEST_ROOT/origin.git"
-OUT=$(GH_STUB_DIR=$(cd "$REPO" && pwd -P) PATH="$BIN:$PATH" \
-  run_hook pre-git-state-refresh.sh "git push origin feature/branch")
-case "$OUT" in
-  *"state=MERGED"*) pass "pre-git-state-refresh asks gh about the payload repo's branch" ;;
-  *) echo "    got: $OUT" >&2; fail "pre-git-state-refresh asks gh about the payload repo's branch" ;;
-esac
+GH_STUB_DIR=$(cd "$REPO" && pwd -P) PATH="$BIN:$PATH" \
+  run_hook pre-git-state-refresh.sh "git push origin feature/branch"
+check "pre-git-state-refresh asks gh about the payload repo's branch" says "state=MERGED"
 
 # The branch gate must see the payload repo's branch, not the caller's.
 git -C "$REPO" checkout -q -B main
-OUT=$(run_hook pre-commit-branch-gate.sh "git commit -m 'feat: x'")
-STATUS=$?
-if [ "$STATUS" -eq 2 ] || printf '%s' "$OUT" | grep -q "Refusing to commit directly to 'main'"; then
-  pass "pre-commit-branch-gate blocks main in the payload repo"
-else
-  echo "    got: $OUT" >&2
-  fail "pre-commit-branch-gate blocks main in the payload repo"
-fi
+run_hook pre-commit-branch-gate.sh "git commit -m 'feat: x'"
+check "pre-commit-branch-gate blocks main in the payload repo" \
+  exited 2 says "Refusing to commit directly to 'main'"
 
 git -C "$REPO" checkout -q -b feature/other
-OUT=$(run_hook pre-commit-branch-gate.sh "git commit -m 'feat: x'")
-if [ -z "$OUT" ]; then
-  pass "pre-commit-branch-gate allows a feature branch"
-else
-  echo "    got: $OUT" >&2
-  fail "pre-commit-branch-gate allows a feature branch"
-fi
+run_hook pre-commit-branch-gate.sh "git commit -m 'feat: x'"
+check "pre-commit-branch-gate allows a feature branch" [ -z "$OUT" ]
 
 # The push gate walks up from the resolved dir; a repo with no package.json
 # and no *.tf is skipped silently, which proves it resolved somewhere real
 # rather than walking up from the hook's own cwd.
-OUT=$(run_hook pre-push-gate.sh "git push origin feature/other")
-if [ -z "$OUT" ]; then
-  pass "pre-push-gate skips a project with no manifest"
-else
-  echo "    got: $OUT" >&2
-  fail "pre-push-gate skips a project with no manifest"
-fi
+run_hook pre-push-gate.sh "git push origin feature/other"
+check "pre-push-gate skips a project with no manifest" [ -z "$OUT" ]
 
 finish

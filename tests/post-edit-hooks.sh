@@ -12,21 +12,29 @@ PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 . "$PROJECT_DIR/tests/lib/harness.sh"
 harness_init post-edit-hooks
 EM=$'\xe2\x80\x94'
+STUB_LOG="$TEST_ROOT/stub.log"
+export STUB_LOG
 
+# run_hook <hook> <file>: sets OUT and STATUS, and starts STUB_LOG empty.
 run_hook() {
-  printf '{"tool_input":{"file_path":"%s"}}' "$2" \
-    | (cd "$TEST_ROOT" && SKIP_POST_EDIT_LINT="" SKIP_POST_EDIT_TYPECHECK="" bash "$PROJECT_DIR/hooks/$1" 2>&1)
+  : > "$STUB_LOG"
+  OUT=$(printf '{"tool_input":{"file_path":"%s"}}' "$2" \
+    | (cd "$TEST_ROOT" && SKIP_POST_EDIT_LINT="" SKIP_POST_EDIT_TYPECHECK="" bash "$PROJECT_DIR/hooks/$1" 2>&1))
+  STATUS=$?
 }
+diagnose() { echo "    exit $STATUS: $OUT"; echo "    calls: $(cat "$STUB_LOG")"; }
+em_on_line() { sed -n "$1p" "$2" | grep -q "$EM"; }
+logged() { grep -qxF -- "$1" "$STUB_LOG"; }
 
 echo "== em-dash autofix =="
 printf 'A %s B\n' "$EM" > "$TEST_ROOT/notes.md"
-run_hook post-edit-lint.sh "$TEST_ROOT/notes.md" >/dev/null
-if grep -q "$EM" "$TEST_ROOT/notes.md"; then fail "a prose file is rewritten whole"; else pass "a prose file is rewritten whole"; fi
+run_hook post-edit-lint.sh "$TEST_ROOT/notes.md"
+check "a prose file is rewritten whole" not grep -q "$EM" "$TEST_ROOT/notes.md"
 
 printf '/* a %s b */\nexpect(x).toBe("a %s b");\n' "$EM" "$EM" > "$TEST_ROOT/spec.ts"
-run_hook post-edit-lint.sh "$TEST_ROOT/spec.ts" >/dev/null
-if head -1 "$TEST_ROOT/spec.ts" | grep -q "$EM"; then fail "a comment line in code is rewritten"; else pass "a comment line in code is rewritten"; fi
-if sed -n 2p "$TEST_ROOT/spec.ts" | grep -q "$EM"; then pass "a string literal in code keeps its em dash"; else fail "a string literal in code keeps its em dash"; fi
+run_hook post-edit-lint.sh "$TEST_ROOT/spec.ts"
+check "a comment line in code is rewritten" not em_on_line 1 "$TEST_ROOT/spec.ts"
+check "a string literal in code keeps its em dash" em_on_line 2 "$TEST_ROOT/spec.ts"
 
 echo
 echo "== post-edit check =="
@@ -36,64 +44,49 @@ cat > "$PROJ/package.json" <<'JSON'
 { "name": "probe", "private": true, "scripts": { "typecheck": "exit 1", "lint:fix": "exit 1", "lint": "exit 1" } }
 JSON
 printf 'export const a = 1;\n' > "$PROJ/src/a.ts"
-OUT=$(run_hook post-edit-typecheck.sh "$PROJ/src/a.ts"); STATUS=$?
-if [ "$STATUS" -eq 0 ]; then pass "a project without biome runs no project-wide script"; else
-  echo "    exit $STATUS: $OUT" >&2; fail "a project without biome runs no project-wide script"; fi
+run_hook post-edit-typecheck.sh "$PROJ/src/a.ts"
+check "a project without biome runs no project-wide script" exited 0
 
 echo '{}' > "$PROJ/biome.json"
-OUT=$(run_hook post-edit-typecheck.sh "$PROJ/src/a.ts"); STATUS=$?
-if [ "$STATUS" -eq 0 ]; then pass "a biome project without a local biome is skipped"; else
-  echo "    exit $STATUS: $OUT" >&2; fail "a biome project without a local biome is skipped"; fi
+run_hook post-edit-typecheck.sh "$PROJ/src/a.ts"
+check "a biome project without a local biome is skipped" exited 0
 
 echo
 echo "== monorepo biome config =="
 
 # A workspace keeps the Biome config and binary at its root, while a package
 # that lists prettier has its own prettier. The stubs log every call.
-STUB_LOG="$TEST_ROOT/stub.log"
-export STUB_LOG
 BIN="$TEST_ROOT/bin"
-mkdir -p "$BIN"
-cat > "$BIN/npx" <<'STUB'
+stub "$BIN" npx <<'STUB'
 #!/bin/bash
 echo "npx $*" >> "$STUB_LOG"
 STUB
-chmod +x "$BIN/npx"
 
 MONO="$TEST_ROOT/mono"
 PKG="$MONO/packages/app"
-mkdir -p "$MONO/node_modules/.bin" "$PKG/src" "$PKG/node_modules/.bin"
+mkdir -p "$PKG/src" "$PKG/node_modules/.bin"
 git -C "$MONO" init -q
 echo '{}' > "$MONO/biome.json"
 echo '{ "name": "mono", "private": true }' > "$MONO/package.json"
 echo '{ "name": "app", "private": true }' > "$PKG/package.json"
-cat > "$MONO/node_modules/.bin/biome" <<'STUB'
+stub "$MONO/node_modules/.bin" biome <<'STUB'
 #!/bin/bash
 echo "biome $*" >> "$STUB_LOG"
 STUB
-chmod +x "$MONO/node_modules/.bin/biome"
 : > "$PKG/node_modules/.bin/prettier"
 printf 'export const a = 1;\n' > "$PKG/src/a.ts"
 
-: > "$STUB_LOG"
-PATH="$BIN:$PATH" run_hook auto-format.sh "$PKG/src/a.ts" >/dev/null
-if grep -q prettier "$STUB_LOG"; then
-  echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a package under a root biome config skips prettier"
-else pass "a package under a root biome config skips prettier"; fi
+PATH="$BIN:$PATH" run_hook auto-format.sh "$PKG/src/a.ts"
+check "a package under a root biome config skips prettier" not grep -q prettier "$STUB_LOG"
 
 # A relative file path gives a relative project root, and the hook has already
 # cd'd into it by the time it looks for the config.
-: > "$STUB_LOG"
-PATH="$BIN:$PATH" run_hook auto-format.sh "mono/packages/app/src/a.ts" >/dev/null
-if grep -q prettier "$STUB_LOG"; then
-  echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a relative path under a root biome config skips prettier"
-else pass "a relative path under a root biome config skips prettier"; fi
+PATH="$BIN:$PATH" run_hook auto-format.sh "mono/packages/app/src/a.ts"
+check "a relative path under a root biome config skips prettier" not grep -q prettier "$STUB_LOG"
 
-: > "$STUB_LOG"
-run_hook post-edit-typecheck.sh "$PKG/src/a.ts" >/dev/null
-if grep -qxF -- "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true $PKG/src/a.ts" "$STUB_LOG"; then
-  pass "a package under a root biome config is checked with the root's biome"
-else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a package under a root biome config is checked with the root's biome"; fi
+run_hook post-edit-typecheck.sh "$PKG/src/a.ts"
+check "a package under a root biome config is checked with the root's biome" \
+  logged "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true $PKG/src/a.ts"
 
 # A config above the git top level belongs to some other project.
 OUTSIDE="$TEST_ROOT/outside"
@@ -104,11 +97,8 @@ echo '{}' > "$OUTSIDE/biome.json"
 echo '{ "name": "inner", "private": true }' > "$INNER/package.json"
 cp "$MONO/node_modules/.bin/biome" "$INNER/node_modules/.bin/biome"
 printf 'export const b = 2;\n' > "$INNER/src/b.ts"
-: > "$STUB_LOG"
-run_hook post-edit-typecheck.sh "$INNER/src/b.ts" >/dev/null
-if [ -s "$STUB_LOG" ]; then
-  echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a biome config above the repo is ignored"
-else pass "a biome config above the repo is ignored"; fi
+run_hook post-edit-typecheck.sh "$INNER/src/b.ts"
+check "a biome config above the repo is ignored" not test -s "$STUB_LOG"
 
 echo
 echo "== prettier config =="
@@ -119,26 +109,17 @@ mkdir -p "$STYLED/src" "$STYLED/node_modules/.bin"
 echo '{ "name": "styled", "private": true }' > "$STYLED/package.json"
 : > "$STYLED/node_modules/.bin/prettier"
 printf 'export const c = 3;\n' > "$STYLED/src/c.ts"
-: > "$STUB_LOG"
-PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts" >/dev/null
-if [ -s "$STUB_LOG" ]; then
-  echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a repo without a prettier config is not formatted"
-else pass "a repo without a prettier config is not formatted"; fi
+PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts"
+check "a repo without a prettier config is not formatted" not test -s "$STUB_LOG"
 
 echo '{ "name": "styled", "private": true, "prettier": {} }' > "$STYLED/package.json"
-: > "$STUB_LOG"
-PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts" >/dev/null
-if grep -qxF -- "npx prettier --write $STYLED/src/c.ts" "$STUB_LOG"; then
-  pass "a prettier key in package.json formats the file"
-else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a prettier key in package.json formats the file"; fi
+PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts"
+check "a prettier key in package.json formats the file" logged "npx prettier --write $STYLED/src/c.ts"
 
 echo '{ "name": "styled", "private": true }' > "$STYLED/package.json"
 echo '{}' > "$STYLED/.prettierrc.cjs"
-: > "$STUB_LOG"
-PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts" >/dev/null
-if grep -qxF -- "npx prettier --write $STYLED/src/c.ts" "$STUB_LOG"; then
-  pass "a .prettierrc.cjs config formats the file"
-else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a .prettierrc.cjs config formats the file"; fi
+PATH="$BIN:$PATH" run_hook auto-format.sh "$STYLED/src/c.ts"
+check "a .prettierrc.cjs config formats the file" logged "npx prettier --write $STYLED/src/c.ts"
 
 # A workspace package inherits the Prettier config at the monorepo root.
 PMONO="$TEST_ROOT/pmono"
@@ -149,18 +130,12 @@ echo '{ "name": "pmono", "private": true }' > "$PMONO/package.json"
 echo '{}' > "$PMONO/.prettierrc"
 echo '{ "name": "app", "private": true }' > "$PPKG/package.json"
 printf 'export const d = 4;\n' > "$PPKG/src/d.ts"
-: > "$STUB_LOG"
-PATH="$BIN:$PATH" run_hook auto-format.sh "$PPKG/src/d.ts" >/dev/null
-if grep -qxF -- "npx prettier --write $PPKG/src/d.ts" "$STUB_LOG"; then
-  pass "a workspace package uses the root prettier config"
-else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a workspace package uses the root prettier config"; fi
+PATH="$BIN:$PATH" run_hook auto-format.sh "$PPKG/src/d.ts"
+check "a workspace package uses the root prettier config" logged "npx prettier --write $PPKG/src/d.ts"
 
 rm "$PMONO/.prettierrc"
 echo '{ "name": "pmono", "private": true, "prettier": {} }' > "$PMONO/package.json"
-: > "$STUB_LOG"
-PATH="$BIN:$PATH" run_hook auto-format.sh "$PPKG/src/d.ts" >/dev/null
-if grep -qxF -- "npx prettier --write $PPKG/src/d.ts" "$STUB_LOG"; then
-  pass "a workspace package uses the root package.json prettier key"
-else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a workspace package uses the root package.json prettier key"; fi
+PATH="$BIN:$PATH" run_hook auto-format.sh "$PPKG/src/d.ts"
+check "a workspace package uses the root package.json prettier key" logged "npx prettier --write $PPKG/src/d.ts"
 
 finish

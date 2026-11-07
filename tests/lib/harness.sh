@@ -47,6 +47,8 @@ check() {
   fi
 }
 
+not() { ! "$@"; }
+
 # contains|lacks <name> <haystack> <needle>
 contains() { case "$2" in *"$3"*) pass "$1" ;; *) echo "    output: $2" >&2; fail "$1" ;; esac; }
 lacks() { case "$2" in *"$3"*) echo "    output: $2" >&2; fail "$1" ;; *) pass "$1" ;; esac; }

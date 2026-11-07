@@ -9,16 +9,16 @@ PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 . "$PROJECT_DIR/tests/lib/harness.sh"
 HOOK="$PROJECT_DIR/hooks/pre-outbound-email-scrub.sh"
 
-# payload <tool> <field> <value>
-payload() {
+# tool_payload <tool> <field> <value>
+tool_payload() {
   TOOL="$1" FIELD="$2" VALUE="$3" python3 -c 'import json,os; print(json.dumps({"tool_name":os.environ["TOOL"],"tool_input":{os.environ["FIELD"]:os.environ["VALUE"],"description":"kept"}}))'
 }
 
-# run_hook <tool> <field> <value>: sets OUT and CODE. Runs as Claude Code
+# run_hook <tool> <field> <value>: sets OUT and STATUS. Runs as Claude Code
 # unless the caller exports AGENT_HOOK_HOST.
 run_hook() {
-  OUT=$(payload "$1" "$2" "$3" | bash "$HOOK" 2>/dev/null)
-  CODE=$?
+  OUT=$(tool_payload "$1" "$2" "$3" | bash "$HOOK" 2>/dev/null)
+  STATUS=$?
 }
 
 # assert_scrubbed <name> <tool> <field> <value> <expected-value>
@@ -26,11 +26,11 @@ assert_scrubbed() {
   local name="$1" got
   run_hook "$2" "$3" "$4"
   got=$(printf '%s' "$OUT" | jq -r --arg f "$3" '.hookSpecificOutput.updatedInput[$f] // empty' 2>/dev/null)
-  if [ "$CODE" -eq 0 ] && [ "$got" = "$5" ] \
+  if [ "$STATUS" -eq 0 ] && [ "$got" = "$5" ] \
     && [ "$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.updatedInput.description')" = "kept" ]; then
     pass "$name"
   else
-    echo "    exit $CODE, got: $got" >&2
+    echo "    exit $STATUS, got: $got" >&2
     fail "$name"
   fi
 }
@@ -38,11 +38,9 @@ assert_scrubbed() {
 # assert_untouched <name> <tool> <field> <value>
 assert_untouched() {
   run_hook "$2" "$3" "$4"
-  if [ "$CODE" -eq 0 ] && [ -z "$OUT" ]; then pass "$1"; else
-    echo "    exit $CODE, output: $OUT" >&2
-    fail "$1"
-  fi
+  check "$1" exited 0 [ -z "$OUT" ]
 }
+diagnose() { echo "    exit $STATUS, output: $OUT"; }
 
 echo "== scrubs on Claude Code =="
 unset AGENT_HOOK_HOST
@@ -177,16 +175,12 @@ assert_untouched "a tool outside the matcher" Write file_path "/tmp/jane@corp.te
 
 echo "== bypass =="
 SKIP_EMAIL_SCRUB=1 run_hook WebFetch url "https://site.test/?c=jane@corp.test"
-if [ "$CODE" -eq 0 ] && [ -z "$OUT" ]; then pass "SKIP_EMAIL_SCRUB=1 skips the scrub"; else fail "SKIP_EMAIL_SCRUB=1 skips the scrub"; fi
+check "SKIP_EMAIL_SCRUB=1 skips the scrub" exited 0 [ -z "$OUT" ]
 
 echo "== blocks where updatedInput is ignored =="
 for host in codex pi; do
   AGENT_HOOK_HOST=$host run_hook Bash command "curl -A 'jane@corp.test' https://site.test"
-  if [ "$CODE" -eq 2 ] && [ -z "$OUT" ]; then pass "$host blocks instead of scrubbing"; else
-    echo "    exit $CODE, output: $OUT" >&2
-    fail "$host blocks instead of scrubbing"
-  fi
+  check "$host blocks instead of scrubbing" exited 2 [ -z "$OUT" ]
 done
 
-echo
 finish
