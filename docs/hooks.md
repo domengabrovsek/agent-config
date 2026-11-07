@@ -132,6 +132,10 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `resolve-repo.sh` | The git and `gh pr` gates, `post-verify-stamp.sh` | Finds the repo a command targets, because a hook runs in its own cwd |
 | `pr-body.sh` | The prose, body, test, and reply gates | Extracts the PR body from a `gh pr` command |
 | `find-up.sh` | `auto-format.sh`, `post-edit-typecheck.sh`, `post-verify-stamp.sh` | Finds the nearest config, `package.json`, or tool binary above a path, for monorepo workspaces |
+| `package-json.sh` | The per-edit hooks, the push, PR test, and verify stamp hooks | Finds the nearest `package.json` and checks for a declared script |
+| `commit-msg.sh` | The conventional-commit and prose gates | Extracts the message from a `git commit` command and spots a reused one |
+| `context.sh` | The verify stamp, PR watch, and PR state hooks | Prints the JSON that adds text to the model's context |
+| `state-roots.sh` | The test lock and the evidence gate | Finds `.claude/state/` in a worktree, then in the main checkout |
 
 ## Where each hook is tested
 

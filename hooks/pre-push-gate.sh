@@ -11,6 +11,8 @@
 
 # shellcheck source=lib/resolve-repo.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+# shellcheck source=lib/package-json.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 
 # detect_package_manager <dir>
 # The packageManager field, then the lockfile, walking up to the git top level
@@ -46,32 +48,22 @@ install_cmd() {
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-# Only gate on `git push` (and not `git push --help`, etc.)
+# Only gate on `git push` (and not `git push --help`, etc.). `git -C <path>
+# push` never contains the literal "git push", so it needs its own match.
 case "$COMMAND" in
   *"git push --help"*|*"git push -h"*) exit 0 ;;
-  *"git push"*|*"git -C "*) ;;
+  *"git push"*) ;;
+  *"git -C "*) printf '%s\n' "$COMMAND" | grep -q 'git -C  *[^ ]*  *push' || exit 0 ;;
   *) exit 0 ;;
 esac
 
 # Honor escape hatch. PreToolUse hooks inherit the Claude Code process env,
 # not the tool command's, so an inline SKIP_PUSH_GATE=1 prefix is only
 # visible in the command string.
-case "$COMMAND" in
-  *"SKIP_PUSH_GATE=1"*)
-    echo "SKIP_PUSH_GATE=1 - bypassing pre-push gate." >&2
-    exit 0 ;;
-esac
-if [ "$SKIP_PUSH_GATE" = "1" ]; then
+if [ "$SKIP_PUSH_GATE" = "1" ] || [[ $COMMAND == *"SKIP_PUSH_GATE=1"* ]]; then
   echo "SKIP_PUSH_GATE=1 - bypassing pre-push gate." >&2
   exit 0
 fi
-
-# `git -C <path> push` never contains the literal "git push", so a command
-# without either is not ours to gate.
-case "$COMMAND" in
-  *"git push"*) ;;
-  *) printf '%s\n' "$COMMAND" | grep -q 'git -C  *[^ ]*  *push' || exit 0 ;;
-esac
 
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
@@ -202,19 +194,15 @@ if [ "$PROJECT_TYPE" = "node" ]; then
     yarn) RUN="yarn run" ;;
     *) RUN="$PM --silent run" ;;
   esac
-  has_script() {
-    node -e "const p=require('./package.json'); process.exit(p.scripts?.['$1'] ? 0 : 1)" 2>/dev/null
-  }
   # A repo that declares its fast gate owns the push checks.
   if has_script "verify:fast"; then
     run_step "verify:fast" "$PM run verify:fast"
     echo "[pre-push-gate] verify:fast passed." >&2
     exit 0
   fi
-  has_script lint && run_step "lint" "CI=true $RUN lint"
-  has_script typecheck && run_step "typecheck" "CI=true $RUN typecheck"
-  has_script knip && run_step "knip" "CI=true $RUN knip"
-  has_script test && run_step "test" "CI=true $RUN test"
+  for step in lint typecheck knip test; do
+    has_script "$step" && run_step "$step" "CI=true $RUN $step"
+  done
   # A checkout with no local env, such as a fresh worktree, builds with the
   # committed template. CI builds with throwaway values the same way. The
   # template stays scoped to the build: test runners read env too.

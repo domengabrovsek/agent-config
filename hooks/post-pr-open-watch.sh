@@ -7,6 +7,9 @@
 
 [ "${SKIP_PR_WATCH:-}" = "1" ] && exit 0
 
+# shellcheck source=lib/context.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
@@ -75,11 +78,5 @@ Never merge. The user merges.
 EOF
 )
 
-jq -n --arg ctx "$CTX" '{
-  continue: true,
-  hookSpecificOutput: {
-    hookEventName: "PostToolUse",
-    additionalContext: $ctx
-  }
-}'
+emit_context PostToolUse "$CTX"
 exit 0
