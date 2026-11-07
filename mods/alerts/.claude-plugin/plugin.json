@@ -1,0 +1,1 @@
+{ "name": "alerts", "version": "0.1.0", "description": "Lists unresolved Sentry issues from the last 24 hours in a pane", "types": "./types/index.d.ts" }
