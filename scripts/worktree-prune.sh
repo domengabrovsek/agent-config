@@ -228,6 +228,7 @@ preserve_state() {
   for rel in "${files[@]}"; do
     [ -e "$main/$rel" ] && continue
     if ! { mkdir -p "$(dirname "$main/$rel")" && cp -p "$wt/$rel" "$main/$rel"; }; then
+      [ "${#COPIED[@]}" -gt 0 ] && rm -f "${COPIED[@]}"
       STATE_CONFLICT="$rel could not be copied to the main checkout"; return 1
     fi
     COPIED+=("$main/$rel")
