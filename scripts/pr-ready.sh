@@ -27,17 +27,16 @@ PR="${1:-}"
 
 # Prints the report and returns its exit code.
 check() {
-  local view url owner repo number threads
+  local view url owner repo number state threads
   # shellcheck disable=SC2086
   view=$(gh pr view $PR --json url,number,state,isDraft,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup 2>/dev/null) || return 2
-  url=$(echo "$view" | jq -r '.url')
-  number=$(echo "$view" | jq -r '.number')
-  owner=$(echo "$url" | cut -d/ -f4)
-  repo=$(echo "$url" | cut -d/ -f5)
+  # The URL is https://<host>/<owner>/<repo>/pull/<number>.
+  IFS=$'\t' read -r url number state owner repo \
+    <<<"$(jq -r '[.url, .number, .state, (.url | split("/")[3, 4])] | @tsv' <<<"$view")"
 
-  case "$(echo "$view" | jq -r '.state')" in
+  case "$state" in
     MERGED|CLOSED)
-      echo "DONE $url state=$(echo "$view" | jq -r '.state')"
+      echo "DONE $url state=$state"
       return 3
       ;;
   esac
