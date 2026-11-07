@@ -5,7 +5,8 @@ How to install this config, scope it per machine, and wire each host. For the bi
 ## How hosts find the config
 
 - Every host shares `AGENTS.md`, `skills/`, `rules/`, `.claude/state/`, the hook registry, and the deny list. Each host wires hooks, permissions, notifications, and teammates its own way.
-- Hosts hold symlinks to this checkout, not copies. An edit is live at once, and moving the checkout breaks every host.
+- Hosts hold symlinks to this checkout, not copies. An edit is live at once, and moving the checkout breaks every host. Run `bash scripts/setup-hosts.sh --apply --adopt` from the new location to relink them, including the Codex `hooks.json`.
+- Each session start checks the links. Claude Code runs `hooks/symlink-check.sh`, which prints the fix command. Pi runs the [`drift-check`](#extensions) extension. Codex shows no warning, as [Codex](#codex) explains.
 - Every host also gets `~/.agents/`, the shared root. A shared skill names `~/.agents/...`, so one path resolves on every host.
 
 ## Requirements
@@ -54,6 +55,15 @@ How to install this config, scope it per machine, and wire each host. For the bi
 
 Claude Code gets `CLAUDE.md` because it reads `AGENTS.md` only at project level.
 
+## Claude Code environment
+
+The `env` block in `settings.json` sets two variables for every Claude Code session:
+
+| Variable | Value | Enables |
+| --- | --- | --- |
+| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Claude Code's experimental agent teams feature, for the teammates that lane and panel mode spawn |
+| `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band` | Loads the [pr-band](../mods/pr-band/README.md) mod from the linked `mods/` dir |
+
 ## Keep runtime state out of commits
 
 Claude Code and Pi write runtime keys into `settings.json`. The two `git config` lines in the [quick start](../README.md#quick-start) install a clean filter that strips them. `.gitattributes` applies the filter to `settings.json` and `pi/settings.json`.
@@ -87,9 +97,10 @@ A machine that skips some default dirs records its scope in the scope file. The 
 
 The Pi `drift-check` extension runs `--check` for every host at each session start. Without the scope file, it reports drift on dirs this machine never adopted.
 
-Two paths assume the default dirs:
+Three paths assume the default dirs:
 
 - The hook commands in `settings.json` fall back to `~/.claude/hooks/...`, and the status line and herdr hook use `~/.claude/` paths only. A machine that uses only `~/.claude-personal` still needs the `~/.claude` links.
+- `CLAUDE_CODE_PLUGIN_DIRS` names only `~/.claude/mods/pr-band`. A machine without the `~/.claude` links loads no mod.
 - `pi/settings.json` loads the hook bridge into subagents from `~/.pi/agent/extensions/`. A machine with only `~/.pi-personal/agent` runs subagents without it.
 
 ## Codex

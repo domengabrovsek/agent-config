@@ -73,7 +73,7 @@ Lightweight helpers; structure is minimal:
 
 ## Hand over a whole feature
 
-`/deliver <goal>` chains skills for a whole feature. You approve the spec, and it runs research, planning, tests-first building, verification, the PR, CI, and bot comments. After the spec it stops only to post a reply to a human reviewer, or before a force-push, merge, push to `main`, production change, data deletion, or change outside the repo. `/plan` also asks about an architectural choice the spec left open, and anything else it cannot resolve goes under **Blocked on me** in its `tasks.md`. It ends when the PR is open, CI is green, and every bot comment has a reply. [Skills](docs/skills.md#how-deliver-runs) shows its flow.
+`/deliver <goal>` chains skills for a whole feature. You approve the spec, and it runs research, planning, tests-first building, verification, the PR, CI, and bot comments. It ends when the PR is open, CI is green, and every bot comment has a reply. [Skills](docs/skills.md#how-deliver-runs) lists when it stops for you and shows its flow.
 
 ## Other intents
 
