@@ -185,6 +185,40 @@ case "$OUT" in
 esac
 
 echo ""
+echo "== merged branch =="
+
+# A stub gh answers `gh pr view` with STUB_PR_STATE, the way -q prints it.
+mkdir -p "$TEST_ROOT/ghbin"
+cat > "$TEST_ROOT/ghbin/gh" <<'STUB'
+#!/bin/sh
+[ -n "$STUB_PR_STATE" ] || exit 1
+echo "$STUB_PR_STATE"
+STUB
+chmod +x "$TEST_ROOT/ghbin/gh"
+
+MERGEDREPO="$TEST_ROOT/mergedrepo"
+make_project "$MERGEDREPO"
+OUT=$(STUB_PR_STATE="MERGED https://github.com/o/r/pull/7" PATH="$TEST_ROOT/ghbin:$PATH" \
+  run_gate_cmd "$MERGEDREPO" "git push origin feature/x"); STATUS=$?
+case "$OUT" in
+  *"already merged in https://github.com/o/r/pull/7"*) [ "$STATUS" -eq 2 ] && pass "a push to a merged branch blocks" \
+    || { echo "    exit $STATUS" >&2; fail "a push to a merged branch blocks"; } ;;
+  *) echo "    got: $OUT" >&2; fail "a push to a merged branch blocks" ;;
+esac
+
+OUT=$(STUB_PR_STATE="OPEN https://github.com/o/r/pull/8" PATH="$TEST_ROOT/ghbin:$PATH" \
+  run_gate_cmd "$MERGEDREPO" "git push origin feature/x")
+case "$OUT" in
+  *"already merged"*) echo "    got: $OUT" >&2; fail "a push to a branch with an open PR passes the merge check" ;;
+  *) pass "a push to a branch with an open PR passes the merge check" ;;
+esac
+
+OUT=$(STUB_PR_STATE="MERGED https://github.com/o/r/pull/7" PATH="$TEST_ROOT/ghbin:$PATH" \
+  run_gate_cmd "$MERGEDREPO" "SKIP_PUSH_GATE=1 git push origin feature/x"); STATUS=$?
+[ "$STATUS" -eq 0 ] && pass "SKIP_PUSH_GATE=1 bypasses the merge check" \
+  || { echo "    exit $STATUS, got: $OUT" >&2; fail "SKIP_PUSH_GATE=1 bypasses the merge check"; }
+
+echo ""
 echo "== package manager =="
 
 # Only the tools the gate needs, plus stub managers that log their argv. A

@@ -76,6 +76,17 @@ esac
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
 
+# A push to a branch whose PR already merged recreates the deleted remote
+# branch, and its commits land in no open PR.
+BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
+if [ -n "$BRANCH" ] && command -v gh >/dev/null 2>&1; then
+  PR_STATE=$(cd "$DIR" && gh pr view "$BRANCH" --json state,url -q '.state + " " + .url' 2>/dev/null)
+  if [ "${PR_STATE%% *}" = "MERGED" ]; then
+    echo "[pre-push-gate] $BRANCH already merged in ${PR_STATE#* }. Start a new branch from the default branch for new work (or bypass with SKIP_PUSH_GATE=1)." >&2
+    exit 2
+  fi
+fi
+
 # Husky points the repo-local core.hooksPath at a directory the install creates.
 # A checkout that never ran it has the setting but not the directory, and git
 # then skips every repo hook without a word, so the push would go out ungated.
