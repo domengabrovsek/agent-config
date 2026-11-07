@@ -54,14 +54,14 @@ if [ -n "$model" ]; then
 fi
 
 colors=14
-clear_colors=()
-for i in $(seq 0 $((colors - 1))); do clear_colors+=(--clear-token "c$i"); done
+color_args=()
+for i in $(seq 0 $((colors - 1))); do color_args+=(--clear-token "c$i"); done
 
 if ! git_dir=$(git -C "$dir" rev-parse --absolute-git-dir 2>/dev/null); then
   herdr pane report-metadata "$HERDR_PANE_ID" --source "$source_id" \
     --clear-token repo --clear-token branch --clear-token wt >/dev/null 2>&1 || true
   herdr pane report-metadata "$HERDR_PANE_ID" --source "$source_id" \
-    --clear-token icon "${clear_colors[@]}" >/dev/null 2>&1 || true
+    --clear-token icon "${color_args[@]}" >/dev/null 2>&1 || true
   exit 0
 fi
 
@@ -102,10 +102,10 @@ if [ "$locked" = 1 ]; then
   rmdir "$lock" 2>/dev/null
   trap - EXIT
 fi
-color_args=()
-for i in $(seq 0 $((colors - 1))); do
-  if [ "$i" = "$color" ]; then color_args+=(--token "c$i=●"); else color_args+=(--clear-token "c$i"); fi
-done
+# Color i owns the flag and value at 2i and 2i+1. A corrupt entry clears them all.
+if [[ "$color" =~ ^(0|[1-9][0-9]*)$ ]] && [ "$color" -lt "$colors" ] 2>/dev/null; then
+  color_args[2*color]=--token color_args[2*color+1]="c$color=●"
+fi
 
 if [ "$(cd "$git_dir" && pwd -P)" = "$common_dir" ]; then
   wt_args=(--clear-token wt)

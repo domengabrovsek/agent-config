@@ -36,11 +36,15 @@ case "$COMMAND" in
 esac
 
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
+# The body is free text, so a `git -C <dir>` inside it must not pick the repo.
+REPO_CMD=${COMMAND%%body=*}
+for flag in --body -b -F; do REPO_CMD=${REPO_CMD%%[[:space:]]"$flag"[[:space:]=]*}; done
+DIR=$(resolve_repo_dir "$REPO_CMD" "$CWD")
 
 if [ "$KIND" = api ]; then
-  PARENT=$(printf '%s\n' "$COMMAND" \
-    | sed -nE 's#.*pulls/[0-9]+/comments/([0-9]+)/replies.*#\1#p' | head -1)
+  # The first match is the endpoint; a later one sits in the free-text body.
+  PARENT=$(printf '%s\n' "$COMMAND" | grep -oE 'pulls/[0-9]+/comments/[0-9]+/replies' | head -1 \
+    | sed -E 's#pulls/[0-9]+/comments/([0-9]+)/replies#\1#')
   if [ -z "$PARENT" ]; then
     PARENT=$(printf '%s\n' "$COMMAND" \
       | sed -nE 's#.*in_reply_to(_id)?=([0-9]+).*#\2#p' | head -1)
@@ -54,11 +58,9 @@ if [ "$KIND" = api ]; then
   fi
 
   if [ -n "$PARENT" ]; then
-    REPO=$(printf '%s\n' "$COMMAND" \
-      | sed -nE 's#.*repos/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/pulls/.*#\1#p' | head -1)
-    case "$REPO" in
-      ""|"{owner}/{repo}") REPO="{owner}/{repo}" ;;
-    esac
+    REPO=$(printf '%s\n' "$COMMAND" | grep -oE 'repos/[{}A-Za-z0-9_.-]+/[{}A-Za-z0-9_.-]+/pulls/' | head -1 \
+      | sed -E 's#repos/(.*)/pulls/#\1#')
+    REPO=${REPO:-"{owner}/{repo}"}
 
     CLASS=$(cd "$DIR" 2>/dev/null && gh api "repos/$REPO/pulls/comments/$PARENT" \
       --jq 'if .user.type == "Bot" or (.user.login | endswith("[bot]")) then "bot" else "human:" + .user.login end' 2>/dev/null)

@@ -63,110 +63,66 @@ fi
 
 VIOLATIONS=""
 
+# flag <message> <hits>: record a violation when the check found any lines.
+flag() {
+  [ -n "$2" ] && VIOLATIONS+="$1:
+$2
+
+"
+}
+
+# consecutive_comments <prefix>: added lines that continue a run of <prefix> comments.
+consecutive_comments() {
+  echo "$ADDED" | awk -v p="$1" '
+    $0 ~ "^[[:space:]]*" p { if (prev) print NR": "$0; prev=1; next }
+    { prev=0 }
+  ' 2>/dev/null
+}
+
+TRACKER_RE='(\b[A-Z]{2,}-[0-9]+\b|[[:space:]]#[0-9]+\b|\b[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+\b|\b[Aa][Dd][Rr][[:space:]-]+[0-9]+\b|\b(Fixes|Closes|Refs|Resolves)[[:space:]]+(#|[A-Z]{2,}-))'
+
 # --- 2. Ticket / PR / JIRA / ADR refs inside comments ---
-TICKETS=$(echo "$ADDED" | grep -nE \
-  '(//|#|/\*|^\s*\*).*(\b[A-Z]{2,}-[0-9]+\b|[[:space:]]#[0-9]+\b|\b[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+\b|\b[Aa][Dd][Rr][[:space:]-]+[0-9]+\b|\b(Fixes|Closes|Refs|Resolves)[[:space:]]+(#|[A-Z]{2,}-))' \
-  2>/dev/null || true)
+flag "Ticket / PR / JIRA / ADR reference detected in newly added comment(s). Remove the ref - those belong in PR descriptions, ADR files, and git blame, not in code" \
+  "$(echo "$ADDED" | grep -nE '(//|#|/\*|^\s*\*).*'"$TRACKER_RE" 2>/dev/null)"
 
-if [ -n "$TICKETS" ]; then
-  VIOLATIONS+="Ticket / PR / JIRA / ADR reference detected in newly added comment(s). Remove the ref - those belong in PR descriptions, ADR files, and git blame, not in code:
-$TICKETS
-
-"
-fi
-
-# --- 3. Consecutive // comment lines in JS/TS (rules/comments.md: multi-line must use /* */) ---
 case "$FILE" in
   *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs)
-    CONSEC_SLASH=$(echo "$ADDED" | awk '
-      /^[[:space:]]*\/\// { if (prev) print NR": "$0; prev=1; next }
-      { prev=0 }
-    ' 2>/dev/null || true)
-    if [ -n "$CONSEC_SLASH" ]; then
-      VIOLATIONS+="Consecutive // comment lines. rules/comments.md: multi-line comments must use /* */, never a stack of //:
-$CONSEC_SLASH
-
-"
-    fi
+    # --- 3. Consecutive // comment lines (rules/comments.md: multi-line must use /* */) ---
+    flag "Consecutive // comment lines. rules/comments.md: multi-line comments must use /* */, never a stack of //" \
+      "$(consecutive_comments '//')"
+    # --- 6. New `var` declarations (rules/typescript.md: never use var) ---
+    flag "New \`var\` declaration. rules/typescript.md: use \`const\` (or \`let\` when reassignment is required); never \`var\`" \
+      "$(echo "$ADDED" | grep -nE '^[[:space:]]*var[[:space:]]+[A-Za-z_$]' 2>/dev/null)"
     ;;
-esac
-
-# --- 4. Consecutive -- SQL comment lines (rules/comments.md: multi-line must use /* */) ---
-case "$FILE" in
   *.sql)
-    CONSEC_DASH=$(echo "$ADDED" | awk '
-      /^[[:space:]]*--/ { if (prev) print NR": "$0; prev=1; next }
-      { prev=0 }
-    ' 2>/dev/null || true)
-    if [ -n "$CONSEC_DASH" ]; then
-      VIOLATIONS+="Consecutive -- SQL comment lines. rules/comments.md: multi-line comments must use /* */, never a stack of --:
-$CONSEC_DASH
-
-"
-    fi
+    # --- 4. Consecutive -- SQL comment lines (rules/comments.md: multi-line must use /* */) ---
+    flag "Consecutive -- SQL comment lines. rules/comments.md: multi-line comments must use /* */, never a stack of --" \
+      "$(consecutive_comments '--')"
     ;;
-esac
-
-# --- 5. Tracker refs inside Terraform description = "..." attributes ---
-case "$FILE" in
   *.tf|*.tfvars)
-    TF_DESC_REFS=$(echo "$ADDED" | grep -nE \
-      'description[[:space:]]*=.*(\b[A-Z]{2,}-[0-9]+\b|[[:space:]]#[0-9]+\b|\b[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+\b|\b[Aa][Dd][Rr][[:space:]-]+[0-9]+\b|\b(Fixes|Closes|Refs|Resolves)[[:space:]]+(#|[A-Z]{2,}-))' \
-      2>/dev/null || true)
-    if [ -n "$TF_DESC_REFS" ]; then
-      VIOLATIONS+="Tracker reference inside Terraform description attribute. rules/infrastructure.md: descriptions surface in terraform-docs and module-consumer docs - tracker refs belong in PR descriptions, ADR files, and git blame:
-$TF_DESC_REFS
-
-"
-    fi
-    ;;
-esac
-
-# --- 6. New `var` declarations in JS/TS (rules/typescript.md: never use var) ---
-case "$FILE" in
-  *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs)
-    VAR_DECL=$(echo "$ADDED" | grep -nE '^[[:space:]]*var[[:space:]]+[A-Za-z_$]' 2>/dev/null || true)
-    if [ -n "$VAR_DECL" ]; then
-      VIOLATIONS+="New \`var\` declaration. rules/typescript.md: use \`const\` (or \`let\` when reassignment is required); never \`var\`:
-$VAR_DECL
-
-"
-    fi
+    # --- 5. Tracker refs inside Terraform description = "..." attributes ---
+    flag "Tracker reference inside Terraform description attribute. rules/infrastructure.md: descriptions surface in terraform-docs and module-consumer docs - tracker refs belong in PR descriptions, ADR files, and git blame" \
+      "$(echo "$ADDED" | grep -nE 'description[[:space:]]*=.*'"$TRACKER_RE" 2>/dev/null)"
     ;;
 esac
 
 # --- 7. New TODO/FIXME/XXX/HACK markers in code (rules/comments.md: no markers) ---
-TODOS=$(echo "$ADDED" | grep -nE '\b(TODO|FIXME|XXX|HACK)\b' 2>/dev/null || true)
-if [ -n "$TODOS" ]; then
-  VIOLATIONS+="TODO / FIXME / XXX / HACK marker. rules/comments.md: no TODO, FIXME, XXX, or HACK markers. Either finish the work now or open a tracked issue and remove the marker:
-$TODOS
-
-"
-fi
+flag "TODO / FIXME / XXX / HACK marker. rules/comments.md: no TODO, FIXME, XXX, or HACK markers. Either finish the work now or open a tracked issue and remove the marker" \
+  "$(echo "$ADDED" | grep -nE '\b(TODO|FIXME|XXX|HACK)\b' 2>/dev/null)"
 
 # --- 8. SELECT * in SQL files (rules/database.md: explicitly list columns) ---
 case "$FILE" in
   *.sql)
-    SELECT_STAR=$(echo "$ADDED" | grep -niE '\bselect[[:space:]]+\*' 2>/dev/null || true)
-    if [ -n "$SELECT_STAR" ]; then
-      VIOLATIONS+="\`SELECT *\` detected. rules/database.md: list columns explicitly. Catalog the columns you actually need:
-$SELECT_STAR
-
-"
-    fi
+    flag "\`SELECT *\` detected. rules/database.md: list columns explicitly. Catalog the columns you actually need" \
+      "$(echo "$ADDED" | grep -niE '\bselect[[:space:]]+\*' 2>/dev/null)"
     ;;
 esac
 
 # --- 9. `:latest` Docker tag in Dockerfile / compose / k8s (rules/infrastructure.md) ---
 case "$FILE" in
   *Dockerfile*|*docker-compose*.y*ml|*compose.y*ml|*/k8s/*.y*ml)
-    LATEST_TAG=$(echo "$ADDED" | grep -nE '^[[:space:]]*(FROM[[:space:]]+[^:[:space:]]+:latest\b|-?[[:space:]]*image:[[:space:]]*[^:[:space:]]+:latest\b)' 2>/dev/null || true)
-    if [ -n "$LATEST_TAG" ]; then
-      VIOLATIONS+="\`:latest\` Docker tag detected. rules/infrastructure.md: pin a specific version so the build is reproducible:
-$LATEST_TAG
-
-"
-    fi
+    flag "\`:latest\` Docker tag detected. rules/infrastructure.md: pin a specific version so the build is reproducible" \
+      "$(echo "$ADDED" | grep -nE '^[[:space:]]*(FROM[[:space:]]+[^:[:space:]]+:latest\b|-?[[:space:]]*image:[[:space:]]*[^:[:space:]]+:latest\b)' 2>/dev/null)"
     ;;
 esac
 

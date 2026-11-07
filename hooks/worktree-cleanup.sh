@@ -15,10 +15,7 @@ SCRIPT="$CLAUDE_PROJECT_DIR/scripts/worktree-prune.sh"
 [ -x "$SCRIPT" ] || SCRIPT="$HOME/.claude/scripts/worktree-prune.sh"
 [ -x "$SCRIPT" ] || exit 0
 
-# Only run inside a git repo
 git -C "$PWD" rev-parse --show-toplevel >/dev/null 2>&1 || exit 0
 
-# Run apply mode silently. The script is conservative; it will skip anything
-# uncertain and only remove obviously-safe entries.
 "$SCRIPT" --apply >/dev/null 2>&1 || true
 exit 0

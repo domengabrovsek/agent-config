@@ -25,6 +25,7 @@ mkdir -p "$TEST_DIR/bin"
 cat > "$TEST_DIR/bin/gh" <<'STUB'
 #!/bin/bash
 case "$*" in
+  *repos/other/*) exit 1 ;;
   *pulls/comments/111*) echo "bot" ;;
   *pulls/comments/222*) echo "human:alice" ;;
   *) exit 1 ;;
@@ -68,6 +69,14 @@ assert_gate "an in_reply_to comment to a bot passes" \
   "$GH_API repos/acme/app/pulls/7/comments -F in_reply_to=111 -f body=\"Done. $FOOTER\"" 0
 assert_gate "a failed author lookup blocks" \
   "$GH_API repos/{owner}/{repo}/pulls/7/comments/333/replies -f body=\"Done. $FOOTER\"" 2
+assert_gate "a git -C path inside a bot reply body does not pick the repo" \
+  "$GH_API repos/{owner}/{repo}/pulls/7/comments/111/replies -f body=\"Run git -C $TEST_DIR/missing push. $FOOTER\"" 0
+assert_gate "a git -C path inside a PR comment body does not pick the repo" \
+  "$GH_PR_COMMENT 7 --body \"Run git -C $TEST_DIR/missing push. $FOOTER\"" 0
+assert_gate "a repos path inside a reply body does not pick the repo" \
+  "$GH_API repos/{owner}/{repo}/pulls/7/comments/111/replies -f body=\"See repos/other/thing/pulls/3. $FOOTER\"" 0
+assert_gate "a reply path inside a reply body does not pick the parent" \
+  "$GH_API repos/{owner}/{repo}/pulls/7/comments/111/replies -f body=\"Like pulls/7/comments/222/replies. $FOOTER\"" 0
 assert_gate "a read-only gh api call passes" \
   "$GH_API repos/{owner}/{repo}/pulls/7/comments" 0
 assert_gate "an unrelated command passes" \
