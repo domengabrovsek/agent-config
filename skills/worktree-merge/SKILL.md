@@ -8,7 +8,8 @@ Clean up the current worktree: $ARGUMENTS
 ## Preconditions
 
 - Current `$PWD` must be inside a worktree (not the main checkout). Verify with `git rev-parse --git-dir != --git-common-dir`.
-- The worktree's branch must be safely removable: either merged into the default branch upstream, or its upstream is `gone` (PR was merged and remote branch deleted), or the user explicitly passes `--force`.
+- The worktree's branch must be safely removable: merged into the default branch, or its upstream is `gone` and `git rev-list "$BRANCH" --not --remotes` prints nothing, or the user explicitly passes `--force`. A gone upstream alone does not prove the commits landed.
+- Ignored files under the worktree's `.claude/state/` are deleted with it. Copy any the main checkout lacks into the main checkout's `.claude/state/` first.
 
 If the branch is not safe to remove, stop and explain what's still pending (unpushed commits, open PR, etc.). Never auto-delete unmerged work.
 
@@ -37,4 +38,4 @@ When several lane-mode teammates finish, merge their branches into the integrati
 1. Review each teammate's diff for correctness.
 2. Merge one branch. Resolve any conflict with `/resolve-conflicts` before merging the next.
 3. After the last merge, run the full test suite, typecheck, and lint.
-4. Prune the worktrees: `~/.agents/scripts/worktree-prune.sh --apply`. It removes only worktrees whose branch is upstream-gone or merged into the default, which is the post-merge state. Anything still active survives.
+4. Prune the worktrees: `~/.agents/scripts/worktree-prune.sh --apply`. It removes only unlocked worktrees whose branch is merged, squash-merged, or upstream-gone with nothing unpushed, which is the post-merge state. Lane worktrees stay locked while their teammate runs, so they survive until it finishes.
