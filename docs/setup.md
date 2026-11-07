@@ -62,7 +62,7 @@ The `env` block in `settings.json` sets two variables for every Claude Code sess
 | Variable | Value | Enables |
 | --- | --- | --- |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Claude Code's experimental agent teams feature, for the teammates that lane and panel mode spawn |
-| `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band:~/.claude/mods/pr-fleet` | Loads the [pr-band](../mods/pr-band/README.md) and [pr-fleet](../mods/pr-fleet/README.md) mods from the linked `mods/` dir |
+| `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts` | Loads the [pr-band](../mods/pr-band/README.md), [pr-fleet](../mods/pr-fleet/README.md), and [alerts](../mods/alerts/README.md) mods from the linked `mods/` dir |
 
 ## Keep runtime state out of commits
 
