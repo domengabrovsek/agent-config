@@ -74,6 +74,16 @@ git -C "$REPO" checkout -q main
 git -C "$REPO" worktree add -q "$TEST_DIR/wt" feat/x
 assert_gate "a worktree finds the spec and ledger in the main checkout" "$TEST_DIR/wt" 0
 
+WT_RUNS="$TEST_DIR/wt/.claude/state/runs/feat-x"
+mkdir -p "$WT_RUNS"
+cp "$STATE/runs/feat-x/evidence.md" "$WT_RUNS/evidence.md"
+ledger "$PASS1" "| AC-2 | FAIL | cmd npm test -- empty | 1 failed | ${HEAD_SHA:0:7} |"
+assert_gate "a worktree's passing ledger does not shadow a failing one in the main checkout" "$TEST_DIR/wt" 2
+rm "$STATE/runs/feat-x/evidence.md"
+assert_gate "a worktree's ledger is used when the main checkout has none" "$TEST_DIR/wt" 0
+rm -r "$TEST_DIR/wt/.claude"
+ledger "$PASS1" "$PASS2"
+
 git -C "$TEST_DIR/wt" commit -q --allow-empty -m "fix: later"
 assert_gate "a new commit makes the evidence stale" "$TEST_DIR/wt" 2
 

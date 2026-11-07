@@ -45,4 +45,14 @@ assert_gate "an implementer may edit source code" "$TEST_DIR/wt/src/date.ts" "Ba
 assert_gate "a new untracked file is not locked" "$TEST_DIR/wt/src/new.test.ts" "Backend Staff Engineer" 0
 assert_gate "a branch with no lock is not gated" "$REPO/src/date.test.ts" "Backend Staff Engineer" 0
 
+mkdir -p "$TEST_DIR/wt/.claude/state/runs/feat-x"
+: > "$TEST_DIR/wt/.claude/state/runs/feat-x/tests.lock"
+assert_gate "a worktree's empty lock does not shadow the main checkout's" "$WT_TEST" "Backend Staff Engineer" 2
+
+git -C "$REPO" worktree add -q -b feat/y "$TEST_DIR/wt-y" main
+mkdir -p "$TEST_DIR/wt-y/.claude/state/runs/feat-y"
+echo "src/date.test.ts" > "$TEST_DIR/wt-y/.claude/state/runs/feat-y/tests.lock"
+assert_gate "a worktree's lock applies when the main checkout has none" \
+  "$TEST_DIR/wt-y/src/date.test.ts" "Backend Staff Engineer" 2
+
 finish
