@@ -178,6 +178,19 @@ assert_untouched "an example-domain address" WebFetch url \
 assert_untouched "a URL with no address" WebFetch url "https://site.test/docs"
 assert_untouched "a tool outside the matcher" Write file_path "/tmp/jane@corp.test"
 
+echo "== payload pre-check =="
+OUT=$(printf '%s' '{"tool_name":"WebFetch","tool_input":{"url":"https://site.test/?c=jane\u0040corp.test","description":"kept"}}' | bash "$HOOK" 2>/dev/null)
+CODE=$?
+GOT=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.updatedInput.url // empty' 2>/dev/null)
+if [ "$CODE" -eq 0 ] && [ "$GOT" = "https://site.test/?c=redacted@example.invalid" ]; then
+  pass "an address escaped as \\u0040 in the JSON is still scrubbed"
+else
+  echo "    exit $CODE, got: $GOT" >&2
+  fail "an address escaped as \\u0040 in the JSON is still scrubbed"
+fi
+assert_untouched "a network command with no @ skips the scan" Bash command \
+  "curl -H 'X-Trace: 1' https://site.test/api"
+
 echo "== bypass =="
 SKIP_EMAIL_SCRUB=1 run_hook WebFetch url "https://site.test/?c=jane@corp.test"
 if [ "$CODE" -eq 0 ] && [ -z "$OUT" ]; then pass "SKIP_EMAIL_SCRUB=1 skips the scrub"; else fail "SKIP_EMAIL_SCRUB=1 skips the scrub"; fi

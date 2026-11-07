@@ -29,6 +29,15 @@
 
 [ "${SKIP_EMAIL_SCRUB:-}" = "1" ] && { cat >/dev/null; exit 0; }
 
+# Every address the scrub matches holds @ or %40, which JSON may also spell
+# \u0040. A payload with none of them has nothing to scrub, so it skips the
+# Python start, about 20ms on each Bash call.
+IFS= read -r -d '' INPUT
+case "$INPUT" in
+  *@*|*%40*|*'\u0040'*) ;;
+  *) exit 0 ;;
+esac
+
 exec python3 -c '
 import json, os, re, shlex, sys
 
@@ -244,4 +253,4 @@ print(json.dumps({"hookSpecificOutput": {
         + " email address(es) with " + REPLACEMENT + " before this " + tool
         + " call left the machine. Do not put a real address back.",
 }}))
-'
+' <<< "$INPUT"
