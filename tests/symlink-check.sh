@@ -35,7 +35,7 @@ fail() {
 FAKE_REPO="$TEST_ROOT/repo"
 mkdir -p "$FAKE_REPO/scripts" "$FAKE_REPO/.github"
 cp "$PROJECT_DIR/scripts/setup-hosts.sh" "$FAKE_REPO/scripts/setup-hosts.sh"
-for NAME in agents hooks rules skills docs references templates; do
+for NAME in agents hooks rules skills docs references templates mods; do
   mkdir -p "$FAKE_REPO/$NAME"
 done
 : > "$FAKE_REPO/AGENTS.md"

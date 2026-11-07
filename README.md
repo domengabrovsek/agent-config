@@ -51,6 +51,7 @@ git config filter.strip-ephemeral-state.smudge cat
 | `agents/` | Expert personas, spawned as subagents |
 | `settings.json` | Hook registry, deny list, and Claude Code settings |
 | `hooks/` | Guardrail scripts that run on tool calls |
+| `mods/` | Claude Code mods: UI and behaviour plugins every session loads |
 | `pi/` | Pi extensions, settings, models, and MCP servers |
 | `scripts/` | Host setup, CI checks, and utilities |
 | `templates/`, `references/` | Doc templates and review checklists that skills use |
