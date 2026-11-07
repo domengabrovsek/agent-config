@@ -95,35 +95,29 @@ _existing() {
   printf '%s' "${line#*=}"
 }
 
-# ask KEY "Prompt" reads a value into $KEY. Offers the existing .env value as
-# a default on re-runs (Enter keeps it). Visible input (non-secret).
-ask() {
+# _ask KEY "Prompt" [-s] reads a value into $KEY. Offers the existing .env
+# value as a default on re-runs (Enter keeps it). -s hides the input.
+_ask() {
   local key="$1" prompt="$2" current input
+  shift 2
   current=$(_existing "$key" || true)
   if [[ -n "$current" ]]; then
     printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
   else
     printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
   fi
-  read -r input || true
+  read -r "$@" input || true
+  (( $# )) && printf '\n'
   [[ -z "$input" && -n "$current" ]] && input="$current"
   printf -v "$key" '%s' "$input"
 }
 
-# ask_secret KEY "Prompt" is like ask, but input is hidden.
-ask_secret() {
-  local key="$1" prompt="$2" current input
-  current=$(_existing "$key" || true)
-  if [[ -n "$current" ]]; then
-    printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
-  else
-    printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
-  fi
-  read -rs input || true
-  printf '\n'
-  [[ -z "$input" && -n "$current" ]] && input="$current"
-  printf -v "$key" '%s' "$input"
-}
+# ask KEY "Prompt" reads visible (non-secret) input; ask_secret hides it.
+ask() { _ask "$1" "$2"; }
+ask_secret() { _ask "$1" "$2" -s; }
+
+# _gh_ready succeeds when gh is installed and authenticated.
+_gh_ready() { command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; }
 
 # write_env KEY VALUE upserts KEY=VALUE into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
@@ -142,7 +136,7 @@ write_env() {
 # to a warning (and records it) if gh is unavailable or unauthenticated.
 set_secret() {
   local name="$1" value="$2"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  if _gh_ready; then
     if printf '%s' "$value" | gh secret set "$name" >/dev/null 2>&1; then
       WRITTEN_SECRET+=("$name")
       printf '  %s✓ set%s GitHub secret %s\n' "$GREEN" "$RESET" "$name"
@@ -156,7 +150,7 @@ set_secret() {
 # set_var NAME VALUE sets a GitHub Actions repo variable (non-secret).
 set_var() {
   local name="$1" value="$2"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  if _gh_ready; then
     if gh variable set "$name" --body "$value" >/dev/null 2>&1; then
       printf '  %s✓ set%s GitHub variable %s\n' "$GREEN" "$RESET" "$name"
       return
