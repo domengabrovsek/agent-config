@@ -7,8 +7,11 @@
 
 # shellcheck source=lib/resolve-repo.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+# shellcheck source=lib/once.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 
 INPUT=$(cat)
+first_run_for_call "$INPUT" pre-commit-branch-gate || exit 0
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # `git -C <path> commit` never contains the literal "git commit", so a -C

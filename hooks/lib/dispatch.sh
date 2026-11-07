@@ -183,6 +183,9 @@ def run_hook(hook, call):
 for name, call in tool_calls(payload):
     target = name if name else payload.get(MATCH_FIELDS.get(event, ""), "")
     tool_input = call.get("tool_input") or {}
+    # A hook registered under several `if` rules runs once per call, because a
+    # second run of the same command on the same payload reaches the same verdict.
+    ran = set()
     for group in groups:
         if not matcher_matches(group.get("matcher"), target):
             continue
@@ -191,6 +194,9 @@ for name, call in tool_calls(payload):
                 continue
             if hook.get("if") and not if_matches(hook["if"], name, tool_input):
                 continue
+            if hook.get("command") in ran:
+                continue
+            ran.add(hook.get("command"))
             run_hook(hook, call)
 
 if contexts:

@@ -54,7 +54,8 @@ cat > "$REGISTRY" <<JSON
           { "type": "command", "command": "$S/push", "if": "Bash(gh pr create *)" },
           { "type": "command", "command": "$S/ctx-a", "if": "Bash(gh api *)" },
           { "type": "command", "command": "$S/ctx-b", "if": "Bash(gh api *)" },
-          { "type": "command", "command": "sleep 5; $S/slow", "if": "Bash(sleep-test *)", "timeout": 1 }
+          { "type": "command", "command": "sleep 5; $S/slow", "if": "Bash(sleep-test *)", "timeout": 1 },
+          { "type": "command", "command": "$S/commit", "if": "Bash(git -C *)" }
         ]
       },
       {
@@ -118,6 +119,9 @@ eq "$(ran)" "push" "a trailing space-star also matches the bare command"
 
 dispatch PreToolUse "$(bash_call "cd /tmp && npm test; git commit -m 'feat: x' | cat")"
 eq "$(ran)" "commit" "a segment of a compound command matches"
+
+dispatch PreToolUse "$(bash_call "git -C . status && git commit -m x")"
+eq "$(ran)" "commit" "a hook matched by two if rules runs once per call"
 
 dispatch PreToolUse "$(bash_call "git push origin x" exec_command)"
 eq "$(ran)" "push" "exec_command normalizes to Bash"

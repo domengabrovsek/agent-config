@@ -29,6 +29,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
 # shellcheck source=lib/commit-msg.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/commit-msg.sh"
+# shellcheck source=lib/once.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 
 # These carry the lists themselves, so checking them flags their own text.
 lists_itself() {
@@ -46,6 +48,10 @@ INPUT=""
 if [ "$MODE" != "corpus" ]; then
   INPUT=$(cat)
 fi
+
+case "$MODE" in
+  commit|pr) first_run_for_call "$INPUT" "prose-gate-$MODE" || exit 0 ;;
+esac
 
 [ "$SKIP_PROSE_GATE" = "1" ] && exit 0
 

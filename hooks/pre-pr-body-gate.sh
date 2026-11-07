@@ -16,8 +16,11 @@
 
 # shellcheck source=lib/pr-body.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
+# shellcheck source=lib/once.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 
 INPUT=$(cat)
+first_run_for_call "$INPUT" pre-pr-body-gate || exit 0
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 case "$COMMAND" in

@@ -13,6 +13,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/package-json.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
+# shellcheck source=lib/once.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 
 # detect_package_manager <dir>
 # The packageManager field, then the lockfile, walking up to the git top level
@@ -46,6 +48,7 @@ install_cmd() {
 }
 
 INPUT=$(cat)
+first_run_for_call "$INPUT" pre-push-gate || exit 0
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Only gate on `git push` (and not `git push --help`, etc.). `git -C <path>

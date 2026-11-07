@@ -71,4 +71,33 @@ fix(x): a fine subject
 This body will utilize a blocked word.
 MSG" 2
 
+echo
+echo "== one run per tool call =="
+harness_init once ONCE_TMP
+BLOCKED="$GIT_COMMIT -m \"fix(x): utilize the thing\""
+
+# once_exit <tool_use_id> <mode> [tmpdir]: exit code of the prose gate on BLOCKED.
+once_exit() {
+  COMMAND="$BLOCKED" ID="$1" python3 -c 'import json,os; print(json.dumps({"hook_event_name":"PreToolUse","tool_use_id":os.environ["ID"],"tool_input":{"command":os.environ["COMMAND"]}}))' \
+    | TMPDIR="${3:-$ONCE_TMP}" bash "$PROSE" "$2" >/dev/null 2>&1
+  echo $?
+}
+
+check_once() {
+  if [ "$1" = "$2" ]; then pass "$3"; else
+    echo "    want $2, got $1" >&2
+    fail "$3"
+  fi
+}
+
+check_once "$(once_exit toolu_a commit) $(once_exit toolu_a commit)" "2 0" \
+  "a second registration on the same tool call defers to the first run"
+check_once "$(once_exit toolu_b commit)" "2" "another tool call runs the gate again"
+check_once "$(once_exit toolu_d pr) $(once_exit toolu_d commit)" "0 2" "a claim by another mode does not skip this one"
+check_once "$(payload "$BLOCKED" | TMPDIR="$ONCE_TMP" bash "$PROSE" commit >/dev/null 2>&1; echo $?) $(payload "$BLOCKED" | TMPDIR="$ONCE_TMP" bash "$PROSE" commit >/dev/null 2>&1; echo $?)" "2 2" \
+  "a payload without a tool_use_id runs every time"
+chmod 500 "$ONCE_TMP"
+check_once "$(once_exit toolu_c commit "$ONCE_TMP/missing")" "2" "an unwritable claim dir still runs the gate"
+chmod 700 "$ONCE_TMP"
+
 finish
