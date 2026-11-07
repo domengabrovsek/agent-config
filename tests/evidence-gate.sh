@@ -46,8 +46,7 @@ ledger() {
 # assert_gate <name> <cwd> <expected-exit>
 assert_gate() {
   local name="$1" cwd="$2" want="$3" got
-  COMMAND="$GH_CREATE" CWD="$cwd" python3 -c 'import json,os; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]},"cwd":os.environ["CWD"]}))' \
-    | bash "$GATE" >/dev/null 2>&1
+  payload "$GH_CREATE" "$cwd" | bash "$GATE" >/dev/null 2>&1
   got=$?
   if [ "$got" -eq "$want" ]; then pass "$name"; else
     echo "    want exit $want, got $got" >&2

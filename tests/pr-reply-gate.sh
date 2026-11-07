@@ -25,14 +25,10 @@ STUB
 chmod +x "$TEST_DIR/bin/gh"
 export PATH="$TEST_DIR/bin:$PATH"
 
-payload() {
-  COMMAND="$1" CWD="$TEST_DIR" python3 -c 'import json,os; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]},"cwd":os.environ["CWD"]}))'
-}
-
 # assert_gate <name> <command> <expected-exit>
 assert_gate() {
   local name="$1" command="$2" want="$3" got
-  payload "$command" | bash "$GATE" >/dev/null 2>&1
+  payload "$command" "$TEST_DIR" | bash "$GATE" >/dev/null 2>&1
   got=$?
   if [ "$got" -eq "$want" ]; then pass "$name"; else
     echo "    want exit $want, got $got" >&2
@@ -90,7 +86,7 @@ assert_gate "a --body-file with the footer passes" \
 printf 'Done.\n' > "$TEST_DIR/bare.md"
 assert_gate "a --body-file without the footer is blocked" \
   "$GH_PR_COMMENT 7 --body-file bare.md" 2
-if payload "$GH_PR_COMMENT 7 --body \"Done.\"" | SKIP_REPLY_FOOTER=1 bash "$GATE" >/dev/null 2>&1; then
+if payload "$GH_PR_COMMENT 7 --body \"Done.\"" "$TEST_DIR" | SKIP_REPLY_FOOTER=1 bash "$GATE" >/dev/null 2>&1; then
   pass "SKIP_REPLY_FOOTER lets a comment through"
 else
   fail "SKIP_REPLY_FOOTER lets a comment through"

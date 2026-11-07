@@ -34,9 +34,7 @@ stamp() { git -C "$1" rev-parse HEAD > "$(git -C "$1" rev-parse --path-format=ab
 # assert_gate <name> <payload-cwd> <command> <expected-exit> [expected-output]
 assert_gate() {
   local name="$1" cwd="$2" command="$3" want="$4" want_out="${5:-}" out got
-  out=$(CWD="$cwd" COMMAND="$command" python3 -c \
-    'import json,os; print(json.dumps({"cwd":os.environ["CWD"],"tool_input":{"command":os.environ["COMMAND"]}}))' \
-    | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" SKIP_PR_TEST_GATE="" bash "$HOOK" 2>&1))
+  out=$(payload "$command" "$cwd" | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" SKIP_PR_TEST_GATE="" bash "$HOOK" 2>&1))
   got=$?
   if [ "$got" -eq "$want" ] && { [ -z "$want_out" ] || printf '%s' "$out" | grep -qF -- "$want_out"; }; then
     pass "$name"

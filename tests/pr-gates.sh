@@ -20,10 +20,6 @@ GH_EDIT="gh ""pr edit 12"
 
 harness_init pr-gates TEST_DIR
 
-payload() {
-  COMMAND="$1" python3 -c 'import json,os,sys; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]}}))'
-}
-
 # assert_gate <name> <hook-invocation> <command> <expected-exit>
 assert_gate() {
   local name="$1" hook="$2" command="$3" want="$4" got

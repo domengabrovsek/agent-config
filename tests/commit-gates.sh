@@ -16,10 +16,6 @@ PROSE="$PROJECT_DIR/hooks/prose-gate.sh"
 # Assembled so this file never carries the literal phrase the hooks trigger on.
 GIT_COMMIT="git ""commit"
 
-payload() {
-  COMMAND="$1" python3 -c 'import json,os,sys; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]}}))'
-}
-
 # assert_gate <name> <hook-invocation> <command> <expected-exit>
 assert_gate() {
   local name="$1" hook="$2" command="$3" want="$4" got
