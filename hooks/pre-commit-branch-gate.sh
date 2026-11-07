@@ -11,20 +11,16 @@
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
+# `git -C <path> commit` never contains the literal "git commit", so a -C
+# command is ours to gate only when commit follows the path.
 case "$COMMAND" in
   *"git commit --help"*|*"git commit -h"*) exit 0 ;;
-  *"git commit"*|*"git -C "*) ;;
+  *"git commit"*) ;;
+  *"git -C "*) printf '%s\n' "$COMMAND" | grep -q 'git -C  *[^ ]*  *commit' || exit 0 ;;
   *) exit 0 ;;
 esac
 
 [ "$SKIP_COMMIT_BRANCH_GATE" = "1" ] && exit 0
-
-# `git -C <path> commit` never contains the literal "git commit", so a command
-# without either is not ours to gate.
-case "$COMMAND" in
-  *"git commit"*) ;;
-  *) printf '%s\n' "$COMMAND" | grep -q 'git -C  *[^ ]*  *commit' || exit 0 ;;
-esac
 
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD" commit)
