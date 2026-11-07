@@ -1,8 +1,8 @@
 #!/bin/bash
 # Pre-git PR state refresh.
-# Before write-side git/gh commands, probe origin + gh and inject a one-line
-# state block as additionalContext so Claude sees ground truth instead of
-# inferring from stale conversation memory.
+# Before write-side git/gh commands, ask gh for the branch's PR and inject a
+# one-line state block as additionalContext so Claude sees ground truth
+# instead of inferring from stale conversation memory.
 #
 # Triggers (regex on the bash command):
 #   - git push
@@ -16,8 +16,11 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/context.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
+# shellcheck source=lib/once.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 
 INPUT=$(cat)
+first_run_for_call "$INPUT" pre-git-state-refresh || exit 0
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 [ "$SKIP_PR_STATE_REFRESH" = "1" ] && exit 0
@@ -64,14 +67,13 @@ case "$COMMAND" in
     ;;
 esac
 
-# No remote configured - nothing to fetch / no PR to look up.
+# No remote configured - no PR to look up.
 if ! git -C "$DIR" remote get-url origin >/dev/null 2>&1; then
   emit "[pr-state] branch=$BRANCH unavailable=no-remote"
 fi
 
-# Probe origin and gh. Both errors degrade silently to unavailable. gh has no
-# -C and reads the branch from its cwd, so it runs from the resolved repo too.
-git -C "$DIR" fetch --prune origin >/dev/null 2>&1
+# gh errors degrade silently to unavailable. gh has no -C and reads the branch
+# from its cwd, so it runs from the resolved repo too.
 PR_JSON=$(cd "$DIR" && gh pr view --json state,mergedAt,headRefName,url 2>/dev/null)
 
 if [ -z "$PR_JSON" ]; then
