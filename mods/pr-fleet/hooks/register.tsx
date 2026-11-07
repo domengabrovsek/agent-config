@@ -150,7 +150,7 @@ export const register: Register = on => {
     const header = (
       <Box gap={2} justifyContent="space-between">
         <Text bold>
-          {current?.status === 'ok' ? `${current.total} open PRs` : 'Open PRs'}
+          {current?.status === 'ok' ? `${current.total} open PR${current.total === 1 ? '' : 's'}` : 'Open PRs'}
         </Text>
         <Box gap={1}>
           {current ? <Text dimColor>↻ {clockTime(current.checkedAt)}</Text> : null}
