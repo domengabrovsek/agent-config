@@ -114,7 +114,7 @@ is_branch_squash_merged() {
   [ -z "$default_br" ] && return 1
   local out tree
   out=$(git -C "$repo" merge-tree --write-tree "$default_br" "$branch" 2>/dev/null) || return 1
-  tree=$(printf '%s\n' "$out" | head -n 1)
+  tree=${out%%$'\n'*}
   [ -n "$tree" ] || return 1
   git -C "$repo" diff --quiet "$default_br" "$tree" 2>/dev/null
 }
@@ -128,9 +128,7 @@ upstream_gone() {
 
 # Verdict per worktree: "safe" or "keep". Echos verdict + reason on stdout.
 verdict() {
-  local repo="$1" path="$2" head="$3" branch="$4" locked="$5" prunable="$6"
-  local default_br
-  default_br=$(default_branch "$repo")
+  local repo="$1" path="$2" head="$3" branch="$4" locked="$5" prunable="$6" default_br="$7"
 
   if [ "$prunable" = "1" ]; then
     echo "safe disk-missing-prunable"; return
@@ -175,6 +173,8 @@ prune_repo() {
   [ -z "$rows" ] && return 0
 
   printf '%s== %s ==%s\n' "$C_DIM" "$repo" "$C_RESET"
+  local default_br
+  default_br=$(default_branch "$repo")
 
   while IFS=$'\037' read -r path head branch locked prunable lock_reason; do
     [ -z "$path" ] && continue
@@ -186,7 +186,7 @@ prune_repo() {
     fi
 
     local v reason
-    v=$(verdict "$repo" "$path" "$head" "$branch" "$locked" "$prunable")
+    v=$(verdict "$repo" "$path" "$head" "$branch" "$locked" "$prunable" "$default_br")
     reason=${v#* }
     v=${v%% *}
 
@@ -201,7 +201,7 @@ prune_repo() {
         local err
         if err=$(git -C "$repo" worktree remove "$path" 2>&1); then
           # Delete the local branch too if not the default and it exists
-          if [ -n "$branch" ] && [ "$branch" != "$(default_branch "$repo")" ]; then
+          if [ -n "$branch" ] && [ "$branch" != "$default_br" ]; then
             git -C "$repo" branch -D "$branch" >/dev/null 2>&1 || true
           fi
           acted=$((acted+1))

@@ -68,6 +68,7 @@ if [[ "$INPUT" =~ ^https?:// ]]; then
 elif [[ "$INPUT" =~ ^[0-9]+$ ]]; then
   ISSUE_ID="$INPUT"
 fi
+SHORT_ID=$(echo "$INPUT" | tr '[:lower:]' '[:upper:]')
 
 if [ -z "$ORG" ]; then
   ORGS=$(discover_orgs)
@@ -78,7 +79,6 @@ if [ -z "$ORG" ]; then
     echo "error: multiple orgs ($(echo "$ORGS" | tr '\n' ' ')) - pass --org" >&2
     exit 1
   else
-    SHORT_ID=$(echo "$INPUT" | tr '[:lower:]' '[:upper:]')
     for candidate in $ORGS; do
       code=$(api "/organizations/$candidate/shortids/$SHORT_ID/" /tmp/sentry-shortid.json)
       if [ "$code" = "200" ]; then ORG="$candidate"; ISSUE_ID=$(jq -r '.groupId' /tmp/sentry-shortid.json); break; fi
@@ -88,7 +88,6 @@ if [ -z "$ORG" ]; then
 fi
 
 if [ -z "$ISSUE_ID" ]; then
-  SHORT_ID=$(echo "$INPUT" | tr '[:lower:]' '[:upper:]')
   api_ok "/organizations/$ORG/shortids/$SHORT_ID/" /tmp/sentry-shortid.json
   ISSUE_ID=$(jq -r '.groupId' /tmp/sentry-shortid.json)
 fi
