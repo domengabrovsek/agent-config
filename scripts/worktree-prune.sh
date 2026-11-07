@@ -208,6 +208,7 @@ preserve_state() {
   local wt="$1" main="$2" rel
   local -a files=()
   STATE_CONFLICT=""
+  COPIED=()
   [ -d "$wt/.claude/state" ] || return 0
   # runs/ holds per-branch run files for the branch being deleted; a copy in
   # main would outrank a later worktree that reuses the branch name.
@@ -229,6 +230,7 @@ preserve_state() {
     if ! { mkdir -p "$(dirname "$main/$rel")" && cp -p "$wt/$rel" "$main/$rel"; }; then
       STATE_CONFLICT="$rel could not be copied to the main checkout"; return 1
     fi
+    COPIED+=("$main/$rel")
   done
 }
 
@@ -301,6 +303,8 @@ prune_repo() {
           # is git refusing, most often over modified or untracked files.
           err=${err%%$'\n'*}
           failed=$((failed+1))
+          # The worktree stays, so its state stays authoritative there.
+          [ "${#COPIED[@]}" -gt 0 ] && rm -f "${COPIED[@]}"
           printf '         %s-> not removed: %s%s\n' "$C_YELLOW" "${err#fatal: }" "$C_RESET"
           # The tree stays on disk, so it keeps the lock its host set.
           if [ "$unlocked" = "1" ] && ! err=$(git -C "$repo" worktree lock --reason "$(unquote_c "$lock_reason")" "$path" 2>&1); then

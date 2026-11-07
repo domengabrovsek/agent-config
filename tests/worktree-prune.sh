@@ -77,6 +77,8 @@ build_fixture() {
   commit_on "$repo" merged-locked
   merge_no_ff "$repo" merged-locked
   add_merged_dirty "$repo" merged-dirty
+  mkdir -p "$wt/merged-dirty/.claude/state/research"
+  printf 'in progress\n' > "$wt/merged-dirty/.claude/state/research/dirty.md"
   # Agent hosts lock worktrees with a reason. Git's porcelain output C-quotes
   # the second one because it holds a quote, a backslash, and non-ASCII.
   add_merged_dirty "$repo" merged-dirty-locked --lock --reason "$AGENT_REASON"
@@ -293,6 +295,8 @@ check "a squash-merged worktree's branch is deleted" no_branch "$REPO" squashed
 check "a merged worktree with a space in its path is removed" absent "$WT/twin 2"
 check "the worktree at that path's first word survives" test -d "$WT/twin"
 check "a dirty merged worktree stays on disk" test -d "$WT/merged-dirty"
+check "a failed removal takes back the state it copied into main" \
+  absent "$REPO/.claude/state/research/dirty.md"
 check "a failed removal keeps the branch" has_branch "$REPO" merged-dirty
 check "a failed removal is reported with git's reason" \
   says "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
