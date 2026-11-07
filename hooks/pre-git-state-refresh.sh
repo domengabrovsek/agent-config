@@ -25,51 +25,61 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 [ "$SKIP_PR_STATE_REFRESH" = "1" ] && exit 0
 
-# Match trigger commands only. Anything else exits silently.
-case "$COMMAND" in
-  *"git push"*) ;;
-  *"git commit"*) ;;
-  *"gh pr edit"*|*"gh pr comment"*|*"gh pr merge"*) ;;
-  *"gh pr close"*|*"gh pr ready"*|*"gh pr review"*) ;;
-  *) exit 0 ;;
-esac
-
 # --help / -h variants are harmless; skip.
 case "$COMMAND" in
   *" --help"*|*" -h"*) exit 0 ;;
 esac
+
+# Match trigger commands only. Anything else exits silently. The hook's own
+# cwd is not the tool call's, so the repo comes from the payload.
+# CLAUDE_PROJECT_DIR alone is wrong whenever the harness runs hooks from
+# another directory.
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+case "$COMMAND" in
+  *"gh pr edit"*|*"gh pr comment"*|*"gh pr merge"*) KIND=gh ;;
+  *"gh pr close"*|*"gh pr ready"*|*"gh pr review"*) KIND=gh ;;
+  *git*) KIND=git ;;
+  *) exit 0 ;;
+esac
+if [ "$KIND" = git ]; then
+  parse_git_command "$COMMAND" "$CWD" "push|commit" || exit 0
+  KIND=$GIT_SUB
+else
+  parse_git_command "$COMMAND" "$CWD"
+fi
+DIR=$GIT_REPO_DIR
 
 emit() {
   emit_context PreToolUse "$1"
   exit 0
 }
 
-# The hook's own cwd is not the tool call's, so the repo comes from the
-# payload. CLAUDE_PROJECT_DIR alone is wrong whenever the harness runs hooks
-# from another directory.
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
-
 # Not in a git repo - nothing to probe.
 if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
   emit "[pr-state] unavailable=not-a-repo"
 fi
 
-BRANCH=$(git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)
-[ -z "$BRANCH" ] || [ "$BRANCH" = "HEAD" ] && emit "[pr-state] unavailable=detached-head"
+BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
+[ -z "$BRANCH" ] && emit "[pr-state] unavailable=detached-head"
 
 # Skip git commit on default branch - the commit-branch-gate already blocks it.
-case "$COMMAND" in
-  *"git commit"*)
-    case "$BRANCH" in
-      main|master) exit 0 ;;
-    esac
-    ;;
-esac
+if [ "$KIND" = commit ]; then
+  case "$BRANCH" in
+    main|master) exit 0 ;;
+  esac
+fi
 
 # No remote configured - no PR to look up.
 if ! git -C "$DIR" remote get-url origin >/dev/null 2>&1; then
   emit "[pr-state] branch=$BRANCH unavailable=no-remote"
+fi
+
+# A branch no remote has seen cannot have a PR, and most calls land here, so
+# the gh round trip is skipped. @{push} rather than @{upstream}: a branch
+# created from origin/main tracks origin/main before its first push.
+if ! git -C "$DIR" rev-parse --verify -q "$BRANCH@{push}" >/dev/null 2>&1 \
+  && [ -z "$(git -C "$DIR" for-each-ref --count=1 --format=x "refs/remotes/*/$BRANCH" 2>/dev/null)" ]; then
+  emit "[pr-state] branch=$BRANCH state=NONE (branch never pushed)"
 fi
 
 # gh errors degrade silently to unavailable. gh has no -C and reads the branch
@@ -91,8 +101,8 @@ LINE="[pr-state] branch=$BRANCH state=$STATE url=$URL"
 # pauses and re-evaluates intent.
 case "$STATE" in
   MERGED)
-    case "$COMMAND" in
-      *"git push"*|*"git commit"*)
+    case "$KIND" in
+      push|commit)
         LINE="$LINE
 SUGGESTION: PR is already merged. If you intended new work, start a fresh branch from the default branch first."
         ;;
