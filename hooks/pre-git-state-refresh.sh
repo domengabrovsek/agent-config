@@ -78,12 +78,12 @@ if [ -z "$PR_JSON" ]; then
   emit "[pr-state] branch=$BRANCH state=NONE (no PR for this branch, or gh unavailable)"
 fi
 
-STATE=$(echo "$PR_JSON" | jq -r '.state // "UNKNOWN"')
-URL=$(echo "$PR_JSON" | jq -r '.url // ""')
-MERGED_AT=$(echo "$PR_JSON" | jq -r '.mergedAt // ""')
+# One value per line, because an empty field would collapse under a tab split.
+{ read -r STATE; read -r URL; read -r MERGED_AT; } \
+  < <(echo "$PR_JSON" | jq -r '.state // "UNKNOWN", .url // "", .mergedAt // ""')
 
 LINE="[pr-state] branch=$BRANCH state=$STATE url=$URL"
-[ -n "$MERGED_AT" ] && [ "$MERGED_AT" != "null" ] && LINE="$LINE mergedAt=$MERGED_AT"
+[ -n "$MERGED_AT" ] && LINE="$LINE mergedAt=$MERGED_AT"
 
 # For merged / closed PRs on action commands, append a suggestion so the model
 # pauses and re-evaluates intent.
@@ -94,7 +94,7 @@ case "$STATE" in
         LINE="$LINE
 SUGGESTION: PR is already merged. If you intended new work, start a fresh branch from the default branch first."
         ;;
-      *"gh pr edit"*|*"gh pr comment"*|*"gh pr merge"*|*"gh pr close"*|*"gh pr ready"*|*"gh pr review"*)
+      *)
         LINE="$LINE
 SUGGESTION: PR is already merged. Confirm with the user before writing to a merged PR."
         ;;
