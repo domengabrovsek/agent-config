@@ -1,6 +1,6 @@
 # Hooks and the deny list
 
-`settings.json` holds one hook registry and one deny list for every host. Claude Code runs the registry itself; Codex and Pi run the same scripts through `hooks/lib/dispatch.sh`. A hook that exits 2 blocks the tool call, and its message goes back to the model.
+`settings.json` holds one hook registry and one deny list for every host. Claude Code runs the registry itself; Codex and Pi run the same scripts through `hooks/lib/dispatch.sh`. A hook that exits 2 blocks the tool call, and its message goes back to the model. A Bash hook registered under several `if` rules, before or after the call, runs once per tool call, because `hooks/lib/once.sh` lets only the first matching run do the work.
 
 ## Why hooks
 
@@ -47,7 +47,7 @@ Exit codes decide the outcome:
 
 ## PreToolUse hooks
 
-These run before the tool call and can block it. The rows follow registry order. `dispatch.sh` runs them in that order, and Claude Code runs them in parallel on the original input. A hook registered under several `if` rules runs once per tool call, because `hooks/lib/once.sh` lets only the first matching run do the work.
+These run before the tool call and can block it. The rows follow registry order. `dispatch.sh` runs them in that order, and Claude Code runs them in parallel on the original input.
 
 | Hook | Runs on | Blocks when | Bypass |
 | --- | --- | --- | --- |
