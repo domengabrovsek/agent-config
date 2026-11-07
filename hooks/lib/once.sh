@@ -18,6 +18,10 @@
 # Succeeds for the first run of <key> on this tool call, and whenever the
 # payload has no usable tool_use_id or the claim cannot be written. Fails for
 # every later run.
+#
+# A claim written by another user would skip a gate, so the claim dir must be
+# a real dir owned by the current user. When a shared TMPDIR such as /tmp
+# already holds one owned by someone else, the claims move to a per-user dir.
 first_run_for_call() {
   local id event dir claim
   # A literal key inside a JSON string value is escaped as \"tool_use_id\",
@@ -28,8 +32,13 @@ first_run_for_call() {
   [[ $1 =~ \"hook_event_name\":\ *\"([A-Za-z]+)\" ]] && event=${BASH_REMATCH[1]}
   dir="${TMPDIR:-/tmp}"
   dir="${dir%/}/agent-hook-once"
+  mkdir -m 700 "$dir" 2>/dev/null
+  if [ -L "$dir" ] || [ ! -O "$dir" ]; then
+    dir="$dir-${EUID:-$(id -u)}"
+    mkdir -m 700 "$dir" 2>/dev/null
+    { [ ! -L "$dir" ] && [ -O "$dir" ]; } || return 0
+  fi
   claim="$dir/$id.$event.$2"
-  mkdir -p "$dir" 2>/dev/null
   if mkdir "$claim" 2>/dev/null; then
     find "$dir" -mindepth 1 -maxdepth 1 -type d -mmin +1440 -delete 2>/dev/null
     return 0
