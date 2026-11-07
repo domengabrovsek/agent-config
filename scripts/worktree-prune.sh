@@ -216,6 +216,9 @@ preserve_state() {
     files+=("$rel")
   done < <(git -C "$wt" ls-files -z --others --ignored --exclude-standard -- .claude/state 2>/dev/null)
   [ "${#files[@]}" -gt 0 ] || return 0
+  if [ -z "$main" ]; then
+    STATE_CONFLICT=".claude/state has files and the repo has no main checkout to keep them"; return 1
+  fi
   for rel in "${files[@]}"; do
     if [ -e "$main/$rel" ] && ! cmp -s "$wt/$rel" "$main/$rel"; then
       STATE_CONFLICT="$rel differs from the main checkout"; return 1
@@ -240,9 +243,12 @@ delete_branch() {
 
 prune_repo() {
   local repo="$1"
-  local main_path
-  main_path=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)
-  [ -z "$main_path" ] && return 0
+  local current main_path="" common
+  current=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)
+  [ -z "$current" ] && return 0
+  # The main checkout owns the common .git dir; a bare repo has no checkout.
+  common=$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  [ "$(basename "$common")" = .git ] && main_path=$(dirname "$common")
 
   # Drop disk-gone entries first
   git -C "$repo" worktree prune 2>/dev/null
@@ -259,8 +265,8 @@ prune_repo() {
   while IFS=$'\037' read -r path head branch locked prunable lock_reason; do
     [ -z "$path" ] && continue
     total=$((total+1))
-    # Skip the main worktree
-    if [ "$path" = "$main_path" ]; then
+    # Skip the main checkout and the worktree this run started in
+    if [ "$path" = "$main_path" ] || [ "$path" = "$current" ]; then
       kept=$((kept+1))
       continue
     fi

@@ -328,6 +328,20 @@ check "the summary counts the forced removals" \
   says "24 total, 8 removed, 12 kept, 4 failed"
 
 echo
+echo "== --apply from inside a worktree =="
+REPO="$TEST_ROOT/from-worktree"
+WT="$REPO.wt"
+build_fixture "$REPO"
+run_prune "$WT/fresh" --apply
+check "the worktree the run starts in is kept" test -d "$WT/fresh"
+check "a merged worktree is still removed" absent "$WT/merged-state"
+check "its state is copied into the main checkout, not the starting worktree" \
+  grep -qx notes "$REPO/.claude/state/research/café notes.md"
+check "the starting worktree gets no copied state" absent "$WT/fresh/.claude/state/research"
+check "the differing-state check compares against the main checkout" \
+  says "-> not removed: .claude/state/specs/spec.md differs from the main checkout"
+
+echo
 echo "== SessionEnd hook =="
 REPO="$TEST_ROOT/hook"
 WT="$REPO.wt"
