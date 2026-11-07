@@ -42,10 +42,14 @@ fi
 
 # Prettier runs only where the repo declares a config. Prettier's defaults
 # would rewrite a repo with its own style, such as one formatted by standard.
-for CONFIG in .prettierrc .prettierrc.* prettier.config.*; do
-  [ -f "$CONFIG" ] && { npx prettier --write "$FILE" 2>/dev/null; exit 0; }
-done
-if jq -e 'has("prettier")' package.json >/dev/null 2>&1; then
+# A workspace package inherits the config at the monorepo root.
+PRETTIER_CONFIGS=(.prettierrc .prettierrc.json .prettierrc.json5 .prettierrc.yaml .prettierrc.yml
+  .prettierrc.toml .prettierrc.js .prettierrc.mjs .prettierrc.cjs .prettierrc.ts .prettierrc.mts
+  .prettierrc.cts prettier.config.js prettier.config.mjs prettier.config.cjs prettier.config.ts
+  prettier.config.mts prettier.config.cts)
+TOP=$(git rev-parse --show-toplevel 2>/dev/null) || TOP=.
+if find_up . "${PRETTIER_CONFIGS[@]}" >/dev/null \
+  || jq -e 'has("prettier")' package.json "$TOP/package.json" 2>/dev/null | grep -q true; then
   npx prettier --write "$FILE" 2>/dev/null
 fi
 

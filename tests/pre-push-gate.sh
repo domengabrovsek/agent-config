@@ -217,7 +217,8 @@ for CMD in "git push origin HEAD" "git push -u origin feature/x" "git push origi
 done
 
 # A delete or a push of another branch is not a push of the merged branch.
-for CMD in "git push origin --delete feature/x" "git push origin :feature/x" "git push origin other"; do
+for CMD in "git push origin --delete feature/x" "git push origin :feature/x" "git push origin other" \
+  "git push origin --tags"; do
   OUT=$(STUB_PR_STATE="MERGED https://github.com/o/r/pull/7" PATH="$TEST_ROOT/ghbin:$PATH" \
     run_gate_cmd "$MERGEDREPO" "$CMD")
   case "$OUT" in

@@ -90,7 +90,7 @@ pushes_current_branch() {
   for word in $rest; do
     if [ -n "$value" ]; then value=""; continue; fi
     case "$word" in
-      --delete|-d|:*) set +f; return 1 ;;
+      --delete|-d|--tags|:*) set +f; return 1 ;;
       -o|--push-option|--repo|--receive-pack|--exec) value=1 ;;
       -*) ;;
       *) refspecs+=("$word") ;;

@@ -78,7 +78,7 @@ These run after a Write or Edit, except `post-pr-open-watch.sh` and `post-verify
 
 | Hook | Does | Blocks when | Bypass |
 | --- | --- | --- | --- |
-| `auto-format.sh` | Runs Prettier when the repo has no Biome config and configures Prettier in a config file or a `prettier` key in `package.json` | Never | None |
+| `auto-format.sh` | Runs Prettier when the repo has no Biome config and configures Prettier in a config file or a `prettier` key in `package.json`, in the package or above it in the repo | Never | None |
 | `post-edit-typecheck.sh` | Runs `biome check --write` on the file when the repo has Biome | Biome reports an error | `SKIP_POST_EDIT_TYPECHECK` |
 | `post-edit-lint.sh` | Replaces em dashes, then checks the added lines | Tracker refs in comments, stacked `//` or `--` comments, `var`, TODO markers, `SELECT *`, `:latest` | `SKIP_POST_EDIT_LINT` |
 | `prose-gate.sh file` | Checks the added lines of a Markdown file | A blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |

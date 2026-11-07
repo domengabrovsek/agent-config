@@ -152,6 +152,29 @@ if grep -qxF -- "npx prettier --write $STYLED/src/c.ts" "$STUB_LOG"; then
   pass "a .prettierrc.cjs config formats the file"
 else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a .prettierrc.cjs config formats the file"; fi
 
+# A workspace package inherits the Prettier config at the monorepo root.
+PMONO="$TEST_ROOT/pmono"
+PPKG="$PMONO/packages/app"
+mkdir -p "$PPKG/src"
+git -C "$PMONO" init -q
+echo '{ "name": "pmono", "private": true }' > "$PMONO/package.json"
+echo '{}' > "$PMONO/.prettierrc"
+echo '{ "name": "app", "private": true }' > "$PPKG/package.json"
+printf 'export const d = 4;\n' > "$PPKG/src/d.ts"
+: > "$STUB_LOG"
+PATH="$BIN:$PATH" run_hook auto-format.sh "$PPKG/src/d.ts" >/dev/null
+if grep -qxF -- "npx prettier --write $PPKG/src/d.ts" "$STUB_LOG"; then
+  pass "a workspace package uses the root prettier config"
+else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a workspace package uses the root prettier config"; fi
+
+rm "$PMONO/.prettierrc"
+echo '{ "name": "pmono", "private": true, "prettier": {} }' > "$PMONO/package.json"
+: > "$STUB_LOG"
+PATH="$BIN:$PATH" run_hook auto-format.sh "$PPKG/src/d.ts" >/dev/null
+if grep -qxF -- "npx prettier --write $PPKG/src/d.ts" "$STUB_LOG"; then
+  pass "a workspace package uses the root package.json prettier key"
+else echo "    calls: $(cat "$STUB_LOG")" >&2; fail "a workspace package uses the root package.json prettier key"; fi
+
 echo ""
 echo "$PASSED passed; $FAILED failed"
 [ "$FAILED" -eq 0 ]
