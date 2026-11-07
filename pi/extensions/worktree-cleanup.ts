@@ -13,9 +13,8 @@
  * --apply) and the worktrees skill. Disable per-session with
  * HARNESS_DISABLE_WORKTREE_CLEANUP=1, or the legacy CLAUDE_ spelling.
  *
- * Module top imports only node builtins so `node --test` can exercise the
- * pure predicate without resolving pi packages; the factory resolves
- * @earendil-works/pi-coding-agent dynamically at runtime.
+ * The module imports only node builtins at runtime, so `node --test` loads
+ * it without resolving pi packages.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -48,26 +47,13 @@ export function shouldCleanup(reason: ShutdownReason, env: Record<string, string
  * Extension wiring
  * --------------------------------------------------------------------------- */
 
-export default async function (pi: ExtensionAPI) {
-  const { getAgentDir } = await import('@earendil-works/pi-coding-agent');
-
+export default function (pi: ExtensionAPI) {
   pi.on('session_shutdown', (event, ctx) => {
     if (!shouldCleanup(event.reason, process.env)) return;
 
-    let moduleDir: string;
-    try {
-      moduleDir = dirname(realpathSync(fileURLToPath(import.meta.url)));
-    } catch {
-      moduleDir = dirname(fileURLToPath(import.meta.url));
-    }
-    /* Same layout assumption as the other extensions: the script lives under
-     * <checkout>/scripts; the agent-dir path covers standalone installs. */
-    const candidates = [
-      join(moduleDir, '../../scripts/worktree-prune.sh'),
-      join(getAgentDir(), 'scripts/worktree-prune.sh'),
-    ];
-    const scriptPath = candidates.find((candidate) => existsSync(candidate));
-    if (scriptPath === undefined) return; // hook parity: [ -x ... ] || exit 0
+    /* The extension dir links into the checkout, so scripts/ is two levels up. */
+    const scriptPath = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '../../scripts/worktree-prune.sh');
+    if (!existsSync(scriptPath)) return; // hook parity: [ -x ... ] || exit 0
 
     try {
       /* Synchronous like the Claude hook: the prune (fast, conservative)

@@ -20,7 +20,6 @@ import {
   classifyRule,
   derivePermissionPolicy,
   loadGateConfig,
-  resolvePermissionSource,
   serializePolicyDocument,
   translateMcpRule,
   translatePathPattern,
@@ -125,17 +124,11 @@ describe('derivePermissionPolicy', () => {
     assert.deepEqual(policy.bash, { 'rm -rf *': 'deny' });
     assert.deepEqual(policy.mcp, { 'exa*': 'deny' });
   });
-
-  it('always sets the universal fallback to allow, never ask', () => {
-    const policy = derivePermissionPolicy({ status: 'ok', rules: [], skipped: [], allowCount: 0 });
-    assert.equal(policy.universal, 'allow');
-  });
 });
 
 describe('buildPolicyDocument', () => {
   it('omits empty surfaces and emits only deny states', () => {
     const doc = buildPolicyDocument({
-      universal: 'allow',
       pathRead: { '*/.env': 'deny' },
       pathWrite: {},
       bash: { 'sudo *': 'deny' },
@@ -147,7 +140,6 @@ describe('buildPolicyDocument', () => {
 
   it('puts an explicit bash catch-all first so later denies still win', () => {
     const doc = buildPolicyDocument({
-      universal: 'allow',
       pathRead: {},
       pathWrite: {},
       bash: { 'sudo *': 'deny' },
@@ -158,13 +150,12 @@ describe('buildPolicyDocument', () => {
   });
 
   it('emits the bash catch-all even with no bash denies', () => {
-    const doc = buildPolicyDocument({ universal: 'allow', pathRead: {}, pathWrite: {}, bash: {}, mcp: {} });
+    const doc = buildPolicyDocument({ pathRead: {}, pathWrite: {}, bash: {}, mcp: {} });
     assert.deepEqual(doc.permission.bash, { '*': 'allow' });
   });
 
   it('serializes deterministically with a trailing newline', () => {
     const doc = buildPolicyDocument({
-      universal: 'allow',
       pathRead: { '*/.env': 'deny' },
       pathWrite: {},
       bash: {},
@@ -176,24 +167,24 @@ describe('buildPolicyDocument', () => {
 });
 
 describe('real deny list (drift alarms)', () => {
-  const selection = resolvePermissionSource([realSettings]);
+  const config = loadGateConfig(realSettings);
 
-  it('resolves the tracked settings.json as the permission source', () => {
-    assert.equal(selection.status, 'ok', 'tracked root settings.json must exist and carry a deny list');
+  it('loads the tracked settings.json as the permission source', () => {
+    assert.equal(config.status, 'ok', 'tracked root settings.json must exist and carry a deny list');
   });
 
   it('classifies every deny rule - no silent skips', () => {
-    assert.ok(selection.status === 'ok');
+    assert.ok(config.status === 'ok');
     assert.deepEqual(
-      selection.config.skipped,
+      config.skipped,
       [],
-      `every deny rule must translate; untranslatable: ${selection.config.skipped.join(', ')}`,
+      `every deny rule must translate; untranslatable: ${config.skipped.join(', ')}`,
     );
   });
 
   it('leaves package-manager lockfiles writable', () => {
-    assert.ok(selection.status === 'ok');
-    const policy = derivePermissionPolicy(selection.config);
+    assert.ok(config.status === 'ok');
+    const policy = derivePermissionPolicy(config);
 
     assert.equal(policy.pathWrite['*/package-lock.json'], undefined);
     assert.equal(policy.pathWrite['*/pnpm-lock.yaml'], undefined);
@@ -201,8 +192,8 @@ describe('real deny list (drift alarms)', () => {
   });
 
   it('matches the committed derived config byte for byte', () => {
-    assert.ok(selection.status === 'ok');
-    const document = buildPolicyDocument(derivePermissionPolicy(selection.config));
+    assert.ok(config.status === 'ok');
+    const document = buildPolicyDocument(derivePermissionPolicy(config));
     const expected = serializePolicyDocument(document);
     const actual = readFileSync(committedConfig, 'utf8');
     assert.equal(actual, expected, 'derived policy drifted from the tracked config; regenerate it');
