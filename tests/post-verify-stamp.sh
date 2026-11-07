@@ -65,8 +65,8 @@ assert_stamp "a relative cd resolves from the cwd before the cd" "$REPO" head "$
 assert_stamp "a relative cd still stamps when the cwd is already the target" "$REPO" head "$REPO/packages/sub" \
   "cd repo/packages/sub && npm run verify"
 HOME="$TEST_ROOT" assert_stamp "a ~ cd path expands to HOME" "$REPO" head "$HUB" "cd ~/repo && npm run verify"
-assert_stamp "env assignments and a redirect outside the repo are allowed" "$REPO" head "$REPO" \
-  "CI=1 PUBLIC_X=y npm run verify > $TEST_ROOT/out.log 2>&1"
+assert_stamp "a redirect outside the repo is allowed" "$REPO" head "$REPO" \
+  "npm run verify > $TEST_ROOT/out.log 2>&1"
 assert_stamp "a subdirectory finds the repo's package.json" "$REPO" head "$REPO/packages/sub" "npm run verify"
 out=$(run_hook "$REPO" "npm run verify")
 if printf '%s' "$out" | grep -qF "[verify-stamp] Recorded a verify pass"; then
@@ -83,6 +83,13 @@ assert_stamp "a ; hides the exit code" "$REPO" none "$REPO" "npm run verify; ech
 assert_stamp "|| hides the exit code" "$REPO" none "$REPO" "npm run verify || true"
 assert_stamp "a chained cd prefix could name the wrong repo" "$REPO" none "$HUB" \
   "cd $REPO; cd $BARE && npm run verify"
+assert_stamp "an env assignment prefix could swap the script shell" "$REPO" none "$REPO" \
+  "npm_config_script_shell=/usr/bin/true npm run verify"
+assert_stamp "any env assignment prefix leaves no stamp" "$REPO" none "$REPO" "CI=1 npm run verify"
+assert_stamp "an env prefix after a cd leaves no stamp" "$REPO" none "$HUB" "cd $REPO && CI=1 npm run verify"
+assert_stamp "an npm_config setting in a cd prefix leaves no stamp" "$REPO" none "$HUB" \
+  "cd $REPO && NPM_CONFIG_SCRIPT_SHELL=/usr/bin/true npm run verify"
+assert_stamp "--ignore-scripts skips the script" "$REPO" none "$REPO" "npm run verify --ignore-scripts"
 assert_stamp "a background run has not finished" "$REPO" none "$REPO" "npm run verify" true
 assert_stamp "an interrupted run does not stamp" "$REPO" none "$REPO" "npm run verify" false true
 assert_stamp "an unrelated command does not stamp" "$REPO" none "$REPO" "npm test"

@@ -7,9 +7,13 @@
 # code of the whole command. The command must therefore be `npm run verify`
 # alone: a pipe, a `;` or `||` would report another command's exit code, and
 # a background run reports success when it starts, not when it ends. Only a
-# leading `cd <dir> &&`, leading VAR=value assignments and trailing output
-# redirections are allowed around it. A redirect must point outside the repo
-# or at an ignored path: an untracked log file makes the tree dirty.
+# leading `cd <dir> &&` and trailing output redirections are allowed around
+# it. A redirect must point outside the repo or at an ignored path: an
+# untracked log file makes the tree dirty.
+#
+# A VAR=value prefix, an npm_config_* setting or --ignore-scripts leaves no
+# stamp, because npm_config_script_shell=/usr/bin/true or a skipped script
+# exits 0 without running verify.
 #
 # Always exits 0. Bypass with SKIP_VERIFY_STAMP=1.
 
@@ -32,6 +36,7 @@ case "$COMMAND" in
   *) exit 0 ;;
 esac
 
+printf '%s\n' "$COMMAND" | grep -qiE 'npm_config_|--ignore-scripts' && exit 0
 [ "$(echo "$INPUT" | jq -r '.tool_input.run_in_background // false')" = "true" ] && exit 0
 [ "$(echo "$INPUT" | jq -r '.tool_response.interrupted // false')" = "true" ] && exit 0
 
@@ -46,7 +51,6 @@ case "$CORE" in
 esac
 CORE=$(printf '%s\n' "$CORE" | sed -E \
   -e 's/^[[:space:]]+//' \
-  -e ':env' -e 's/^[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+//' -e 't env' \
   -e ':redir' -e 's/[[:space:]]+[0-9]?(>>?|>&)[[:space:]]*[^[:space:]&|;]+[[:space:]]*$//' -e 't redir' \
   -e 's/[[:space:]]+$//')
 [ "$CORE" = "npm run verify" ] || exit 0
