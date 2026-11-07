@@ -107,8 +107,9 @@ build_fixture() {
   add_worktree "$repo" merged-state
   commit_on "$repo" merged-state
   merge_no_ff "$repo" merged-state
-  mkdir -p "$wt/merged-state/.claude/state/runs/merged-state"
-  printf 'notes\n' > "$wt/merged-state/.claude/state/runs/merged-state/notes.md"
+  mkdir -p "$wt/merged-state/.claude/state/research" "$wt/merged-state/.claude/state/runs/merged-state"
+  printf 'notes\n' > "$wt/merged-state/.claude/state/research/café notes.md"
+  printf 'old lock\n' > "$wt/merged-state/.claude/state/runs/merged-state/tests.lock"
   add_worktree "$repo" merged-state-conflict
   commit_on "$repo" merged-state-conflict
   merge_no_ff "$repo" merged-state-conflict
@@ -296,8 +297,10 @@ check "a failed removal keeps the branch" has_branch "$REPO" merged-dirty
 check "a failed removal is reported with git's reason" \
   says "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
 check "a worktree with ignored state is removed" absent "$WT/merged-state"
-check "its ignored state is copied into the main checkout" \
-  grep -qx notes "$REPO/.claude/state/runs/merged-state/notes.md"
+check "its ignored state is copied into the main checkout, odd names included" \
+  grep -qx notes "$REPO/.claude/state/research/café notes.md"
+check "its per-branch run files are not copied into the main checkout" \
+  absent "$REPO/.claude/state/runs/merged-state"
 check "a worktree whose state differs from the main checkout stays" test -d "$WT/merged-state-conflict"
 check "the differing state is reported" \
   says "-> not removed: .claude/state/specs/spec.md differs from the main checkout"

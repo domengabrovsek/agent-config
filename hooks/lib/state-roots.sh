@@ -13,6 +13,8 @@ state_roots() {
   ROOTS=("$1")
   common=$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
   [ -n "$common" ] || return 0
+  # A bare repo's common dir is not a .git inside a checkout, so its parent is no checkout.
+  [ "$(basename "$common")" = .git ] || return 0
   main=$(dirname "$common")
   if [ "$main" != "$1" ] && [ -d "$main" ]; then
     ROOTS=("$main" "$1")

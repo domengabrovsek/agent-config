@@ -205,22 +205,28 @@ verdict() {
 # removal. A file the main checkout already holds with other content blocks
 # removal instead, so neither copy is lost. Sets STATE_CONFLICT on refusal.
 preserve_state() {
-  local wt="$1" main="$2" rel files
+  local wt="$1" main="$2" rel
+  local -a files=()
   STATE_CONFLICT=""
   [ -d "$wt/.claude/state" ] || return 0
-  files=$(git -C "$wt" ls-files --others --ignored --exclude-standard -- .claude/state 2>/dev/null)
-  [ -n "$files" ] || return 0
-  while IFS= read -r rel; do
+  # runs/ holds per-branch run files for the branch being deleted; a copy in
+  # main would outrank a later worktree that reuses the branch name.
+  while IFS= read -r -d '' rel; do
+    case "$rel" in .claude/state/runs/*) continue ;; esac
+    files+=("$rel")
+  done < <(git -C "$wt" ls-files -z --others --ignored --exclude-standard -- .claude/state 2>/dev/null)
+  [ "${#files[@]}" -gt 0 ] || return 0
+  for rel in "${files[@]}"; do
     if [ -e "$main/$rel" ] && ! cmp -s "$wt/$rel" "$main/$rel"; then
       STATE_CONFLICT="$rel differs from the main checkout"; return 1
     fi
-  done <<< "$files"
-  while IFS= read -r rel; do
+  done
+  for rel in "${files[@]}"; do
     [ -e "$main/$rel" ] && continue
     if ! { mkdir -p "$(dirname "$main/$rel")" && cp -p "$wt/$rel" "$main/$rel"; }; then
       STATE_CONFLICT="$rel could not be copied to the main checkout"; return 1
     fi
-  done <<< "$files"
+  done
 }
 
 # delete_branch <repo> <branch> <default>: `git branch -d` when git can see the

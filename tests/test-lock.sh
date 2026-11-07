@@ -55,4 +55,14 @@ echo "src/date.test.ts" > "$TEST_DIR/wt-y/.claude/state/runs/feat-y/tests.lock"
 assert_gate "a worktree's lock applies when the main checkout has none" \
   "$TEST_DIR/wt-y/src/date.test.ts" "Backend Staff Engineer" 2
 
+BARE_HOME="$TEST_DIR/bare-home"
+mkdir -p "$BARE_HOME"
+git clone -q --bare "$REPO" "$BARE_HOME/repo.git"
+git -C "$BARE_HOME/repo.git" worktree add -q -b feat/z "$BARE_HOME/wt-z" main
+mkdir -p "$BARE_HOME/wt-z/.claude/state/runs/feat-z" "$BARE_HOME/.claude/state/runs/feat-z"
+echo "src/date.test.ts" > "$BARE_HOME/wt-z/.claude/state/runs/feat-z/tests.lock"
+: > "$BARE_HOME/.claude/state/runs/feat-z/tests.lock"
+assert_gate "a bare repo's parent folder is not read as a main checkout" \
+  "$BARE_HOME/wt-z/src/date.test.ts" "Backend Staff Engineer" 2
+
 finish
