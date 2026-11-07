@@ -479,6 +479,8 @@ assert_success "setup run from a worktree succeeds" env HOME="$TEST_HOME" AGENT_
   CLAUDE_CONFIG_DIRS="$TEST_HOME/.claude" HARNESS_SKIP_HOSTS="codex pi" \
   bash "$CASE_DIR/wt/scripts/setup-hosts.sh" --apply
 assert_true "setup run from a worktree links the main checkout" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$MAIN_REAL/AGENTS.md"
+assert_true "setup run from a worktree says it links the main checkout" \
+  grep -q "Linking hosts to the main checkout $MAIN_REAL" "$CASE_DIR/output"
 assert_failure "an override naming a worktree is refused" env HOME="$TEST_HOME" AGENT_CONFIG_REPO="$CASE_DIR/wt" \
   CLAUDE_CONFIG_DIRS="$TEST_HOME/.claude" bash "$SETUP" --check --host claude
 assert_true "the refusal names the main checkout" grep -q "main checkout: $MAIN_REAL" "$CASE_DIR/output"

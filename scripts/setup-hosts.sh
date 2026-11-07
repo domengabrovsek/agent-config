@@ -129,6 +129,7 @@ if [ -n "$REPO_COMMON" ] && [ "$REPO_COMMON" != "$REPO_GITDIR" ] \
     echo "Refusing to link hosts to the worktree $REPO: its repo has no main checkout." >&2
     exit 1
   fi
+  echo "Linking hosts to the main checkout $MAIN_CHECKOUT, not the worktree $REPO." >&2
   REPO=$(cd "$MAIN_CHECKOUT" && pwd)
 fi
 
