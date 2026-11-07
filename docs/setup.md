@@ -40,7 +40,7 @@ How to install this config, scope it per machine, and wire each host. For the bi
 | --- | --- | --- |
 | Claude Code | `CLAUDE.md` | `AGENTS.md` |
 | Claude Code | `settings.json` | `settings.json` |
-| Claude Code | `agents`, `hooks`, `rules`, `skills`, `scripts`, `docs`, `references`, `templates` | The same-named dirs |
+| Claude Code | `agents`, `hooks`, `rules`, `skills`, `scripts`, `docs`, `references`, `templates`, `mods` | The same-named dirs |
 | Claude Code | `statusline.sh` | `scripts/statusline.sh` |
 | Claude Code | `pull_request_template.md` | `.github/pull_request_template.md` |
 | Codex | `AGENTS.md` | `AGENTS.md` |

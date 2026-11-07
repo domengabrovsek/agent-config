@@ -10,6 +10,10 @@
 .claude/settings.local.json
 .claude/plans/
 
+# Types and tsconfig Claude Code writes beside each mod it loads.
+mods/*/.claude-plugin/types/
+mods/*/tsconfig.json
+
 # macOS Finder metadata
 .DS_Store
 **/.DS_Store

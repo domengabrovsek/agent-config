@@ -656,6 +656,7 @@ scripts|scripts
 docs|docs
 references|references
 templates|templates
+mods|mods
 statusline.sh|scripts/statusline.sh
 pull_request_template.md|.github/pull_request_template.md
 EOF

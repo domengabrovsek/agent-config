@@ -1,0 +1,1 @@
+{ "name": "pr-band", "version": "0.1.0", "description": "Shows the branch, its PR and its check state above the prompt", "types": "./types/index.d.ts" }
