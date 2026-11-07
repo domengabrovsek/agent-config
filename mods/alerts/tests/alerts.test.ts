@@ -62,17 +62,16 @@ test('the pane lists each unresolved issue with its counts and link', async ($, 
   }
 })
 
-test('a disconnected Sentry server says how to connect it', async ($, on) => {
+test('a call that rejects shows its error and how to connect the server', async ($, on) => {
   engine(on)
-  on('mcp.call', () => {
-    throw new Error('no server named sentry')
-  })
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.command.run(ALERTS)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /not connected/ }))?.text).toBe('The sentry MCP server is not connected. Connect it with /mcp.')
+  expect((await ui.find({ type: 'Text', text: /call failed/ }))?.text).toBe(
+    'Sentry call failed: no implementation for mcp.call. If the server is not connected, connect it with /mcp.',
+  )
   await ui.unmount()
 })
 

@@ -41,6 +41,8 @@ function parse(text: string): { searchUrl: string; issues: Alert[] } {
   return { searchUrl: raw.url ?? '', issues }
 }
 
+const LIMIT = 25
+
 async function load($: EngineInterface): Promise<Alerts> {
   const checkedAt = await $.clock.now()
   let result: McpToolResult
@@ -49,10 +51,12 @@ async function load($: EngineInterface): Promise<Alerts> {
       query: 'is:unresolved',
       period: '24h',
       sort: 'date',
-      limit: 25,
+      limit: LIMIT,
     })
-  } catch {
-    return { status: 'error', checkedAt, message: 'The sentry MCP server is not connected. Connect it with /mcp.' }
+  } catch (err) {
+    const detail = (err instanceof Error ? err.message : String(err)).trim().split('\n')[0] || 'no detail'
+    /* The engine reports no connection status, so the real error leads and the /mcp hint follows. */
+    return { status: 'error', checkedAt, message: `Sentry call failed: ${detail}. If the server is not connected, connect it with /mcp.` }
   }
   const text = textOf(result)
   if (result.isError) {
@@ -109,7 +113,7 @@ export const register: Register = on => {
     const header = (
       <Box gap={2} justifyContent="space-between">
         <Text bold>
-          {current?.status === 'ok' ? `${current.issues.length} unresolved in 24h` : 'Sentry alerts'}
+          {current?.status === 'ok' ? `${current.issues.length}${current.issues.length === LIMIT ? '+' : ''} unresolved in 24h` : 'Sentry alerts'}
         </Text>
         <Box gap={1}>
           {current ? <Text dimColor>↻ {clockTime(current.checkedAt)}</Text> : null}
