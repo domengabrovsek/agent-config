@@ -74,4 +74,5 @@ git config filter.strip-ephemeral-state.smudge cat
 | [Decisions](docs/decisions.md) | Why it works this way, and what each choice costs |
 | [Cheatsheet](CHEATSHEET.md) | Which skill fits a task |
 | [pr-band](mods/pr-band/README.md) | The Claude Code mod that shows the branch's PR and CI state |
+| [pr-fleet](mods/pr-fleet/README.md) | The Claude Code mod that lists your open PRs across repos in a pane |
 | [Context](CONTEXT.md) | Glossary |

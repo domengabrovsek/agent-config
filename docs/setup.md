@@ -62,7 +62,7 @@ The `env` block in `settings.json` sets two variables for every Claude Code sess
 | Variable | Value | Enables |
 | --- | --- | --- |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Claude Code's experimental agent teams feature, for the teammates that lane and panel mode spawn |
-| `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band` | Loads the [pr-band](../mods/pr-band/README.md) mod from the linked `mods/` dir |
+| `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band:~/.claude/mods/pr-fleet` | Loads the [pr-band](../mods/pr-band/README.md) and [pr-fleet](../mods/pr-fleet/README.md) mods from the linked `mods/` dir |
 
 ## Keep runtime state out of commits
 
@@ -100,7 +100,7 @@ The Pi `drift-check` extension runs `--check` for every host at each session sta
 Three paths assume the default dirs:
 
 - The hook commands in `settings.json` fall back to `~/.claude/hooks/...`, and the status line and herdr hook use `~/.claude/` paths only. A machine that uses only `~/.claude-personal` still needs the `~/.claude` links.
-- `CLAUDE_CODE_PLUGIN_DIRS` names only `~/.claude/mods/pr-band`. A machine without the `~/.claude` links loads no mod.
+- `CLAUDE_CODE_PLUGIN_DIRS` names only `~/.claude/mods/` paths. A machine without the `~/.claude` links loads no mod.
 - `pi/settings.json` loads the hook bridge into subagents from `~/.pi/agent/extensions/`. A machine with only `~/.pi-personal/agent` runs subagents without it.
 
 ## Codex

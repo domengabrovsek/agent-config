@@ -1,0 +1,1 @@
+{ "name": "pr-fleet", "version": "0.1.0", "description": "Lists your open PRs across every repo with CI, review, thread and merge state in a pane", "types": "./types/index.d.ts" }
