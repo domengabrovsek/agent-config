@@ -140,7 +140,7 @@ export const register: Register = on => {
               <Text bold><Link href={issue.url} label={issue.shortId} /></Text>
               <Text dimColor>{issue.project}</Text>
               <Text color="warning">{issue.occurrences}x</Text>
-              {issue.users > 0 ? <Text>{issue.users} users</Text> : null}
+              {issue.users > 0 ? <Text>{issue.users} user{issue.users === 1 ? '' : 's'}</Text> : null}
               <Text dimColor>{ago(issue.lastSeen, current.checkedAt)}</Text>
             </Box>
             <Text dimColor wrap="truncate-end">  {issue.title}</Text>

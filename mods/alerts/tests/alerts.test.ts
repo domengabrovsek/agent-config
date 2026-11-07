@@ -62,6 +62,40 @@ test('the pane lists each unresolved issue with its counts and link', async ($, 
   }
 })
 
+function searchOf(count: number): string {
+  const issue = JSON.parse(SEARCH).issues[0]
+  return JSON.stringify({
+    url: JSON.parse(SEARCH).url,
+    issues: Array.from({ length: count }, (_, i) => ({ ...issue, shortId: `WEB-${i}`, url: `${issue.url}-${i}`, usersImpacted: 1 })),
+  })
+}
+
+test('a list at the search cap reads as capped, with singular user counts', async ($, on) => {
+  engine(on)
+  on('mcp.call', () => ({ value: { content: [{ type: 'text', text: searchOf(25) }], isError: false } }))
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.command.run(ALERTS)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /unresolved in 24h/ }))?.text).toBe('25+ unresolved in 24h')
+  expect(await ui.find({ type: 'Text', text: '1 user' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('an empty search says there are no unresolved issues', async ($, on) => {
+  engine(on)
+  on('mcp.call', () => ({ value: { content: [{ type: 'text', text: searchOf(0) }], isError: false } }))
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.command.run(ALERTS)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /unresolved in 24h/ }))?.text).toBe('0 unresolved in 24h')
+  expect(await ui.find({ type: 'Text', text: 'No unresolved issues in the last 24 hours.' })).toBeDefined()
+  await ui.unmount()
+})
+
 test('a call that rejects shows its error and how to connect the server', async ($, on) => {
   engine(on)
 
