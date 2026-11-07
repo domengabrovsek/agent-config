@@ -13,8 +13,36 @@ DIM='\033[2m'
 # Dim delimiter drawn between every section
 SEP=" ${DIM}│${RESET} "
 
-input=$(cat)
-cwd=$(echo "$input" | jq -r '.cwd')
+# Fields join on the unit separator: read collapses runs of a whitespace IFS, losing empty fields.
+US=$(printf '\037')
+
+# Pick a color for a percentage: red from 80, yellow from 50
+usage_color() {
+  if [ "$1" -ge 80 ]; then
+    printf '%s' "$RED"
+  elif [ "$1" -ge 50 ]; then
+    printf '%s' "$YELLOW"
+  else
+    printf '%s' "$GREEN"
+  fi
+}
+
+# Context is only present after the first API call; effort is absent when the model
+# does not support it; rate limits are only present for Pro/Max.
+IFS="$US" read -r cwd has_usage ctx_pct used_tokens model effort five_h seven_d <<EOF
+$(jq -r '[
+  .cwd,
+  (if .context_window.current_usage then "1" else "" end),
+  (.context_window.used_percentage // ""),
+  ((.context_window.current_usage.input_tokens // 0)
+    + (.context_window.current_usage.cache_read_input_tokens // 0)
+    + (.context_window.current_usage.cache_creation_input_tokens // 0)),
+  (.model.display_name // ""),
+  (.effort.level // ""),
+  (.rate_limits.five_hour.used_percentage // ""),
+  (.rate_limits.seven_day.used_percentage // "")
+] | map(tostring) | join("\u001f")')
+EOF
 folder=$(basename "$cwd")
 
 # Git branch
@@ -39,10 +67,6 @@ if [ -f "$cwd/.nvmrc" ]; then
 elif command -v node >/dev/null 2>&1; then
   node_version=$(node -v 2>/dev/null)
 fi
-
-# Context: only present after first API call (current_usage non-null)
-has_usage=$(echo "$input" | jq -r '.context_window.current_usage // empty')
-ctx_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 
 # Compact a raw token number to e.g. "45.2k" or "999"
 compact_tokens() {
@@ -70,9 +94,6 @@ if [ -n "$node_version" ]; then
   printf "${SEP}${BLUE}node${RESET} ${YELLOW}%s${RESET}" "$node_version"
 fi
 
-# Effort is absent when the model does not support the effort parameter
-model=$(echo "$input" | jq -r '.model.display_name // empty')
-effort=$(echo "$input" | jq -r '.effort.level // empty')
 if [ -n "$model" ]; then
   printf "${SEP}${MAGENTA}%s${RESET}" "$model"
   if [ -n "$effort" ]; then
@@ -82,54 +103,27 @@ fi
 
 # Context block: render from the start, defaulting to 0 before the first API call
 if [ -n "$has_usage" ] && [ -n "$ctx_pct" ]; then
-  pct_int=$(echo "$ctx_pct" | awk '{printf "%d", $1}')
-  used_tokens=$(echo "$input" | jq -r '
-    (.context_window.current_usage.input_tokens // 0)
-    + (.context_window.current_usage.cache_read_input_tokens // 0)
-    + (.context_window.current_usage.cache_creation_input_tokens // 0)
-  ')
+  pct_int=${ctx_pct%.*}
 else
   pct_int=0
   used_tokens=0
 fi
-
-if [ "$pct_int" -ge 80 ]; then
-  pct_color="$RED"
-elif [ "$pct_int" -ge 50 ]; then
-  pct_color="$YELLOW"
-else
-  pct_color="$GREEN"
-fi
+pct_color=$(usage_color "$pct_int")
 
 used_label=$(compact_tokens "$used_tokens")
 
 printf "${SEP}${CYAN}context${RESET} ${pct_color}%s (%d%%)${RESET}" \
   "$used_label" "$pct_int"
 
-# Plan usage vs rate limits: only present for Pro/Max after the first API response
-five_h=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
-seven_d=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
-
-# Pick a color for a usage percentage on the same thresholds as context
-usage_color() {
-  if [ "$1" -ge 80 ]; then
-    printf '%s' "$RED"
-  elif [ "$1" -ge 50 ]; then
-    printf '%s' "$YELLOW"
-  else
-    printf '%s' "$GREEN"
-  fi
-}
-
 if [ -n "$five_h" ] || [ -n "$seven_d" ]; then
   printf "${SEP}${BOLD}${MAGENTA}usage${RESET}"
   if [ -n "$five_h" ]; then
-    fh_int=$(echo "$five_h" | awk '{printf "%d", $1}')
+    fh_int=${five_h%.*}
     fh_color=$(usage_color "$fh_int")
     printf " 5h ${BOLD}${fh_color}%d%%${RESET}" "$fh_int"
   fi
   if [ -n "$seven_d" ]; then
-    sd_int=$(echo "$seven_d" | awk '{printf "%d", $1}')
+    sd_int=${seven_d%.*}
     sd_color=$(usage_color "$sd_int")
     printf " 7d ${BOLD}${sd_color}%d%%${RESET}" "$sd_int"
   fi
@@ -175,17 +169,16 @@ if [ -f "$cfg_json" ]; then
     | (($u.spend.used.amount_minor // $u.extra_usage.used_credits) // -1) as $used
     | (($u.spend.limit.amount_minor // $u.extra_usage.monthly_limit) // -1) as $limit
     | if $used < 0 or $limit <= 0 then empty
-      else [$used, $limit, ($u.spend.used.exponent // 2), ($u.spend.severity // ""), ($c.fetchedAtMs // 0)] | @tsv
+      else [$used, $limit, ($u.spend.used.exponent // 2), ($u.spend.severity // ""), ($c.fetchedAtMs // 0)]
+        | map(tostring) | join("\u001f")
       end
   ' "$cfg_json" 2>/dev/null)
 fi
 
 if [ -n "$credits" ]; then
-  used_minor=$(echo "$credits" | cut -f1)
-  limit_minor=$(echo "$credits" | cut -f2)
-  cred_exp=$(echo "$credits" | cut -f3)
-  cred_sev=$(echo "$credits" | cut -f4)
-  fetched_ms=$(echo "$credits" | cut -f5)
+  IFS="$US" read -r used_minor limit_minor cred_exp cred_sev fetched_ms <<EOF
+$credits
+EOF
 
   now_s=$(date +%s)
   age_s=-1
