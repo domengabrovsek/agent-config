@@ -6,23 +6,13 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 GATE="$PROJECT_DIR/hooks/pre-pr-reply-gate.sh"
-PASSED=0
-FAILED=0
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/pr-reply-gate-test.XXXXXX")" && pwd)
+harness_init pr-reply-gate TEST_DIR
 
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/pr-reply-gate-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-mkdir -p "$TEST_DIR/bin"
-cat > "$TEST_DIR/bin/gh" <<'STUB'
+stub "$TEST_DIR/bin" gh <<'STUB'
 #!/bin/bash
 case "$*" in
   *repos/other/*) exit 1 ;;
@@ -31,20 +21,12 @@ case "$*" in
   *) exit 1 ;;
 esac
 STUB
-chmod +x "$TEST_DIR/bin/gh"
 export PATH="$TEST_DIR/bin:$PATH"
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
-
-payload() {
-  COMMAND="$1" CWD="$TEST_DIR" python3 -c 'import json,os; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]},"cwd":os.environ["CWD"]}))'
-}
 
 # assert_gate <name> <command> <expected-exit>
 assert_gate() {
   local name="$1" command="$2" want="$3" got
-  payload "$command" | bash "$GATE" >/dev/null 2>&1
+  payload "$command" "$TEST_DIR" | bash "$GATE" >/dev/null 2>&1
   got=$?
   if [ "$got" -eq "$want" ]; then pass "$name"; else
     echo "    want exit $want, got $got" >&2
@@ -102,7 +84,7 @@ assert_gate "a --body-file with the footer passes" \
 printf 'Done.\n' > "$TEST_DIR/bare.md"
 assert_gate "a --body-file without the footer is blocked" \
   "$GH_PR_COMMENT 7 --body-file bare.md" 2
-if payload "$GH_PR_COMMENT 7 --body \"Done.\"" | SKIP_REPLY_FOOTER=1 bash "$GATE" >/dev/null 2>&1; then
+if payload "$GH_PR_COMMENT 7 --body \"Done.\"" "$TEST_DIR" | SKIP_REPLY_FOOTER=1 bash "$GATE" >/dev/null 2>&1; then
   pass "SKIP_REPLY_FOOTER lets a comment through"
 else
   fail "SKIP_REPLY_FOOTER lets a comment through"
@@ -149,6 +131,4 @@ assert_gate "a PR body edit through gh api passes" \
 assert_gate "a release body passes" \
   "$GH_API repos/acme/app/releases -f tag_name=v1 -f body=\"Notes.\"" 0
 
-echo
-echo "$PASSED passed, $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

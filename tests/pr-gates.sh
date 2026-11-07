@@ -10,31 +10,15 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 PROSE="$PROJECT_DIR/hooks/prose-gate.sh pr"
 BODY="$PROJECT_DIR/hooks/pre-pr-body-gate.sh"
 # Assembled so this file never carries the literal phrase the hooks trigger on.
 GH_CREATE="gh ""pr create"
 GH_EDIT="gh ""pr edit 12"
-PASSED=0
-FAILED=0
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/pr-gates-test.XXXXXX")" && pwd)
-
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/pr-gates-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
-
-payload() {
-  COMMAND="$1" python3 -c 'import json,os,sys; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]}}))'
-}
+harness_init pr-gates TEST_DIR
 
 # assert_gate <name> <hook-invocation> <command> <expected-exit>
 assert_gate() {
@@ -115,6 +99,4 @@ assert_gate "the create help flag is skipped" "$BODY" "$GH_CREATE --help" 0
 assert_gate "the edit help flag is skipped" "$BODY" "gh ""pr edit --help" 0
 assert_gate "an unrelated command is skipped by the prose gate" "$PROSE" "npm test" 0
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

@@ -5,29 +5,16 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 GATE="$PROJECT_DIR/hooks/pre-pr-evidence-gate.sh"
 # Assembled so this file never carries the literal command the hooks match.
 GH_CREATE="gh ""pr create --title t --body b"
-PASSED=0
-FAILED=0
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/evidence-gate-test.XXXXXX")" && pwd)
-
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/evidence-gate-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
+harness_init evidence-gate TEST_DIR
 
 REPO="$TEST_DIR/repo"
-git init -q -b main "$REPO"
-git -C "$REPO" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "chore: init"
+make_repo "$REPO"
 git -C "$REPO" checkout -q -b feat/x
 HEAD_SHA=$(git -C "$REPO" rev-parse HEAD)
 STATE="$REPO/.claude/state"
@@ -58,8 +45,7 @@ ledger() {
 # assert_gate <name> <cwd> <expected-exit>
 assert_gate() {
   local name="$1" cwd="$2" want="$3" got
-  COMMAND="$GH_CREATE" CWD="$cwd" python3 -c 'import json,os; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]},"cwd":os.environ["CWD"]}))' \
-    | bash "$GATE" >/dev/null 2>&1
+  payload "$GH_CREATE" "$cwd" | bash "$GATE" >/dev/null 2>&1
   got=$?
   if [ "$got" -eq "$want" ]; then pass "$name"; else
     echo "    want exit $want, got $got" >&2
@@ -88,7 +74,7 @@ git -C "$REPO" checkout -q main
 git -C "$REPO" worktree add -q "$TEST_DIR/wt" feat/x
 assert_gate "a worktree finds the spec and ledger in the main checkout" "$TEST_DIR/wt" 0
 
-git -C "$TEST_DIR/wt" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "fix: later"
+git -C "$TEST_DIR/wt" commit -q --allow-empty -m "fix: later"
 assert_gate "a new commit makes the evidence stale" "$TEST_DIR/wt" 2
 
 git -C "$REPO" checkout -q -b feat/no-spec
@@ -206,6 +192,4 @@ branch: feat/bold
 SPEC
 assert_gate "a spec with only manual criteria passes" "$REPO" 0
 
-echo
-echo "$PASSED passed, $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

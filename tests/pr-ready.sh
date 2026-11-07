@@ -5,27 +5,17 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 READY="$PROJECT_DIR/scripts/pr-ready.sh"
 HOOK="$PROJECT_DIR/hooks/post-pr-open-watch.sh"
 # Assembled so this file never carries the literal phrase other hooks trigger on.
 GH_CREATE="gh ""pr create"
 GH_READY="gh ""pr ready"
-PASSED=0
-FAILED=0
 
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd)
-TEST_DIR=$(cd "$(mktemp -d "$TMP_ROOT/pr-ready-test.XXXXXX")" && pwd)
+harness_init pr-ready TEST_DIR
 
-cleanup() {
-  case "$TEST_DIR" in
-    "$TMP_ROOT"/pr-ready-test.*) rm -rf "$TEST_DIR" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_DIR" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-mkdir -p "$TEST_DIR/bin"
-cat > "$TEST_DIR/bin/gh" <<'STUB'
+stub "$TEST_DIR/bin" gh <<'STUB'
 #!/bin/bash
 [ -f "$STUB_DIR/fail" ] && exit 1
 case "$1 $2" in
@@ -35,14 +25,10 @@ case "$1 $2" in
   *) exit 1 ;;
 esac
 STUB
-chmod +x "$TEST_DIR/bin/gh"
 export PATH="$TEST_DIR/bin:$PATH"
 export STUB_DIR="$TEST_DIR"
 echo 1 > "$TEST_DIR/workflows"
 export PR_READY_INTERVAL=0
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
 
 URL="https://github.com/acme/app/pull/7"
 
@@ -180,6 +166,4 @@ assert_hook "help stays silent" "$GH_CREATE --help" "$URL" ""
 OUT=$(SKIP_PR_WATCH=1 bash "$HOOK" <<< '{"tool_input":{"command":"gh pr create"}}')
 if [ -z "$OUT" ]; then pass "SKIP_PR_WATCH bypasses"; else fail "SKIP_PR_WATCH bypasses"; fi
 
-echo
-echo "$PASSED passed, $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

@@ -5,35 +5,14 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 HOOK="$PROJECT_DIR/hooks/herdr-pane-context.sh"
-TMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd -P)
-TEST_ROOT=$(cd "$(mktemp -d "$TMP_ROOT/herdr-pane-context-test.XXXXXX")" && pwd -P)
-PASSED=0
-FAILED=0
+harness_init -P herdr-pane-context
+trap 'kill "${SERVER_PID:-}" 2>/dev/null; harness_cleanup' EXIT HUP INT TERM
 
-cleanup() {
-  kill "${SERVER_PID:-}" 2>/dev/null
-  case "$TEST_ROOT" in
-    "$TMP_ROOT"/herdr-pane-context-test.*) rm -rf "$TEST_ROOT" ;;
-    *) echo "Refusing to clean unexpected test path: $TEST_ROOT" >&2 ;;
-  esac
-}
-trap cleanup EXIT HUP INT TERM
-
-pass() {
-  PASSED=$((PASSED + 1))
-  echo "ok - $1"
-}
-
-fail() {
-  FAILED=$((FAILED + 1))
-  echo "not ok - $1"
-  echo "  got: $2"
-}
-
-mkdir -p "$TEST_ROOT/bin"
 LOG="$TEST_ROOT/herdr.log"
-cat >"$TEST_ROOT/bin/herdr" <<EOF
+stub "$TEST_ROOT/bin" herdr <<EOF
 #!/bin/bash
 case "\$1 \$2" in
   "workspace get") printf '{"result":{"workspace":{"label":"%s"}}}\n' "\${FAKE_SPACE:-space-a}" ;;
@@ -43,7 +22,6 @@ case "\$1 \$2" in
     printf '%s\n' "\$*" >>"$LOG" ;;
 esac
 EOF
-chmod +x "$TEST_ROOT/bin/herdr"
 SOCKET="$TEST_ROOT/herdr.sock"
 VIEW_LOG="$TEST_ROOT/view.log"
 python3 - "$SOCKET" "$VIEW_LOG" <<'PY_SERVER' &
@@ -70,8 +48,7 @@ if [ ! -S "$SOCKET" ]; then
 fi
 
 REPO="$TEST_ROOT/my-repo"
-git init -q -b main "$REPO"
-git -C "$REPO" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
+make_repo "$REPO"
 git -C "$REPO" worktree add -q -b feat/x "$TEST_ROOT/wt-x"
 mkdir -p "$TEST_ROOT/plain"
 git init -q -b main "$TEST_ROOT/plain2"
@@ -90,7 +67,7 @@ run_hook() {
 }
 
 expect() {
-  if [ "$2" = "$3" ]; then pass "$1"; else fail "$1" "$2"; fi
+  if [ "$2" = "$3" ]; then pass "$1"; else echo "  got: $2" >&2; fail "$1"; fi
 }
 
 prefix="pane report-metadata w0:p1 --source agent-config:pane-context"
@@ -170,5 +147,4 @@ expect "clears every token outside a git repo" \
   "$(run_hook 1 "{\"cwd\":\"$TEST_ROOT/plain\"}")" \
   "$prefix --clear-token repo --clear-token branch --clear-token wt"$'\n'"$prefix --clear-token icon"
 
-echo "$PASSED passed, $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish

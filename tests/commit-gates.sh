@@ -9,19 +9,12 @@
 set -u
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck source=lib/harness.sh
+. "$PROJECT_DIR/tests/lib/harness.sh"
 CONVENTIONAL="$PROJECT_DIR/hooks/pre-commit-conventional-gate.sh"
 PROSE="$PROJECT_DIR/hooks/prose-gate.sh"
 # Assembled so this file never carries the literal phrase the hooks trigger on.
 GIT_COMMIT="git ""commit"
-PASSED=0
-FAILED=0
-
-pass() { PASSED=$((PASSED + 1)); echo "ok - $1"; }
-fail() { FAILED=$((FAILED + 1)); echo "not ok - $1" >&2; }
-
-payload() {
-  COMMAND="$1" python3 -c 'import json,os,sys; print(json.dumps({"tool_input":{"command":os.environ["COMMAND"]}}))'
-}
 
 # assert_gate <name> <hook-invocation> <command> <expected-exit>
 assert_gate() {
@@ -80,8 +73,7 @@ MSG" 2
 
 echo
 echo "== one run per tool call =="
-ONCE_TMP=$(mktemp -d "${TMPDIR:-/tmp}/once-test.XXXXXX")
-trap 'rm -rf "$ONCE_TMP"' EXIT
+harness_init once ONCE_TMP
 BLOCKED="$GIT_COMMIT -m \"fix(x): utilize the thing\""
 
 # once_exit <tool_use_id> <mode> [tmpdir]: exit code of the prose gate on BLOCKED.
@@ -108,6 +100,4 @@ chmod 500 "$ONCE_TMP"
 check_once "$(once_exit toolu_c commit "$ONCE_TMP/missing")" "2" "an unwritable claim dir still runs the gate"
 chmod 700 "$ONCE_TMP"
 
-echo ""
-echo "$PASSED passed; $FAILED failed"
-[ "$FAILED" -eq 0 ]
+finish
