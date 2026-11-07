@@ -21,7 +21,7 @@ Every change lands through a pull request to `main`, and CI runs the same checks
 1. Write `hooks/<name>.sh`. Exit 2 with a message on stderr to block; exit 0 to allow. Read a `SKIP_<NAME>` variable if a human may need to bypass it.
 2. Make it pass `./scripts/shellcheck-all.sh`, which lints every tracked shell script at warning level.
 3. Register it in `settings.json` under its event, with a `matcher`, an optional `if` pattern, and a timeout. Copy the command wrapper of an existing entry, such as `HOOK="$CLAUDE_PROJECT_DIR/hooks/<name>.sh"; [ -x "$HOOK" ] || HOOK="$HOME/.claude/hooks/<name>.sh"; [ -x "$HOOK" ] && exec "$HOOK"`, so the project's copy wins over `~/.claude/hooks`. Timeouts are in seconds. [Hooks](hooks.md) describes the `if` pattern.
-4. Add `tests/<name>.sh`. Copy an existing one, such as `tests/commit-gates.sh`, which runs the hook on sample input and asserts its exit code. Add a step that runs it to the `shell-tests` job in `.github/workflows/pull-request.yml`.
+4. Add `tests/<name>.sh`. Copy an existing one, such as `tests/commit-gates.sh`, which sources `tests/lib/harness.sh`, runs the hook on sample input, and asserts its exit code. CI runs every `tests/*.sh` file, so the suite needs no workflow change.
 5. Change the tag of the rule it backs to `(hook)`.
 6. If you use Codex, run `bash scripts/setup-hosts.sh --apply --host codex` from the main checkout once the change reaches it. The generated `hooks.json` sums the hook timeouts of each event, so it goes stale when the registry changes.
 
@@ -72,7 +72,7 @@ CI runs these jobs on every pull request to `main`. Each job except Lint Markdow
 | Prose Gate | `bash hooks/prose-gate.test.sh` | Gate fixtures, then every tracked Markdown file |
 | Extension Tests | `npm test` | `tests/*.test.ts`: the deny gate and the Pi extensions |
 | Config Integrity | `./scripts/config-integrity.sh` and `./scripts/shellcheck-all.sh` | JSON parses, no runtime keys committed, the git filter declared, shell lint |
-| Shell Tests | `for t in tests/*.sh; do bash "$t"; done` | Each `tests/*.sh` file: host setup, drift check, shared paths, dispatcher, status line, worktree pruning, and every gate. CI lists the files one by one |
+| Shell Tests | `for t in tests/*.sh; do bash "$t"; done` | Each `tests/*.sh` file: host setup, drift check, shared paths, dispatcher, status line, worktree pruning, and every gate. CI runs each file in its own log group and lists the failed ones at the end |
 
 - The agent push gate runs only part of this table. `package.json` declares only a `test` script, so `pre-push-gate.sh` runs `npm test` and a critical-only `npm audit`. Run every command in the table before you push.
 - The push gate blocks a push from any Node checkout without `node_modules`, even though `npm test` here needs no install. Run `npm ci` in a new worktree first.
