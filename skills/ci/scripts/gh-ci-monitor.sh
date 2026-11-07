@@ -15,7 +15,6 @@ error_count=0
 
 while true; do
   if [ -n "$pr_number" ]; then
-    # Primary path: aggregate all PR checks via gh pr checks
     gh pr checks "$pr_number" >/dev/null 2>&1
     ec=$?
     case $ec in
@@ -25,44 +24,22 @@ while true; do
       *) cur="error|exit-$ec" ;;
     esac
   else
-    # Fallback: no PR yet - check ALL runs for the branch, not just one
-    lines=$(gh run list --branch "$branch" --json status,conclusion \
-      --jq '.[] | "\(.status)|\(.conclusion)"' 2>/dev/null) || lines=""
+    # Any pending run outranks a failure, so the monitor waits for every run.
+    cur=$(gh run list --branch "$branch" --json status,conclusion --jq '
+      if length == 0 then empty
+      elif any(.[]; .status != "completed") then "in_progress|null"
+      elif any(.[]; .conclusion != "success" and .conclusion != "skipped") then "completed|failure"
+      else "completed|success" end' 2>/dev/null) || cur=""
 
-    if [ -z "$lines" ]; then
+    if [ -z "$cur" ]; then
       echo "no-runs|$branch"
       exit 0
     fi
 
-    # Aggregate: any in_progress → in_progress; any failure → failure; all success → success
-    has_pending=false
-    has_failure=false
-    all_completed=true
-
-    while IFS='|' read -r status conclusion; do
-      if [ "$status" != "completed" ]; then
-        all_completed=false
-        has_pending=true
-      elif [ "$conclusion" != "success" ] && [ "$conclusion" != "skipped" ]; then
-        has_failure=true
-      fi
-    done <<< "$lines"
-
-    if [ "$all_completed" = true ] && [ "$has_failure" = true ]; then
-      cur="completed|failure"
-    elif [ "$all_completed" = true ]; then
-      cur="completed|success"
-    elif [ "$has_pending" = true ]; then
-      cur="in_progress|null"
-    else
-      cur="error|unknown"
-    fi
-
-    # Re-check for PR in case it was created after push
+    # A PR may appear after the push.
     pr_number=$(gh pr view --json number --jq '.number' 2>/dev/null) || pr_number=""
   fi
 
-  # Track consecutive errors
   if [[ "$cur" == error* ]]; then
     error_count=$((error_count + 1))
     if [ "$error_count" -ge 5 ]; then
@@ -76,7 +53,6 @@ while true; do
   if [ "$cur" != "$prev" ]; then
     echo "$cur"
     prev="$cur"
-    # Exit on any completed status regardless of conclusion
     if [[ "$cur" == completed\|* ]]; then
       exit 0
     fi

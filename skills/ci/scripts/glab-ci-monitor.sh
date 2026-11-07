@@ -22,11 +22,7 @@ while true; do
   fi
   error_count=0
 
-  # Source of truth: the trailing "Pipeline state: <state>" line.
-  # `glab ci status` lists jobs above it; the first job line can be a
-  # `manual`/`skipped` outlier that does not reflect overall progress.
-  # Take the LAST match via awk's END block (no SIGPIPE risk under
-  # pipefail) and strip the label prefix so we tolerate extra fields.
+  # The trailing "Pipeline state:" line is the truth; the first job line can be a manual or skipped outlier.
   state_line=$(awk '/^Pipeline state:/ { line = $0 } END { print line }' <<<"$raw")
   state="${state_line##*: }"
   first="${raw%%$'\n'*}"
@@ -39,13 +35,7 @@ while true; do
   if [ "$state" != "$prev_state" ] && [ -n "$state" ]; then
     case "$state" in
       success|failed|canceled|skipped|manual)
-        # Terminal from the monitor's POV: nothing more will happen
-        # automatically. `manual` means all automatic jobs completed and
-        # the pipeline is paused on a manual gate awaiting human action,
-        # so treat it as semi-done and stop watching.
-        # Emit a structured marker so the consumer can branch on outcome
-        # without re-parsing glab's free-form job lines. Mirrors the
-        # `completed|<conclusion>` contract of gh-ci-monitor.sh.
+        # Nothing more runs automatically; manual means paused on a human gate.
         echo "completed|$state"
         exit 0
         ;;
