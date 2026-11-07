@@ -13,6 +13,9 @@
 #
 # Exit 2 blocks the edit and feeds the message back to the agent.
 
+# shellcheck source=lib/state-roots.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/state-roots.sh"
+
 INPUT=$(cat)
 FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 AGENT=$(echo "$INPUT" | jq -r '.agent_type // empty')
@@ -25,16 +28,8 @@ TOP=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null) || exit 0
 BRANCH=$(git -C "$TOP" branch --show-current 2>/dev/null)
 [ -z "$BRANCH" ] && exit 0
 
-COMMON=$(git -C "$TOP" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-ROOTS=("$TOP")
-[ -n "$COMMON" ] && [ "$(dirname "$COMMON")" != "$TOP" ] && ROOTS+=("$(dirname "$COMMON")")
-
-LOCK=""
-for root in "${ROOTS[@]}"; do
-  candidate="$root/.claude/state/runs/${BRANCH//\//-}/tests.lock"
-  [ -f "$candidate" ] && LOCK="$candidate" && break
-done
-[ -z "$LOCK" ] && exit 0
+state_roots "$TOP"
+LOCK=$(run_file "$BRANCH" tests.lock) || exit 0
 
 # Locked tests are committed, so git's own path survives symlinked prefixes.
 REL=$(cd "$(dirname "$FILE")" 2>/dev/null && git ls-files --full-name -- "$(basename "$FILE")")

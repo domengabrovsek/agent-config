@@ -17,6 +17,8 @@
 
 # shellcheck source=lib/resolve-repo.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+# shellcheck source=lib/state-roots.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/state-roots.sh"
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
@@ -36,10 +38,7 @@ BRANCH=$(git -C "$TOP" branch --show-current 2>/dev/null)
 HEAD_SHA=$(git -C "$TOP" rev-parse HEAD 2>/dev/null)
 [ -z "$BRANCH" ] || [ -z "$HEAD_SHA" ] && exit 0
 
-COMMON=$(git -C "$TOP" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-ROOTS=("$TOP")
-[ -n "$COMMON" ] && [ "$(dirname "$COMMON")" != "$TOP" ] && ROOTS+=("$(dirname "$COMMON")")
-
+state_roots "$TOP"
 SPEC=""
 for root in "${ROOTS[@]}"; do
   [ -d "$root/.claude/state/specs" ] || continue
@@ -47,12 +46,7 @@ for root in "${ROOTS[@]}"; do
   [ -n "$SPEC" ] && break
 done
 [ -z "$SPEC" ] && exit 0
-
-LEDGER=""
-for root in "${ROOTS[@]}"; do
-  candidate="$root/.claude/state/runs/${BRANCH//\//-}/evidence.md"
-  [ -f "$candidate" ] && LEDGER="$candidate" && break
-done
+LEDGER=$(run_file "$BRANCH" evidence.md)
 
 FAILED=0
 report() {
