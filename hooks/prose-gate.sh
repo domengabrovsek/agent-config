@@ -27,6 +27,16 @@
 
 # shellcheck source=lib/pr-body.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
+# shellcheck source=lib/commit-msg.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/commit-msg.sh"
+
+# These carry the lists themselves, so checking them flags their own text.
+lists_itself() {
+  case "/$1" in
+    */CLAUDE.md|*/rules/communication.md|*/skills/write-plain/SKILL.md|*/.claude/state/*) return 0 ;;
+  esac
+  return 1
+}
 
 MODE="${1:-file}"
 
@@ -55,13 +65,7 @@ case "$MODE" in
       *.md|*.markdown) ;;
       *) exit 0 ;;
     esac
-
-    # These carry the lists themselves, so checking them flags their own text.
-    case "$FILE" in
-      */CLAUDE.md|*/rules/communication.md) exit 0 ;;
-      */skills/write-plain/SKILL.md) exit 0 ;;
-      */.claude/state/*) exit 0 ;;
-    esac
+    lists_itself "$FILE" && exit 0
 
     LABEL="$FILE"
     FILE_DIR=$(dirname "$FILE")
@@ -80,46 +84,10 @@ case "$MODE" in
       *"git commit"*) ;;
       *) exit 0 ;;
     esac
-
-    # Auto-generated or reused messages are not ours to police.
-    if echo "$COMMAND" | grep -qE -- '(--amend|--fixup=|--squash=|--no-edit|-C[[:space:]]+|--reuse-message=)'; then
-      exit 0
-    fi
+    commit_reuses_message "$COMMAND" && exit 0
 
     LABEL="commit message"
-    TEXT=$(printf '%s' "$COMMAND" | python3 -c '
-import sys, re
-
-cmd = sys.stdin.read()
-
-# Only a heredoc opened after `git commit` can carry its message. A command
-# chain may open others first, such as a PR body written to a file, and
-# reading those attributes unrelated prose to this change.
-anchor = cmd.find("git commit")
-scope = cmd[anchor:] if anchor != -1 else cmd
-
-# A heredoc carries the structured multi-line message when one is used.
-m = re.search(r"<<-?[\x27\"]?(\w+)[\x27\"]?", scope)
-if m:
-    delim = m.group(1)
-    after = scope[m.end():]
-    nl = after.find("\n")
-    if nl != -1:
-        out = []
-        for line in after[nl + 1:].split("\n"):
-            if line.strip() == delim:
-                break
-            out.append(line)
-        print("\n".join(out))
-        sys.exit(0)
-
-# Otherwise collect every -m / --message value. The backreference keeps a
-# quote of the other kind inside the message from ending the match early.
-vals = [m.group(2) for m in
-        re.finditer(r"(?:-m|--message)[=\s]+([\x27\"])(.*?)\1", scope, re.S)]
-if vals:
-    print("\n".join(vals))
-' 2>/dev/null)
+    TEXT=$(extract_commit_msg "$COMMAND")
     ;;
 
   pr)
@@ -140,13 +108,10 @@ if vals:
     [ -z "$FILE" ] && { echo "[prose-gate] corpus mode needs a file path" >&2; exit 1; }
     [ ! -f "$FILE" ] && { echo "[prose-gate] no such file: $FILE" >&2; exit 1; }
 
+    lists_itself "$FILE" && exit 0
+    # Accepted ADRs are immutable, so the corpus pass cannot ask for a
+    # rewrite. New ADRs are still gated by file mode as they are written.
     case "$FILE" in
-      */CLAUDE.md|CLAUDE.md) exit 0 ;;
-      */rules/communication.md|rules/communication.md) exit 0 ;;
-      */skills/write-plain/SKILL.md|skills/write-plain/SKILL.md) exit 0 ;;
-      */.claude/state/*) exit 0 ;;
-      # Accepted ADRs are immutable, so the corpus pass cannot ask for a
-      # rewrite. New ADRs are still gated by file mode as they are written.
       */docs/adr/*|docs/adr/*) exit 0 ;;
     esac
 
@@ -165,8 +130,8 @@ esac
 # ---------------------------------------------------------------------------
 # Check. Patterns live in one place; the tier decides block versus advise.
 # ---------------------------------------------------------------------------
-RESULT=$(printf '%s' "$TEXT" | LABEL="$LABEL" python3 -c '
-import os, re, sys
+printf '%s' "$TEXT" | python3 -c '
+import re, sys
 
 text = sys.stdin.read()
 
@@ -252,6 +217,8 @@ ADVISE = [
     (r"evacuate", "move out"),
     (r"scaffolding", "the real structure"),
     (r"primitive", "the real name"),
+    (r"since\s+(?:the|it|it\x27s|its|we|you|this|that|they|there|an?)",
+     "write \"because\" for cause; \"since\" marks time"),
 ]
 
 CURLY = "‘’“”"
@@ -306,16 +273,6 @@ for n, line in enumerate(lines, 1):
 # batch. Five is enough to see the pattern without burying the word list.
 advisories.extend(long_hits[:5])
 
-CAUSAL_SINCE = re.compile(
-    r"\bsince\s+(?:the|it|it\x27s|its|we|you|this|that|they|there|an?)\b",
-    re.IGNORECASE)
-for n, line in enumerate(lines, 1):
-    m = CAUSAL_SINCE.search(line)
-    if m:
-        advisories.append((n, m.group(0),
-                           "write \"because\" for cause; \"since\" marks time"))
-        break
-
 for n, line in enumerate(lines, 1):
     hit = [c for c in CURLY if c in line]
     if hit:
@@ -329,34 +286,23 @@ for n, line in enumerate(lines, 1):
             blocks.append((n, m.group(0), "drop the emoji"))
             break
 
-label = os.environ.get("LABEL", "text")
+sys.stdout = sys.stderr
+label = sys.argv[1]
+
+def report(items):
+    for n, word, fix in sorted(items):
+        print(f"  line {n}: {word!r} -> {fix}")
 
 if advisories:
-    print("ADVISE", file=sys.stderr)
-    for n, word, fix in sorted(advisories):
-        print(f"  line {n}: {word!r} -> {fix}", file=sys.stderr)
+    print(f"[prose-gate] {label} (advisory)")
+    report(advisories)
 
 if blocks:
-    print("BLOCK", file=sys.stderr)
-    for n, word, fix in sorted(blocks):
-        print(f"  line {n}: {word!r} -> {fix}", file=sys.stderr)
+    print(f"[prose-gate] {label}")
+    print("AGENTS.md (Write plain): plain word, no filler, no chatbot phrasing.")
+    report(blocks)
+    print("(Bypass: SKIP_PROSE_GATE=1)")
     sys.exit(2)
-
-sys.exit(0)
-' 2>&1)
-STATUS=$?
-
-if echo "$RESULT" | grep -q '^ADVISE$'; then
-  echo "[prose-gate] $LABEL (advisory)" >&2
-  echo "$RESULT" | sed -n '/^ADVISE$/,/^BLOCK$/p' | grep -v '^ADVISE$' | grep -v '^BLOCK$' >&2
-fi
-
-if [ "$STATUS" -eq 2 ]; then
-  echo "[prose-gate] $LABEL" >&2
-  echo "AGENTS.md (Write plain): plain word, no filler, no chatbot phrasing." >&2
-  echo "$RESULT" | sed -n '/^BLOCK$/,$p' | grep -v '^BLOCK$' >&2
-  echo "(Bypass: SKIP_PROSE_GATE=1)" >&2
-  exit 2
-fi
-
+' "$LABEL"
+[ $? -eq 2 ] && exit 2
 exit 0
