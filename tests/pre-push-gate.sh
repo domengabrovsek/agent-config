@@ -198,6 +198,7 @@ chmod +x "$TEST_ROOT/ghbin/gh"
 
 MERGEDREPO="$TEST_ROOT/mergedrepo"
 make_project "$MERGEDREPO"
+git -C "$MERGEDREPO" checkout -q -b feature/x
 OUT=$(STUB_PR_STATE="MERGED https://github.com/o/r/pull/7" PATH="$TEST_ROOT/ghbin:$PATH" \
   run_gate_cmd "$MERGEDREPO" "git push origin feature/x"); STATUS=$?
 case "$OUT" in
@@ -205,6 +206,23 @@ case "$OUT" in
     || { echo "    exit $STATUS" >&2; fail "a push to a merged branch blocks"; } ;;
   *) echo "    got: $OUT" >&2; fail "a push to a merged branch blocks" ;;
 esac
+
+for CMD in "git push origin HEAD" "git push -u origin feature/x" "git push origin HEAD:feature/x"; do
+  OUT=$(STUB_PR_STATE="MERGED https://github.com/o/r/pull/7" PATH="$TEST_ROOT/ghbin:$PATH" \
+    run_gate_cmd "$MERGEDREPO" "$CMD"); STATUS=$?
+  [ "$STATUS" -eq 2 ] && pass "'$CMD' on a merged branch blocks" \
+    || { echo "    exit $STATUS, got: $OUT" >&2; fail "'$CMD' on a merged branch blocks"; }
+done
+
+# A delete or a push of another branch is not a push of the merged branch.
+for CMD in "git push origin --delete feature/x" "git push origin :feature/x" "git push origin other"; do
+  OUT=$(STUB_PR_STATE="MERGED https://github.com/o/r/pull/7" PATH="$TEST_ROOT/ghbin:$PATH" \
+    run_gate_cmd "$MERGEDREPO" "$CMD")
+  case "$OUT" in
+    *"already merged"*) echo "    got: $OUT" >&2; fail "'$CMD' skips the merge check" ;;
+    *) pass "'$CMD' skips the merge check" ;;
+  esac
+done
 
 OUT=$(STUB_PR_STATE="OPEN https://github.com/o/r/pull/8" PATH="$TEST_ROOT/ghbin:$PATH" \
   run_gate_cmd "$MERGEDREPO" "git push origin feature/x")

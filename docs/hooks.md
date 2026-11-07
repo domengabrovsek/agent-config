@@ -69,7 +69,7 @@ The conventional and co-author gates read the message from the command. A messag
 
 Two gates defer to the repo they run in:
 
-- `pre-push-gate.sh` first blocks a push to a branch whose PR `gh` reports as merged. It then steps aside when the repo has its own executable pre-push hook, and runs `verify:fast` when `package.json` declares it. Otherwise it runs each of `lint`, `typecheck`, `knip`, `test`, and `build` that `package.json` declares, then a critical-only audit. In a Node repo it blocks when the detected npm, pnpm, or yarn is not on `PATH`. In a Terraform dir it runs `terraform fmt -check` and `terraform validate`, and passes when `terraform` is not installed. A dir with neither `package.json` nor `.tf` files passes.
+- `pre-push-gate.sh` first blocks a push of the checked-out branch when `gh` reports its PR as merged. A delete or a push of another branch skips this check. It then steps aside when the repo has its own executable pre-push hook, and runs `verify:fast` when `package.json` declares it. Otherwise it runs each of `lint`, `typecheck`, `knip`, `test`, and `build` that `package.json` declares, then a critical-only audit. In a Node repo it blocks when the detected npm, pnpm, or yarn is not on `PATH`. In a Terraform dir it runs `terraform fmt -check` and `terraform validate`, and passes when `terraform` is not installed. A dir with neither `package.json` nor `.tf` files passes.
 - `pre-pr-test-gate.sh` reads the `verify-passed` stamp that `post-verify-stamp.sh` writes to the git dir after a successful `npm run verify`. It runs `npm test` only in repos without `verify`.
 
 ## PostToolUse hooks

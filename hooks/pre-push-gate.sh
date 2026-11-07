@@ -78,9 +78,36 @@ DIR=$(resolve_repo_dir "$COMMAND" "$CWD" push)
 
 # A push to a branch whose PR already merged recreates the deleted remote
 # branch, and its commits land in no open PR.
+# Only a push of the checked-out branch is checked: bare `gh pr view` resolves
+# its PR through the upstream, while a bare name also matches fork PRs.
+pushes_current_branch() {
+  local rest word dst
+  local -a refspecs=()
+  rest=${COMMAND#* push}
+  rest=${rest%%[;&|]*}
+  set -f
+  for word in $rest; do
+    case "$word" in
+      --delete|-d|:*) set +f; return 1 ;;
+      -*) ;;
+      *) refspecs+=("$word") ;;
+    esac
+  done
+  set +f
+  # The first word is the remote; none or one refspec after it is supported.
+  [ "${#refspecs[@]}" -le 1 ] && return 0
+  [ "${#refspecs[@]}" -gt 2 ] && return 1
+  dst=${refspecs[1]#+}
+  dst=${dst#*:}
+  case "$dst" in
+    HEAD|"$1"|"refs/heads/$1") return 0 ;;
+  esac
+  return 1
+}
+
 BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
-if [ -n "$BRANCH" ] && command -v gh >/dev/null 2>&1; then
-  PR_STATE=$(cd "$DIR" && gh pr view "$BRANCH" --json state,url -q '.state + " " + .url' 2>/dev/null)
+if [ -n "$BRANCH" ] && command -v gh >/dev/null 2>&1 && pushes_current_branch "$BRANCH"; then
+  PR_STATE=$(cd "$DIR" && gh pr view --json state,url -q '.state + " " + .url' 2>/dev/null)
   if [ "${PR_STATE%% *}" = "MERGED" ]; then
     echo "[pre-push-gate] $BRANCH already merged in ${PR_STATE#* }. Start a new branch from the default branch for new work (or bypass with SKIP_PUSH_GATE=1)." >&2
     exit 2
