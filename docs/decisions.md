@@ -70,10 +70,10 @@ The design decisions this config still runs on. Each entry states the choice and
 - No registry entry sets Claude Code's `onFailure: "block"`, which would make a failed or timed-out hook block the call.
 - Cost: a broken hook enforces nothing until someone notices.
 
-### Project hooks win over the global copy
+### Hooks run only from the global copy
 
-- Each registry command runs `<project>/hooks/<name>` when it is executable, and `~/.claude/hooks/<name>` otherwise. The project copy wins so that a hook edit in this repo runs on the next tool call of a session here, before the change merges.
-- Cost: a repo can ship its own `hooks/deny-gate.sh` that allows everything, and no setting forces the global copy. [Hooks](hooks.md#how-a-hook-runs) says how to check an unfamiliar repo.
+- Each registry command runs `~/.claude/hooks/<name>`, which links to the main checkout. An opened repo cannot replace a gate with its own `hooks/` copy, and a worktree runs the main checkout's hooks.
+- Cost: a hook edit takes effect only once it reaches the main checkout, so its `tests/*.sh` suite or `npm test` verifies it first.
 
 ### The deny list adds friction, not a sandbox
 
