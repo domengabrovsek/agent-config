@@ -76,4 +76,5 @@ git config filter.strip-ephemeral-state.smudge cat
 | [pr-band](mods/pr-band/README.md) | The Claude Code mod that shows the branch's PR and CI state |
 | [pr-fleet](mods/pr-fleet/README.md) | The Claude Code mod that lists your open PRs across repos in a pane |
 | [alerts](mods/alerts/README.md) | The Claude Code mod that lists unresolved Sentry issues from the last 24 hours in a pane |
+| [session-focus](mods/session-focus/README.md) | The Claude Code mod that shows a few-word summary of what each terminal session is working on |
 | [Context](CONTEXT.md) | Glossary |
