@@ -149,7 +149,7 @@ The bootstrap does not install or upgrade Pi. It does not manage credentials, pr
 | `permission-gate` | Derives Pi's permission policy from the deny list at each session start |
 | `hook-bridge` | Runs the registry hooks on Pi's `bash`, `edit`, and `write` calls through `hooks/lib/dispatch.sh` |
 | `drift-check` | Runs `setup-hosts.sh --check` at session start and warns on drift |
-| `worktree-cleanup` | Runs `scripts/worktree-prune.sh --apply` at session shutdown |
+| `worktree-cleanup` | Runs `scripts/worktree-prune.sh --apply --min-idle 30` at session shutdown |
 | `statusline` | Replaces the footer with folder, branch, tokens, cost, context, usage windows, and model |
 | `herdr-agent-state` | Reports session state to herdr when `HERDR_ENV=1` and herdr sets its socket path and pane ID |
 

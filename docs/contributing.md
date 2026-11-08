@@ -69,10 +69,9 @@ CI runs these jobs on every pull request to `main`. Each job except Lint Markdow
 | --- | --- | --- |
 | Lint Markdown | none; CI uses the shared markdownlint action | Every `*.md` file against `.markdownlint.json` |
 | Config Budget | `./scripts/config-budget.sh` | The always-loaded word and tag budgets |
-| Prose Gate | `bash hooks/prose-gate.test.sh` | Gate fixtures, then every tracked Markdown file |
 | Extension Tests | `npm test` | `tests/*.test.ts`: the deny gate and the Pi extensions |
 | Config Integrity | `./scripts/config-integrity.sh` and `./scripts/shellcheck-all.sh` | JSON parses, no runtime keys committed, the git filter declared, shell lint |
-| Shell Tests | `for t in tests/*.sh; do bash "$t"; done` | Each `tests/*.sh` file: host setup, drift check, shared paths, dispatcher, status line, worktree pruning, and every gate. CI runs each file in its own log group and lists the failed ones at the end |
+| Shell Tests | `for t in tests/*.sh; do bash "$t"; done` | Each `tests/*.sh` file: host setup, drift check, shared paths, dispatcher, status line, worktree pruning, every gate, and the prose gate fixtures plus every tracked Markdown file. CI runs the files in parallel, prints each log in its own group, and lists the failed ones at the end |
 
 - The agent push gate runs only part of this table. `package.json` declares only a `test` script, so `pre-push-gate.sh` runs `npm test` and a critical-only `npm audit`. Run every command in the table before you push.
 - The push gate blocks a push from any Node checkout without `node_modules`, even though `npm test` here needs no install. Run `npm ci` in a new worktree first.

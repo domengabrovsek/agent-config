@@ -9,8 +9,8 @@
 # Verifier. A criterion whose check is `manual` never blocks: the PR body lists
 # it for the user instead.
 #
-# .claude/state/ is untracked and per checkout, so a worktree looks in its own
-# tree first and then in the main checkout.
+# .claude/state/ is untracked and per checkout, so the gate looks in the main
+# checkout first and then in the worktree.
 #
 # Exit 2 blocks the action and feeds the message back to the agent.
 # Bypass with SKIP_EVIDENCE_GATE=1.

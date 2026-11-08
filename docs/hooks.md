@@ -50,7 +50,7 @@ These run before the tool call and can block it. The rows follow registry order.
 | Hook | Runs on | Blocks when | Bypass |
 | --- | --- | --- | --- |
 | `deny-gate.sh` | Bash, Write, Edit, MCP tools | A command names a denied path, an edit targets one, or an MCP tool is denied. It applies `Bash` rules on every host, after normalizing each segment, as [the deny list](#the-deny-list) describes | None |
-| `pre-outbound-email-scrub.sh` | WebFetch URLs, WebSearch queries, and Bash commands that name a URL or a network client such as `curl`, `wget`, or `gh` | Codex and Pi: the call carries an email address. Claude Code never blocks: it returns `updatedInput` with each address replaced by `redacted@example.invalid`. Noreply addresses, example domains, `git@host:` remotes, the login of the requested URL, ssh-family targets, and local git steps without a URL or a server subcommand such as `push` pass. A literal `curl -u <email>:<token>` is scrubbed, so pass that login through a variable | `SKIP_EMAIL_SCRUB` |
+| `pre-outbound-email-scrub.sh` | WebFetch URLs, WebSearch queries, and Bash commands that name a URL or a network client such as `curl`, `wget`, or `gh` | Codex and Pi: the call carries an email address. Claude Code never blocks: it returns `updatedInput` with each address replaced by `redacted@example.invalid`. Noreply addresses, example domains, `git@host:` remotes, the login of the requested URL unless curl sends the request through a proxy, `--connect-to`, or `--resolve`, ssh-family targets, and local git steps without a URL or a server subcommand such as `push` pass. A literal `curl -u <email>:<token>` is scrubbed, so pass that login through a variable | `SKIP_EMAIL_SCRUB` |
 | `pre-git-state-refresh.sh` | `git push` and `git commit`, also through `git -C <dir>`, and `gh pr` `edit`, `comment`, `merge`, `close`, `ready`, `review`; not `gh pr create` | Never. It adds a `[pr-state]` line with the branch's PR state | `SKIP_PR_STATE_REFRESH` |
 | `pre-pr-test-gate.sh` | `gh pr create`, `gh pr ready` | The title is not conventional, or HEAD has no passing verify run | `SKIP_PR_TEST_GATE` |
 | `pre-pr-evidence-gate.sh` | `gh pr create`, when a spec names the branch | A non-manual acceptance criterion lacks a PASS row at HEAD | `SKIP_EVIDENCE_GATE` |
@@ -60,7 +60,7 @@ These run before the tool call and can block it. The rows follow registry order.
 | `pre-commit-conventional-gate.sh` | `git commit`, including `git -C <dir> commit` | The subject is not a conventional commit | `SKIP_CONVENTIONAL_GATE` |
 | `prose-gate.sh` | `git commit`, including `git -C <dir> commit`, `gh pr create`, `gh pr edit` | The message or body uses a blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `pre-pr-body-gate.sh` | `gh pr` and `gh issue` create or edit | The title or body has AI attribution or a `.claude/state/` path | `SKIP_PR_BODY_GATE` |
-| `pre-pr-reply-gate.sh` | `gh api`, `gh pr comment`, `gh pr review`, `gh issue comment` | The call replies inline to a human's comment, or a comment lacks the agent footer | `SKIP_REPLY_FOOTER`, footer check only |
+| `pre-pr-reply-gate.sh` | `gh api`, `gh pr comment`, `gh pr review`, `gh issue comment` | The call replies inline to a human's comment, a comment lacks the agent footer, or a `gh api` comment is one the gate cannot read: `--input`, a GraphQL comment or reply mutation, or a variable `in_reply_to` | `SKIP_REPLY_FOOTER`, footer check only |
 | `pre-edit-test-lock.sh` | Write, Edit | Anyone but the QA Expert edits a test listed in `tests.lock` | None |
 
 The conventional and co-author gates read the message from the command. A message passed with `-F` or written in an editor skips them.
@@ -81,7 +81,7 @@ These run after a Write or Edit, except `post-pr-open-watch.sh` and `post-verify
 | `post-edit-lint.sh` | Replaces em dashes, then checks the added lines | Tracker refs in comments, stacked `//` or `--` comments, `var`, TODO markers, `SELECT *`, `:latest` | `SKIP_POST_EDIT_LINT` |
 | `prose-gate.sh file` | Checks the added lines of a Markdown file | A blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `post-pr-open-watch.sh` | After a non-draft `gh pr create` or a `gh pr ready` succeeds, tells the agent to watch the PR with `scripts/pr-ready.sh --watch` and how to clear each blocker | Never | `SKIP_PR_WATCH` |
-| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code. A redirected log must go outside the repo or to an ignored path | Never | `SKIP_VERIFY_STAMP` |
+| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code. A redirected log must go outside the repo or to an ignored path. Also skips a `VAR=value` prefix, `npm_config_*`, and `--ignore-scripts` | Never | `SKIP_VERIFY_STAMP` |
 
 The prose gate also prints advisories that never block: words to reconsider, sentences over 25 words, and a causal "since".
 
@@ -93,12 +93,12 @@ The prose gate also prints advisories that never block: words to reconsider, sen
 | `SessionStart`, after compaction | Inline `echo` | Reminds the model of the workflow, `/verify-done` before a PR, and the current year |
 | `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1`. herdr manages this file and overwrites it on reinstall |
 | `SessionStart`, `CwdChanged`, `Stop` | `herdr-pane-context.sh` | Reports `$repo`, `$branch`, and `$wt` pane tokens to the herdr sidebar when `HERDR_ENV=1`. On `SessionStart` it also reports `$model`, because only that event carries the model. It also sets one of `$c0` to `$c13`, a color marker that the herdr config styles. Each new repo in a space takes the lowest unused color, saved in `~/.local/state/herdr/repo-colors`. `Stop` catches a branch switch inside a session. On a fresh `SessionStart` (source `startup`) it also sorts the agent panel by repo through `agent.view.set`. Codex runs only the `SessionStart` entry, through `dispatch.sh` |
-| `SessionEnd` | `worktree-cleanup.sh` | Runs `scripts/worktree-prune.sh --apply`; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off. Pi's `worktree-cleanup` extension also reads `HARNESS_DISABLE_WORKTREE_CLEANUP=1` |
+| `SessionEnd` | `worktree-cleanup.sh` | Runs the hook checkout's `scripts/worktree-prune.sh --apply --min-idle 30`, which keeps locked worktrees; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off. Pi's `worktree-cleanup` extension also reads `HARNESS_DISABLE_WORKTREE_CLEANUP=1` |
 | `Notification` | Inline `osascript` | Shows a macOS notification on a permission or idle prompt |
 
 ## Bypass variables
 
-Each `SKIP_*` variable takes the value `1` and is read from the environment of the hook process. Hooks inherit the host's environment, not the tool command's, so set the variable when you start the host, as in `SKIP_PROSE_GATE=1 claude` or `SKIP_PROSE_GATE=1 pi`. `SKIP_PUSH_GATE=1` also works as a prefix on the `git push` command.
+Each `SKIP_*` variable takes the value `1` and is read from the environment of the hook process. Hooks inherit the host's environment, not the tool command's, so set the variable when you start the host, as in `SKIP_PROSE_GATE=1 claude` or `SKIP_PROSE_GATE=1 pi`.
 
 A bypass is a deliberate human override, not a tool for the agent. A pull request that relies on one says so in its description.
 
@@ -132,12 +132,12 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `dispatch.sh` | Codex `hooks.json`, Pi `hook-bridge` | Runs the registry on hosts without native hooks. See [host coverage](#host-coverage) |
 | `deny-gate.ts` | `deny-gate.sh` | Matches a tool call against the deny list in `settings.json` |
 | `resolve-repo.sh` | The git and `gh pr` gates, `post-verify-stamp.sh` | Finds the repo a command targets, because a hook runs in its own cwd |
-| `pr-body.sh` | The prose, body, test, and reply gates | Extracts the PR body from a `gh pr` command |
+| `pr-body.sh` | The prose, body, test, and reply gates | Extracts the PR body from a `gh pr` command, and the `body=` field of a `gh api` call |
 | `find-up.sh` | `auto-format.sh`, `post-edit-typecheck.sh`, `post-verify-stamp.sh` | Finds the nearest config, `package.json`, or tool binary above a path, for monorepo workspaces |
 | `package-json.sh` | The per-edit hooks, the push, PR test, and verify stamp hooks | Finds the nearest `package.json` and checks for a declared script |
 | `commit-msg.sh` | The conventional-commit and prose gates | Extracts the message from a `git commit` command and spots a reused one |
 | `context.sh` | The verify stamp, PR watch, and PR state hooks | Prints the JSON that adds text to the model's context |
-| `state-roots.sh` | The test lock and the evidence gate | Finds `.claude/state/` in a worktree, then in the main checkout |
+| `state-roots.sh` | The test lock and the evidence gate | Finds `.claude/state/` in the main checkout, then in a worktree |
 | `once.sh` | The Bash hooks registered under several `if` rules | Lets only the first run on a tool call do the work, keyed by `tool_use_id` |
 
 ## Where each hook is tested
@@ -148,7 +148,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/dispatch.sh` | `hooks/lib/dispatch.sh`: matching, tool aliases, exit codes, timeouts |
 | `tests/hook-bridge.test.ts`, `tests/permission-gate.test.ts` | The Pi bridge, and the policy derived from the real deny list |
 | `tests/drift-check.test.ts`, `tests/worktree-cleanup.test.ts`, `tests/statusline.test.ts` | The Pi extensions that replace session hooks, and the Pi status line usage parser |
-| `tests/commit-gates.sh` | The conventional-commit gate and the prose gate on commits |
+| `tests/commit-gates.sh` | The conventional-commit gate, the co-author gate, and the prose gate on commits |
 | `tests/pr-gates.sh`, `tests/pre-pr-test-gate.sh`, `tests/pr-reply-gate.sh` | The PR body, prose, test, and reply gates |
 | `tests/post-verify-stamp.sh` | The `verify-passed` stamp, and the commands that leave none |
 | `tests/pr-ready.sh` | `scripts/pr-ready.sh` and the PR watch hook |
@@ -157,8 +157,9 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/outbound-email-scrub.sh` | The email scrub on each tool, its allowed addresses, and the block on Codex and Pi |
 | `tests/post-edit-hooks.sh` | The three per-edit hooks |
 | `tests/symlink-check.sh` | The drift check |
-| `tests/worktree-prune.sh` | `scripts/worktree-prune.sh`, which `worktree-cleanup.sh` runs |
+| `tests/worktree-prune.sh` | `scripts/worktree-prune.sh`, and the `worktree-cleanup.sh` hook that runs it |
+| `tests/once.sh` | `hooks/lib/once.sh`: claim dir mode, per-user fallback, fail-open |
 | `tests/herdr-pane-context.sh` | The herdr pane tokens in a checkout, a worktree, a submodule, and a bare repo |
-| `hooks/prose-gate.test.sh` | Prose gate fixtures, plus every tracked Markdown file |
+| `tests/prose-gate.sh` | Prose gate fixtures, plus every tracked Markdown file |
 
-`pre-commit-coauthor-gate.sh`, `herdr-agent-state.sh`, and `worktree-cleanup.sh` have no test. [Contributing](contributing.md#add-a-hook) shows how to add a hook with its test.
+`herdr-agent-state.sh` has no test. [Contributing](contributing.md#add-a-hook) shows how to add a hook with its test.
