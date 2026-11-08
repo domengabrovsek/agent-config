@@ -16,7 +16,7 @@ How to install this config, scope it per machine, and wire each host. For the bi
 | `git`, `bash` | Everything |
 | `jq` | `setup-hosts.sh` for Codex, and the `settings.json` git filter |
 | `python3` | `hooks/lib/dispatch.sh` on Codex and Pi, and `config-integrity.sh` |
-| Node.js 22.18 or later | `hooks/deny-gate.sh`, which runs its TypeScript directly. Without `node`, the deny gate allows everything |
+| Node.js 22.18 or later | `hooks/deny-gate.sh`, which runs its TypeScript directly. Without `node`, the deny gate blocks every call on Codex and passes elsewhere |
 | Node.js 22.19 or later | `npm test`, from the `engines` floor in `package.json`. Install this version, because it also satisfies the deny gate |
 | Claude Code, Codex, or Pi | At least one host |
 
@@ -99,7 +99,7 @@ The Pi `drift-check` extension runs `--check` for every host at each session sta
 
 Three paths assume the default dirs:
 
-- The hook commands in `settings.json` fall back to `~/.claude/hooks/...`, and the status line and herdr hook use `~/.claude/` paths only. A machine that uses only `~/.claude-personal` still needs the `~/.claude` links.
+- The hook commands in `settings.json` run only `~/.claude/hooks/...`, and the status line and herdr hook use `~/.claude/` paths only. A machine that uses only `~/.claude-personal` still needs the `~/.claude` links.
 - `CLAUDE_CODE_PLUGIN_DIRS` names only `~/.claude/mods/` paths. A machine without the `~/.claude` links loads no mod.
 - `pi/settings.json` loads the hook bridge into subagents from `~/.pi/agent/extensions/`. A machine with only `~/.pi-personal/agent` runs subagents without it.
 
@@ -153,7 +153,7 @@ The bootstrap does not install or upgrade Pi. It does not manage credentials, pr
 | `statusline` | Replaces the footer with folder, branch, tokens, cost, context, usage windows, and model |
 | `herdr-agent-state` | Reports session state to herdr when `HERDR_ENV=1` and herdr sets its socket path and pane ID |
 
-**`permission-gate`** turns `Read` rules into `path_read` surfaces, `Edit` and `Write` rules into `path_write`, and passes `Bash` and MCP rules through. The pinned [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system) package enforces the result. The extension writes `pi/extensions/pi-permission-system/config.json`. When it cannot refresh that file, it shows an error at session start and the package keeps the last generated policy. Separately, `hooks/deny-gate.sh` runs on Pi through `hook-bridge` and blocks shell commands that name a denied path. It leaves `Bash` rules to the package on Pi, and applies them itself only on Codex.
+**`permission-gate`** turns `Read` rules into `path_read` surfaces, `Edit` and `Write` rules into `path_write`, and passes `Bash` and MCP rules through. The pinned [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system) package enforces the result. The extension writes `pi/extensions/pi-permission-system/config.json`. When it cannot refresh that file, it shows an error at session start and the package keeps the last generated policy. Separately, `hooks/deny-gate.sh` runs on Pi through `hook-bridge` and blocks shell commands that name a denied path. It also applies the `Bash` rules, after normalizing each command, because the package matches them literally.
 
 - The generated policy holds only deny rules, and the fallback is `allow`, so deny wins and headless sessions never prompt.
 - The bash surface lists its `*: allow` catch-all first, because the package applies the last matching rule.

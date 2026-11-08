@@ -22,11 +22,9 @@ A registry entry has four parts:
 | `if` | An optional glob on the tool input | `Bash(git commit *)` |
 | `command` | The script and its arguments, with a timeout | `hooks/prose-gate.sh commit` |
 
-Each command runs the current project's `hooks/<name>` when that file is executable, and `~/.claude/hooks/<name>` otherwise. A session inside this repo therefore runs the checkout's own copy, so a hook edit takes effect in that session. The `herdr-agent-state.sh` entry runs only `~/.claude/hooks/herdr-agent-state.sh` and never a project copy.
+Each command runs `~/.claude/hooks/<name>`, which links to the main checkout. No command runs a project's own `hooks/` copy, so an opened repo cannot replace a gate, and an agent worktree runs the main checkout's hooks rather than its branch copy. A hook edit therefore takes effect only once it reaches the main checkout. Verify it before then with its `tests/*.sh` suite or `npm test`, not in a live session.
 
-"Current project" depends on the host. On Codex and Pi, `dispatch.sh` sets `CLAUDE_PROJECT_DIR` to the git top level of the working directory. On Claude Code, it is the directory the session started in, which is not always the git root. A session started in a subdirectory looks for `<subdir>/hooks/`.
-
-The lookup lets any project replace any hook. A repo that ships an executable `hooks/deny-gate.sh` runs its own copy instead of this one, so a hostile repo can ship a deny gate that allows everything. Before you open a session in an unfamiliar repo, check whether it has executable scripts in `hooks/` named like the ones below, and read them first. `ls -l <repo>/hooks` shows them. If one looks wrong, do not start a session in that repo. No setting forces the global copy.
+Hooks still read `CLAUDE_PROJECT_DIR` for the project they inspect. On Codex and Pi, `dispatch.sh` sets it to the git top level of the working directory. On Claude Code, it is the directory the session started in, which is not always the git root.
 
 Exit codes decide the outcome:
 
@@ -43,7 +41,7 @@ Exit codes decide the outcome:
 | Codex | `~/.codex/hooks.json` calls `dispatch.sh` | `SessionStart` and `SessionEnd` through `dispatch.sh`; no `Notification` | `deny-gate.sh`, including the `Bash` rules |
 | Pi | The `hook-bridge` extension calls `dispatch.sh` for `bash`, `edit`, and `write` | Extensions instead: `drift-check` at start, `worktree-cleanup` at shutdown | The `permission-gate` extension derives a policy for the pinned `pi-permission-system` package; `deny-gate.sh` runs through the bridge |
 
-`dispatch.sh` makes one registry serve three hosts. It reads `settings.json` from the checkout on every call, so a registry edit reaches Codex and Pi at once. It maps each host's tool names to Claude Code's, so Codex shell tools become `Bash` and each file in an `apply_patch` becomes an `Edit`. It runs the matching hooks in registry order, stops at the first exit 2, and merges the context the others print. A command that several matching rules name runs once per call.
+`dispatch.sh` makes one registry serve three hosts. It reads `settings.json` from the checkout on every call, so a registry edit reaches Codex and Pi at once. It maps each host's tool names to Claude Code's, so Codex shell tools become `Bash` and each file in an `apply_patch` becomes an `Edit`. It runs the matching hooks in registry order, stops at the first exit 2, and merges the context the others print. Each hook runs from the dispatcher's own `hooks/`, never from the project's. A command that several matching rules name runs once per call.
 
 ## PreToolUse hooks
 
@@ -51,16 +49,16 @@ These run before the tool call and can block it. The rows follow registry order.
 
 | Hook | Runs on | Blocks when | Bypass |
 | --- | --- | --- | --- |
-| `deny-gate.sh` | Bash, Write, Edit, MCP tools | A command names a denied path, an edit targets one, or an MCP tool is denied. It applies `Bash` rules only on Codex, because Claude Code and Pi enforce those natively | None |
+| `deny-gate.sh` | Bash, Write, Edit, MCP tools | A command names a denied path, an edit targets one, or an MCP tool is denied. It applies `Bash` rules on every host, after normalizing each segment, as [the deny list](#the-deny-list) describes | None |
 | `pre-outbound-email-scrub.sh` | WebFetch URLs, WebSearch queries, and Bash commands that name a URL or a network client such as `curl`, `wget`, or `gh` | Codex and Pi: the call carries an email address. Claude Code never blocks: it returns `updatedInput` with each address replaced by `redacted@example.invalid`. Noreply addresses, example domains, `git@host:` remotes, the login of the requested URL, ssh-family targets, and local git steps without a URL or a server subcommand such as `push` pass. A literal `curl -u <email>:<token>` is scrubbed, so pass that login through a variable | `SKIP_EMAIL_SCRUB` |
-| `pre-git-state-refresh.sh` | `git push`, `git commit`, and `gh pr` `edit`, `comment`, `merge`, `close`, `ready`, `review`; not `gh pr create` | Never. It adds a `[pr-state]` line with the branch's PR state | `SKIP_PR_STATE_REFRESH` |
+| `pre-git-state-refresh.sh` | `git push` and `git commit`, also through `git -C <dir>`, and `gh pr` `edit`, `comment`, `merge`, `close`, `ready`, `review`; not `gh pr create` | Never. It adds a `[pr-state]` line with the branch's PR state | `SKIP_PR_STATE_REFRESH` |
 | `pre-pr-test-gate.sh` | `gh pr create`, `gh pr ready` | The title is not conventional, or HEAD has no passing verify run | `SKIP_PR_TEST_GATE` |
 | `pre-pr-evidence-gate.sh` | `gh pr create`, when a spec names the branch | A non-manual acceptance criterion lacks a PASS row at HEAD | `SKIP_EVIDENCE_GATE` |
 | `pre-push-gate.sh` | `git push`, including `git -C <dir> push` | The branch's PR already merged, a repo check fails, the package manager or `node_modules` is missing, or `core.hooksPath` names a missing dir. See below | `SKIP_PUSH_GATE` |
 | `pre-commit-branch-gate.sh` | `git commit`, including `git -C <dir> commit` | The branch is `main` or `master` | `SKIP_COMMIT_BRANCH_GATE` |
-| `pre-commit-coauthor-gate.sh` | `git commit` | The command contains a `Co-authored-by` trailer | `SKIP_COAUTHOR_GATE` |
-| `pre-commit-conventional-gate.sh` | `git commit` | The subject is not a conventional commit | `SKIP_CONVENTIONAL_GATE` |
-| `prose-gate.sh` | `git commit`, `gh pr create`, `gh pr edit` | The message or body uses a blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
+| `pre-commit-coauthor-gate.sh` | `git commit`, including `git -C <dir> commit` | The command contains a `Co-authored-by` trailer | `SKIP_COAUTHOR_GATE` |
+| `pre-commit-conventional-gate.sh` | `git commit`, including `git -C <dir> commit` | The subject is not a conventional commit | `SKIP_CONVENTIONAL_GATE` |
+| `prose-gate.sh` | `git commit`, including `git -C <dir> commit`, `gh pr create`, `gh pr edit` | The message or body uses a blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `pre-pr-body-gate.sh` | `gh pr` and `gh issue` create or edit | The title or body has AI attribution or a `.claude/state/` path | `SKIP_PR_BODY_GATE` |
 | `pre-pr-reply-gate.sh` | `gh api`, `gh pr comment`, `gh pr review`, `gh issue comment` | The call replies inline to a human's comment, or a comment lacks the agent footer | `SKIP_REPLY_FOOTER`, footer check only |
 | `pre-edit-test-lock.sh` | Write, Edit | Anyone but the QA Expert edits a test listed in `tests.lock` | None |
@@ -106,20 +104,24 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 
 ## The deny list
 
-`permissions.deny` in `settings.json` holds 110 rules:
+`permissions.deny` in `settings.json` holds 118 rules:
 
 | Kind | Count | Examples |
 | --- | --- | --- |
 | `Read(...)` | 47 | `Read(**/.env)`, `Read(~/.ssh/**)`, `Read(**/*.pem)` |
-| `Edit(...)` | 44 | `Edit(**/.env.production)`, `Edit(~/.aws/**)` |
-| `Bash(...)` | 18 | `Bash(rm -rf *)`, `Bash(git push --force *)`, `Bash(git push * main)`, `Bash(gh pr merge *)` |
+| `Edit(...)` | 46 | `Edit(**/.env.production)`, `Edit(~/.aws/**)`, `Edit(**/.git/verify-passed)` |
+| `Write(...)` | 2 | `Write(**/.git/verify-passed)`, `Write(**/.git/worktrees/*/verify-passed)` |
+| `Bash(...)` | 22 | `Bash(rm -rf *)`, `Bash(git push --force *)`, `Bash(git push * main)`, `Bash(gh pr merge *)` |
 | MCP | 1 | `mcp__claude_ai_Atlassian__*` |
 
 - Deny wins over allow on every host.
 - An `Edit` rule also blocks writes: natively on Pi, and through `deny-gate.sh` on every host.
 - `deny-gate.sh` also blocks a shell command that names a denied path, so `cat .env` fails like a `Read` of `.env` on every host.
-- The rules match literal patterns. `rm -fr` and `git push --force-with-lease` do not match, so the deny list adds friction, not a sandbox.
-- `deny-gate.sh` needs Node.js 22.18 or later, and allows everything when `node` is missing.
+- The `verify-passed` rules keep the agent from forging the stamp that `pre-pr-test-gate.sh` reads. Only `post-verify-stamp.sh` writes it.
+- `deny-gate.sh` applies `Bash` rules on every host, because native matching reads a command literally. It first normalizes each segment: it drops leading `VAR=value` assignments, the wrappers `env`, `command`, `builtin`, `exec`, `time`, `nice`, `nohup`, and `timeout`, a directory on the program name, and git global options such as `-C <dir>` and `-c k=v`, then collapses whitespace.
+- It also catches `rm` with recursive and force flags in any order, every force push (`-f`, `--force-with-lease`, `+<refspec>`, `--mirror`), and a push whose destination is `main` or `master`, such as `HEAD:main`.
+- A command built at run time, such as `bash -c '...'` or `eval`, still gets past the rules, so the deny list adds friction, not a sandbox.
+- `deny-gate.sh` needs Node.js 22.18 or later. When it cannot run, or cannot read the deny list, it blocks every call on Codex, which has no native deny rules. Elsewhere it passes, because the host's native rules still apply.
 
 ## Shared helpers
 
