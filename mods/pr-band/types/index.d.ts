@@ -11,7 +11,6 @@ export type Ci = {
 
 export type Pr = {
   number: number
-  url: string
   state: string
   isDraft: boolean
   title: string
@@ -19,11 +18,7 @@ export type Pr = {
   attention: string[]
 }
 
-export type Worktree = { name: string; isLinked: boolean }
-
 export type PrInfo = {
-  branch: string
-  worktree: Worktree
   checkedAt: number
   pr: Pr | null
 }
