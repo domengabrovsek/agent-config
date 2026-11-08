@@ -146,6 +146,8 @@ describe('Bash rule bypasses', () => {
       'git push --mirror origin',
       'git push origin +x',
       'git push origin +HEAD:feat/x',
+      'git push --repo origin +HEAD:feat/x',
+      'git push --repo=origin +HEAD:feat/x',
       'git -C . push --force',
       'FOO=1 git push -f',
       'cd /tmp && command git -c k=v push -f origin x',
@@ -158,6 +160,8 @@ describe('Bash rule bypasses', () => {
     for (const command of [
       'git push origin main',
       'git push origin HEAD:main',
+      'git push --repo origin main',
+      'git push --repo=origin HEAD:main',
       'git push origin x:refs/heads/master',
       'git push origin :main',
       'git push -u origin master',

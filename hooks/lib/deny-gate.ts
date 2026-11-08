@@ -228,7 +228,8 @@ export function normalizeSegment(segment: string): string {
 /* Push options whose value is the next word. */
 const PUSH_VALUE_OPTIONS = new Set(['-o', '--push-option', '--repo', '--receive-pack', '--exec']);
 
-function pushArgs(words: string[]): { flags: string[]; positionals: string[] } | undefined {
+/* The refspecs follow the remote, unless `--repo` names the remote as a flag. */
+function pushArgs(words: string[]): { flags: string[]; refspecs: string[] } | undefined {
   if (words[0] !== 'git' || words[1] !== 'push') return undefined;
   const flags: string[] = [];
   const positionals: string[] = [];
@@ -243,7 +244,8 @@ function pushArgs(words: string[]): { flags: string[]; positionals: string[] } |
       if (PUSH_VALUE_OPTIONS.has(word)) i++;
     } else positionals.push(word);
   }
-  return { flags, positionals };
+  const namesRepo = flags.some((f) => f === '--repo' || f.startsWith('--repo='));
+  return { flags, refspecs: namesRepo ? positionals : positionals.slice(1) };
 }
 
 /** `git push` that overwrites remote history: a force flag, a `+` refspec, or `--mirror`. */
@@ -258,14 +260,14 @@ export function isForcePush(words: string[]): boolean {
       f === '--force-if-includes' ||
       /^-[A-Za-z0-9]*f[A-Za-z0-9]*$/.test(f),
   );
-  return forceFlag || args.positionals.slice(1).some((p) => p.startsWith('+'));
+  return forceFlag || args.refspecs.some((p) => p.startsWith('+'));
 }
 
 /** `git push` naming `branch` as a destination: `main`, `HEAD:main`, `:main`, `x:refs/heads/main`. */
 export function pushesToBranch(words: string[], branch: string): boolean {
   const args = pushArgs(words);
   if (args === undefined) return false;
-  return args.positionals.slice(1).some((spec) => {
+  return args.refspecs.some((spec) => {
     const dst = spec.replace(/^\+/, '').split(':').pop() ?? '';
     return dst === branch || dst === `refs/heads/${branch}`;
   });
