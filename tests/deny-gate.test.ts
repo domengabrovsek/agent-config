@@ -156,6 +156,8 @@ describe('Bash rule bypasses', () => {
       'nice git push -f origin x',
       'timeout 60 git push --force origin x',
       '/usr/bin/env git push -f origin x',
+      'command -p git push -f origin x',
+      'exec -a name git push -f origin x',
       '/usr/bin/time /usr/bin/nice git push -f origin x',
       'timeout --signal KILL 60 git push -f origin x',
       'timeout -- 60 git push -f origin x',

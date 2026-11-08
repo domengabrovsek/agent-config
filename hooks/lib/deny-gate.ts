@@ -187,9 +187,11 @@ export function candidatePaths(command: string, cwd: string, home: string = home
   return paths;
 }
 
-const WRAPPERS = new Set(['command', 'builtin', 'exec']);
 /* Wrappers that take options before the command, with the options whose value is the next word. */
 const OPTION_WRAPPERS = new Map<string, Set<string>>([
+  ['command', new Set()],
+  ['builtin', new Set()],
+  ['exec', new Set(['-a'])],
   ['env', new Set(['-u', '--unset', '-C', '--chdir', '-S', '--split-string'])],
   ['time', new Set(['-f', '--format', '-o', '--output'])],
   ['nice', new Set(['-n', '--adjustment'])],
@@ -218,7 +220,7 @@ export function normalizedWords(segment: string): string[] {
   let i = 0;
   while (i < words.length) {
     const name = programName(words[i]);
-    if (ASSIGNMENT.test(words[i]) || WRAPPERS.has(name)) i++;
+    if (ASSIGNMENT.test(words[i])) i++;
     else if (OPTION_WRAPPERS.has(name)) {
       i++;
       const valueOptions = OPTION_WRAPPERS.get(name) ?? new Set<string>();
