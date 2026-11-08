@@ -469,4 +469,20 @@ assert_true "relocated scope file skips codex" test ! -e "$TEST_HOME/.codex"
 assert_true "relocated scope file skips pi" test ! -e "$TEST_HOME/.pi"
 assert_true "relocated scope file still links claude" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$TEST_REPO/AGENTS.md"
 
+# Worktree cleanup deletes worktrees, so hosts must link the main checkout.
+new_case run_from_worktree
+cp "$SETUP" "$TEST_REPO/scripts/setup-hosts.sh"
+GIT_CONFIG_GLOBAL=/dev/null make_repo "$TEST_REPO"
+GIT_CONFIG_GLOBAL=/dev/null git -C "$TEST_REPO" worktree add -q -b side "$CASE_DIR/wt" main
+MAIN_REAL=$(cd "$TEST_REPO" && pwd -P)
+assert_success "setup run from a worktree succeeds" env HOME="$TEST_HOME" AGENT_CONFIG_REPO="" CLAUDE_DOTFILES_REPO="" \
+  CLAUDE_CONFIG_DIRS="$TEST_HOME/.claude" HARNESS_SKIP_HOSTS="codex pi" \
+  bash "$CASE_DIR/wt/scripts/setup-hosts.sh" --apply
+assert_true "setup run from a worktree links the main checkout" assert_link "$TEST_HOME/.claude/CLAUDE.md" "$MAIN_REAL/AGENTS.md"
+assert_true "setup run from a worktree says it links the main checkout" \
+  grep -q "Linking hosts to the main checkout $MAIN_REAL" "$CASE_DIR/output"
+assert_failure "an override naming a worktree is refused" env HOME="$TEST_HOME" AGENT_CONFIG_REPO="$CASE_DIR/wt" \
+  CLAUDE_CONFIG_DIRS="$TEST_HOME/.claude" bash "$SETUP" --check --host claude
+assert_true "the refusal names the main checkout" grep -q "main checkout: $MAIN_REAL" "$CASE_DIR/output"
+
 finish

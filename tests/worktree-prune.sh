@@ -56,7 +56,9 @@ add_merged_dirty() {
 build_fixture() {
   local repo="$1" wt="$1.wt"
   git init -q -b main "$repo"
-  git -C "$repo" commit -q --allow-empty -m "initial"
+  printf '.claude/state/\n' > "$repo/.gitignore"
+  git -C "$repo" add .gitignore
+  git -C "$repo" commit -q -m "initial"
 
   add_worktree "$repo" fresh
   add_worktree "$repo" fresh-locked --lock
@@ -75,6 +77,8 @@ build_fixture() {
   commit_on "$repo" merged-locked
   merge_no_ff "$repo" merged-locked
   add_merged_dirty "$repo" merged-dirty
+  mkdir -p "$wt/merged-dirty/.claude/state/research"
+  printf 'in progress\n' > "$wt/merged-dirty/.claude/state/research/dirty.md"
   # Agent hosts lock worktrees with a reason. Git's porcelain output C-quotes
   # the second one because it holds a quote, a backslash, and non-ASCII.
   add_merged_dirty "$repo" merged-dirty-locked --lock --reason "$AGENT_REASON"
@@ -100,16 +104,60 @@ build_fixture() {
   commit_on "$repo" ff-merged
   git -C "$repo" merge -q --ff-only ff-merged
 
+  # Ignored session state that `git worktree remove` would delete: one file
+  # the main checkout lacks, one it holds with other content.
+  add_worktree "$repo" merged-state
+  commit_on "$repo" merged-state
+  merge_no_ff "$repo" merged-state
+  mkdir -p "$wt/merged-state/.claude/state/research" "$wt/merged-state/.claude/state/runs/merged-state"
+  printf 'notes\n' > "$wt/merged-state/.claude/state/research/café notes.md"
+  printf 'old lock\n' > "$wt/merged-state/.claude/state/runs/merged-state/tests.lock"
+  add_worktree "$repo" merged-state-conflict
+  commit_on "$repo" merged-state-conflict
+  merge_no_ff "$repo" merged-state-conflict
+  mkdir -p "$wt/merged-state-conflict/.claude/state/specs" "$repo/.claude/state/specs"
+  printf 'worktree copy\n' > "$wt/merged-state-conflict/.claude/state/specs/spec.md"
+  printf 'main copy\n' > "$repo/.claude/state/specs/spec.md"
+
   add_worktree "$repo" fresh-at-tip
   git -C "$repo" worktree add -q --force "$wt/on-main" main
 
   git init -q --bare -b main "$repo.origin.git"
   git -C "$repo" remote add origin "$repo.origin.git"
+  # Pushed, then the remote branch deleted, then committed on again: the last
+  # commit exists only here.
   add_worktree "$repo" upstream-gone
   commit_on "$repo" upstream-gone
   git -C "$wt/upstream-gone" push -q -u origin upstream-gone >/dev/null
   git -C "$repo.origin.git" branch -q -D upstream-gone
+  printf 'later\n' >> "$wt/upstream-gone/upstream-gone.txt"
+  git -C "$wt/upstream-gone" commit -q -am "unpushed work"
+  # Landed on the remote's main by a merge the local main has not fetched.
+  add_worktree "$repo" upstream-gone-pushed
+  commit_on "$repo" upstream-gone-pushed
+  git -C "$wt/upstream-gone-pushed" push -q -u origin upstream-gone-pushed >/dev/null
+  git -C "$wt/upstream-gone-pushed" push -q origin upstream-gone-pushed:refs/heads/main >/dev/null
+  git -C "$repo.origin.git" branch -q -D upstream-gone-pushed
+  # Squash-merged into main, then the remote branch deleted.
+  add_worktree "$repo" upstream-gone-squashed
+  commit_on "$repo" upstream-gone-squashed
+  git -C "$wt/upstream-gone-squashed" push -q -u origin upstream-gone-squashed >/dev/null
+  git -C "$repo" merge -q --squash upstream-gone-squashed >/dev/null
+  git -C "$repo" commit -q -m "Squash upstream-gone-squashed"
+  git -C "$repo.origin.git" branch -q -D upstream-gone-squashed
+  # Fast-forward-merged into main, then the remote branch deleted. Last,
+  # because main fast-forwards onto it.
+  add_worktree "$repo" upstream-gone-ff
+  commit_on "$repo" upstream-gone-ff
+  git -C "$wt/upstream-gone-ff" push -q -u origin upstream-gone-ff >/dev/null
+  git -C "$repo" merge -q --ff-only upstream-gone-ff
+  git -C "$repo.origin.git" branch -q -D upstream-gone-ff
   git -C "$repo" fetch -q --prune origin
+}
+
+# backdate <repo> <name>: age a worktree's index and HEAD past any idle limit.
+backdate() {
+  touch -t 202001010000 "$1/.git/worktrees/$2/index" "$1/.git/worktrees/$2/HEAD"
 }
 
 # run_prune <repo> [--apply]: sets OUT to the script's stdout.
@@ -168,29 +216,35 @@ assert_verdict "a fresh worktree behind main is kept, not read as merged" \
   "$WT/fresh" "KEEP no-commits-of-its-own"
 assert_verdict "a fresh worktree at main's tip is kept" \
   "$WT/fresh-at-tip" "KEEP no-commits-of-its-own"
-assert_verdict "a fresh locked worktree is kept" \
-  "$WT/fresh-locked" "KEEP no-commits-of-its-own"
-assert_verdict "a fast-forward-merged branch is kept: its tip is on main's line" \
+assert_verdict "a fast-forward-merged branch with no upstream is kept: its tip is on main's line" \
   "$WT/ff-merged" "KEEP no-commits-of-its-own"
 assert_verdict "a branch landed by a merge commit is safe" \
   "$WT/merged" "SAFE merged-into-main"
-assert_verdict "a locked branch landed by a merge commit is safe" \
-  "$WT/merged-locked" "SAFE merged-into-main"
 assert_verdict "a squash-merged branch is safe" \
   "$WT/squashed" "SAFE squash-merged-into-main"
-assert_verdict "a branch whose upstream is gone is safe" \
-  "$WT/upstream-gone" "SAFE upstream-gone"
+assert_verdict "an upstream-gone branch with unpushed commits is kept" \
+  "$WT/upstream-gone" "KEEP upstream-gone-with-unpushed-commits"
+assert_verdict "an upstream-gone branch whose commits are on a remote is safe" \
+  "$WT/upstream-gone-pushed" "SAFE upstream-gone"
+assert_verdict "an upstream-gone branch squash-merged into main is safe" \
+  "$WT/upstream-gone-squashed" "SAFE squash-merged-into-main"
+assert_verdict "an upstream-gone branch fast-forward-merged into main is safe" \
+  "$WT/upstream-gone-ff" "SAFE upstream-gone"
 assert_verdict "an unmerged branch is kept" \
   "$WT/unmerged" "KEEP unmerged-or-active"
-assert_verdict "a locked unmerged branch is kept" \
-  "$WT/unmerged-locked" "KEEP locked-and-not-merged"
 assert_verdict "a detached worktree is kept as detached" \
   "$WT/detached" "KEEP detached-HEAD-no-branch"
-assert_verdict "a locked detached worktree is kept as detached" \
-  "$WT/detached-locked" "KEEP detached-HEAD-no-branch"
 check "a detached worktree lists no branch" says "$WT/detached  branch=?  reason="
+assert_verdict "a locked fresh worktree is kept as locked" \
+  "$WT/fresh-locked" "KEEP locked"
+assert_verdict "a locked merged worktree is kept as locked" \
+  "$WT/merged-locked" "KEEP locked"
+assert_verdict "a locked unmerged worktree is kept as locked" \
+  "$WT/unmerged-locked" "KEEP locked"
+assert_verdict "a locked detached worktree is kept as locked" \
+  "$WT/detached-locked" "KEEP locked"
 assert_verdict "a lock reason git quotes leaves the row intact" \
-  "$WT/merged-dirty-quoted" "SAFE merged-into-main"
+  "$WT/merged-dirty-quoted" "KEEP locked"
 assert_verdict "a second checkout of the default branch is kept" \
   "$WT/on-main" "KEEP default-branch-checkout"
 assert_verdict "a path with a space is read whole" \
@@ -198,6 +252,20 @@ assert_verdict "a path with a space is read whole" \
 assert_verdict "the worktree at that path's first word keeps its own verdict" \
   "$WT/twin" "KEEP no-commits-of-its-own"
 check "a dry run removes nothing" [ "$BEFORE" -eq "$(worktree_count "$REPO")" ]
+
+run_prune "$REPO" --force-locked
+assert_verdict "--force-locked judges a locked merged worktree on its branch" \
+  "$WT/merged-locked" "SAFE merged-into-main"
+assert_verdict "--force-locked still keeps a locked unmerged worktree" \
+  "$WT/unmerged-locked" "KEEP unmerged-or-active"
+
+run_prune "$REPO" --min-idle 30
+assert_verdict "--min-idle keeps a merged worktree touched recently" \
+  "$WT/merged" "KEEP active-in-last-30m"
+backdate "$REPO" merged
+run_prune "$REPO" --min-idle 30
+assert_verdict "--min-idle judges an idle worktree on its branch" \
+  "$WT/merged" "SAFE merged-into-main"
 
 echo
 echo "== --apply =="
@@ -208,23 +276,51 @@ run_prune "$REPO" --apply
 check "a fresh worktree survives --apply" test -d "$WT/fresh"
 check "a fresh worktree keeps its branch" has_branch "$REPO" fresh
 check "a fresh worktree at main's tip survives --apply" test -d "$WT/fresh-at-tip"
-check "a fresh locked worktree stays locked" is_locked "$REPO" "$WT/fresh-locked"
 check "an unmerged worktree survives --apply" test -d "$WT/unmerged"
 check "a detached worktree survives --apply" test -d "$WT/detached"
-check "a locked detached worktree stays locked" is_locked "$REPO" "$WT/detached-locked"
 check "a merged worktree is removed" absent "$WT/merged"
 check "a merged worktree's branch is deleted" no_branch "$REPO" merged
-check "a locked merged worktree is unlocked and removed" absent "$WT/merged-locked"
-check "an upstream-gone worktree is removed" absent "$WT/upstream-gone"
+check "a locked merged worktree survives --apply" test -d "$WT/merged-locked"
+check "a locked merged worktree stays locked" is_locked "$REPO" "$WT/merged-locked"
+check "a locked fresh worktree stays locked" is_locked "$REPO" "$WT/fresh-locked"
+check "an upstream-gone worktree with unpushed commits survives" test -d "$WT/upstream-gone"
+check "an upstream-gone branch with unpushed commits is kept" has_branch "$REPO" upstream-gone
+check "an upstream-gone worktree whose commits are on a remote is removed" absent "$WT/upstream-gone-pushed"
+check "its branch is deleted" no_branch "$REPO" upstream-gone-pushed
+check "an upstream-gone squash-merged worktree is removed" absent "$WT/upstream-gone-squashed"
+check "its branch is deleted" no_branch "$REPO" upstream-gone-squashed
+check "an upstream-gone fast-forward-merged worktree is removed" absent "$WT/upstream-gone-ff"
 check "a squash-merged worktree is removed" absent "$WT/squashed"
 check "a squash-merged worktree's branch is deleted" no_branch "$REPO" squashed
 check "a merged worktree with a space in its path is removed" absent "$WT/twin 2"
 check "the worktree at that path's first word survives" test -d "$WT/twin"
 check "a dirty merged worktree stays on disk" test -d "$WT/merged-dirty"
+check "a failed removal takes back the state it copied into main" \
+  absent "$REPO/.claude/state/research/dirty.md"
 check "a failed removal keeps the branch" has_branch "$REPO" merged-dirty
 check "a failed removal is reported with git's reason" \
   says "-> not removed: '$WT/merged-dirty' contains modified or untracked files"
-check "a failed removal is not reported as pruned" omits "pruned (disk gone)"
+check "a worktree with ignored state is removed" absent "$WT/merged-state"
+check "its ignored state is copied into the main checkout, odd names included" \
+  grep -qx notes "$REPO/.claude/state/research/café notes.md"
+check "its per-branch run files are not copied into the main checkout" \
+  absent "$REPO/.claude/state/runs/merged-state"
+check "a worktree whose state differs from the main checkout stays" test -d "$WT/merged-state-conflict"
+check "the differing state is reported" \
+  says "-> not removed: .claude/state/specs/spec.md differs from the main checkout"
+check "the main checkout's copy is untouched" grep -qx "main copy" "$REPO/.claude/state/specs/spec.md"
+check "the summary counts the failures apart from removals" \
+  says "24 total, 7 removed, 15 kept, 2 failed"
+
+echo
+echo "== --apply --force-locked =="
+REPO="$TEST_ROOT/force-locked"
+WT="$REPO.wt"
+build_fixture "$REPO"
+run_prune "$REPO" --apply --force-locked
+check "a locked merged worktree is unlocked and removed" absent "$WT/merged-locked"
+check "a locked fresh worktree stays locked" is_locked "$REPO" "$WT/fresh-locked"
+check "a locked unmerged worktree stays locked" is_locked "$REPO" "$WT/unmerged-locked"
 check "a dirty locked worktree stays on disk" test -d "$WT/merged-dirty-locked"
 check "a failed removal re-locks with the original reason" \
   lock_line_is "$REPO" "$WT/merged-dirty-locked" "locked $AGENT_REASON"
@@ -232,7 +328,42 @@ check "a reason git quotes is restored unchanged" \
   lock_line_is "$REPO" "$WT/merged-dirty-quoted" \
   'locked "held by \"agent\" at C:\\tmp, caf\303\251"'
 check "a restored lock prints no warning" omits "left unlocked"
-check "the summary counts the failures apart from removals" \
-  says "19 total, 5 removed, 11 kept, 3 failed"
+check "the summary counts the forced removals" \
+  says "24 total, 8 removed, 12 kept, 4 failed"
+
+echo
+echo "== --apply from inside a worktree =="
+REPO="$TEST_ROOT/from-worktree"
+WT="$REPO.wt"
+build_fixture "$REPO"
+run_prune "$WT/fresh" --apply
+check "the worktree the run starts in is kept" test -d "$WT/fresh"
+check "a merged worktree is still removed" absent "$WT/merged-state"
+check "its state is copied into the main checkout, not the starting worktree" \
+  grep -qx notes "$REPO/.claude/state/research/café notes.md"
+check "the starting worktree gets no copied state" absent "$WT/fresh/.claude/state/research"
+check "the differing-state check compares against the main checkout" \
+  says "-> not removed: .claude/state/specs/spec.md differs from the main checkout"
+
+echo
+echo "== SessionEnd hook =="
+REPO="$TEST_ROOT/hook"
+WT="$REPO.wt"
+build_fixture "$REPO"
+PROJECT="$TEST_ROOT/project"
+stub "$PROJECT/scripts" worktree-prune.sh <<'STUB'
+#!/bin/bash
+: > "$(dirname "$0")/ran"
+STUB
+run_hook() {
+  (cd "$REPO" && CLAUDE_PROJECT_DIR="$PROJECT" bash "$PROJECT_DIR/hooks/worktree-cleanup.sh")
+}
+run_hook
+check "the hook never runs the project's own prune script" absent "$PROJECT/scripts/ran"
+check "the hook keeps a merged worktree touched in the last 30 minutes" test -d "$WT/merged"
+backdate "$REPO" merged
+run_hook
+check "the hook removes a merged worktree idle for 30 minutes" absent "$WT/merged"
+check "the hook keeps a locked worktree" test -d "$WT/merged-locked"
 
 finish

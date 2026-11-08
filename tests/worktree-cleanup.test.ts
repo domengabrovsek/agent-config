@@ -1,7 +1,7 @@
 /**
- * Tests for worktree-cleanup: the pure decision predicate encoding the grill
- * decisions (Q1 reasons, Q2 disable knob with legacy fallback). Script
- * resolution and invocation stay glue.
+ * Tests for worktree-cleanup: the pure decision predicate deciding which
+ * shutdown reasons prune and how the disable knob and its legacy spelling
+ * turn it off. Script resolution and invocation stay glue.
  */
 
 import assert from 'node:assert/strict';

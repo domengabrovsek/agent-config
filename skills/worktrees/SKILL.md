@@ -22,13 +22,15 @@ Strip the `--all` flag from `$ARGUMENTS` and dispatch:
 
 A worktree is "safe to remove" only if its branch is:
 
-- **upstream-gone** (the remote branch was deleted, typically after PR merge), OR
 - **merged into the repo's default branch** (`origin/HEAD` or `main`/`master`), OR
-- **squash-merged**: the branch tip is not an ancestor, but merging it into the default branch produces the default branch unchanged. This catches squash merges that never deleted the remote branch.
+- **squash-merged**: the branch tip is not an ancestor, but merging it into the default branch produces the default branch unchanged, OR
+- **upstream-gone** (the remote branch was deleted) with every commit reachable from the default branch or a remote. A gone upstream with unpushed commits is kept.
 
-Locked worktrees are unlocked iff they pass the safety rule. Default-branch checkouts are never removed. Worktrees with unmerged commits or open PRs are kept.
+A lock marks a worktree in use, so locked worktrees are kept (reason `locked`). Pass `--force-locked` to judge them on their branch, unlock the safe ones, and re-lock any whose removal fails. Default-branch checkouts are never removed. Worktrees with unmerged commits or open PRs are kept.
+
+Before removal, the script copies ignored files under the worktree's `.claude/state/` into the main checkout. When the main checkout holds a same-named file with other content, it keeps the worktree and reports the file. Branches go with `git branch -d`, or `-D` only after the commit check above passes. `--min-idle <minutes>` also keeps worktrees whose index or HEAD changed recently.
 
 ## Tips
 
 - Run `git fetch --prune origin` first to refresh remote-tracking branches. The script does NOT fetch automatically (network cost across many repos in `--all` mode). The `merged-into-default` check works offline.
-- The `SessionEnd` hook runs the equivalent of `/worktrees --apply` opportunistically on session close, so manual invocation is rare for actively-used repos. Reach for `/worktrees --all` mostly for periodic cross-repo hygiene.
+- The `SessionEnd` hook runs the equivalent of `/worktrees --apply --min-idle 30` opportunistically on session close, so manual invocation is rare for actively-used repos. Reach for `/worktrees --all` mostly for periodic cross-repo hygiene.

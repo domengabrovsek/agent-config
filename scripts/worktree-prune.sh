@@ -1,21 +1,25 @@
 #!/bin/bash
 # worktree-prune: identify and (optionally) remove safely-disposable git
 # worktrees. Conservative by default - only removes worktrees whose branch
-# is upstream-gone (PR merged + remote branch deleted), merged into the
-# repo's default branch, or squash-merged (its changes are already in the
-# default branch even though its tip is not an ancestor). Locked worktrees
-# are auto-unlocked iff safely removable and re-locked if removal fails.
+# is merged into the repo's default branch, squash-merged (its changes are
+# already in the default branch even though its tip is not an ancestor), or
+# upstream-gone with every commit still reachable from the default branch or
+# a remote. A lock marks a worktree in use, so locked worktrees are kept
+# unless --force-locked is passed.
 #
 # Usage:
-#   worktree-prune.sh [--apply] [--repo <path>]
-#   worktree-prune.sh audit-all [--apply] [--root <path>]   # default root: $HOME/dev
+#   worktree-prune.sh [--apply] [--force-locked] [--min-idle <min>] [--repo <path>]
+#   worktree-prune.sh audit-all [--apply] [--force-locked] [--min-idle <min>] [--root <path>]
 #
 # Without --apply this is dry-run: prints verdicts and exits without changes.
-# Exit codes: 0 always (audit/prune are advisory, never block).
+# --min-idle keeps worktrees whose index or HEAD changed in the last <min>
+# minutes. Exit codes: 0 always (audit/prune are advisory, never block).
 
 set -u
 
 APPLY=0
+FORCE_LOCKED=0
+MIN_IDLE=0
 MODE=prune
 REPO=""
 ROOT="${HOME}/dev"
@@ -23,11 +27,16 @@ ROOT="${HOME}/dev"
 while [ $# -gt 0 ]; do
   case "$1" in
     --apply) APPLY=1 ;;
+    --force-locked) FORCE_LOCKED=1 ;;
+    --min-idle)
+      MIN_IDLE="${2:-}"; shift
+      case "$MIN_IDLE" in ''|*[!0-9]*) echo "--min-idle needs whole minutes" >&2; exit 2 ;; esac
+      ;;
     --repo)  REPO="${2:-}"; shift ;;
     --root)  ROOT="${2:-}"; shift ;;
     audit-all) MODE=audit-all ;;
     -h|--help)
-      sed -n '2,12p' "$0"
+      sed -n '2,16p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -104,11 +113,14 @@ has_no_own_commits() {
   git -C "$repo" rev-list --first-parent "$default_br" 2>/dev/null | grep -qxF "$tip"
 }
 
+has_branch() {
+  git -C "$1" show-ref --verify --quiet "refs/heads/$2"
+}
+
 # A squash merge rewrites the branch as one commit on the default branch, so
-# the tip is not an ancestor and upstream_gone stays silent while the remote
-# branch survives. Merge the branch into default in memory instead: when the
-# result equals default, the branch adds nothing and is safe to drop. Needs
-# git >= 2.38; older git rejects the flag and the tree is kept.
+# the tip is not an ancestor. Merge the branch into default in memory instead:
+# when the result equals default, the branch adds nothing and is safe to drop.
+# Needs git >= 2.38; older git rejects the flag and the tree is kept.
 is_branch_squash_merged() {
   local repo="$1" branch="$2" default_br="$3"
   [ -z "$default_br" ] && return 1
@@ -126,10 +138,40 @@ upstream_gone() {
   [ "$track" = "[gone]" ]
 }
 
+# A gone upstream says only that the remote branch was deleted, not that its
+# commits landed anywhere. The branch holds no unique work only when every
+# commit is reachable from the default branch or some remote-tracking ref.
+all_commits_shared() {
+  local repo="$1" branch="$2" default_br="$3" out
+  out=$(git -C "$repo" rev-list -n 1 "refs/heads/$branch" --not ${default_br:+"refs/heads/$default_br"} --remotes 2>/dev/null) || return 1
+  [ -z "$out" ]
+}
+
+# The gate for deleting a branch: its commits live elsewhere, or its changes
+# already sit in the default branch as a squash.
+branch_disposable() {
+  all_commits_shared "$@" || is_branch_squash_merged "$@"
+}
+
+# Index and HEAD under the worktree's git dir change on every commit, checkout,
+# and stage, so a recent mtime means a session is likely still working there.
+recently_active() {
+  local path="$1" gitdir
+  [ "$MIN_IDLE" -gt 0 ] && [ -d "$path" ] || return 1
+  gitdir=$(git -C "$path" rev-parse --path-format=absolute --git-dir 2>/dev/null) || return 1
+  [ -n "$(find "$gitdir" -maxdepth 1 \( -name index -o -name HEAD \) -mmin "-$MIN_IDLE" 2>/dev/null)" ]
+}
+
 # Verdict per worktree: "safe" or "keep". Echos verdict + reason on stdout.
 verdict() {
   local repo="$1" path="$2" head="$3" branch="$4" locked="$5" prunable="$6" default_br="$7"
 
+  if [ "$locked" = "1" ] && [ "$FORCE_LOCKED" != "1" ]; then
+    echo "keep locked"; return
+  fi
+  if recently_active "$path"; then
+    echo "keep active-in-last-${MIN_IDLE}m"; return
+  fi
   if [ "$prunable" = "1" ]; then
     echo "safe disk-missing-prunable"; return
   fi
@@ -139,7 +181,7 @@ verdict() {
   if [ "$branch" = "$default_br" ]; then
     echo "keep default-branch-checkout"; return
   fi
-  if upstream_gone "$repo" "$branch"; then
+  if upstream_gone "$repo" "$branch" && all_commits_shared "$repo" "$branch" "$default_br"; then
     echo "safe upstream-gone"; return
   fi
   if is_branch_merged "$repo" "$branch" "$default_br"; then
@@ -151,18 +193,65 @@ verdict() {
   if is_branch_squash_merged "$repo" "$branch" "$default_br"; then
     echo "safe squash-merged-into-$default_br"; return
   fi
-  if [ "$locked" = "1" ]; then
-    echo "keep locked-and-not-merged"; return
+  if upstream_gone "$repo" "$branch"; then
+    echo "keep upstream-gone-with-unpushed-commits"; return
   fi
   # Unpushed work or open PR
   echo "keep unmerged-or-active"
 }
 
+# Ignored files under .claude/state/ hold plans, specs, and run files that
+# `git worktree remove` would delete. Copy each into the main checkout before
+# removal. A file the main checkout already holds with other content blocks
+# removal instead, so neither copy is lost. Sets STATE_CONFLICT on refusal.
+preserve_state() {
+  local wt="$1" main="$2" rel
+  local -a files=()
+  STATE_CONFLICT=""
+  COPIED=()
+  [ -d "$wt/.claude/state" ] || return 0
+  # runs/ holds per-branch run files for the branch being deleted; a copy in
+  # main would outrank a later worktree that reuses the branch name.
+  while IFS= read -r -d '' rel; do
+    case "$rel" in .claude/state/runs/*) continue ;; esac
+    files+=("$rel")
+  done < <(git -C "$wt" ls-files -z --others --ignored --exclude-standard -- .claude/state 2>/dev/null)
+  [ "${#files[@]}" -gt 0 ] || return 0
+  if [ -z "$main" ]; then
+    STATE_CONFLICT=".claude/state has files and the repo has no main checkout to keep them"; return 1
+  fi
+  for rel in "${files[@]}"; do
+    if [ -e "$main/$rel" ] && ! cmp -s "$wt/$rel" "$main/$rel"; then
+      STATE_CONFLICT="$rel differs from the main checkout"; return 1
+    fi
+  done
+  for rel in "${files[@]}"; do
+    [ -e "$main/$rel" ] && continue
+    if ! { mkdir -p "$(dirname "$main/$rel")" && cp -p "$wt/$rel" "$main/$rel"; }; then
+      [ "${#COPIED[@]}" -gt 0 ] && rm -f "${COPIED[@]}"
+      STATE_CONFLICT="$rel could not be copied to the main checkout"; return 1
+    fi
+    COPIED+=("$main/$rel")
+  done
+}
+
+# delete_branch <repo> <branch> <default>: `git branch -d` when git can see the
+# merge, else -D only after branch_disposable confirms nothing is lost.
+delete_branch() {
+  local repo="$1" branch="$2" default_br="$3"
+  git -C "$repo" branch -d "$branch" >/dev/null 2>&1 && return 0
+  branch_disposable "$repo" "$branch" "$default_br" || return 1
+  git -C "$repo" branch -D "$branch" >/dev/null 2>&1
+}
+
 prune_repo() {
   local repo="$1"
-  local main_path
-  main_path=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)
-  [ -z "$main_path" ] && return 0
+  local current main_path="" common
+  current=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)
+  [ -z "$current" ] && return 0
+  # The main checkout owns the common .git dir; a bare repo has no checkout.
+  common=$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  [ "$(basename "$common")" = .git ] && main_path=$(dirname "$common")
 
   # Drop disk-gone entries first
   git -C "$repo" worktree prune 2>/dev/null
@@ -179,8 +268,8 @@ prune_repo() {
   while IFS=$'\037' read -r path head branch locked prunable lock_reason; do
     [ -z "$path" ] && continue
     total=$((total+1))
-    # Skip the main worktree
-    if [ "$path" = "$main_path" ]; then
+    # Skip the main checkout and the worktree this run started in
+    if [ "$path" = "$main_path" ] || [ "$path" = "$current" ]; then
       kept=$((kept+1))
       continue
     fi
@@ -194,23 +283,29 @@ prune_repo() {
       safe=$((safe+1))
       printf '  %sSAFE%s   %s  branch=%s  reason=%s\n' "$C_GREEN" "$C_RESET" "$path" "${branch:-?}" "$reason"
       if [ "$APPLY" = "1" ]; then
-        local unlocked=0
+        local unlocked=0 err
+        if ! preserve_state "$path" "$main_path"; then
+          failed=$((failed+1))
+          printf '         %s-> not removed: %s%s\n' "$C_YELLOW" "$STATE_CONFLICT" "$C_RESET"
+          continue
+        fi
         if [ "$locked" = "1" ] && git -C "$repo" worktree unlock "$path" 2>/dev/null; then
           unlocked=1
         fi
-        local err
         if err=$(git -C "$repo" worktree remove "$path" 2>&1); then
-          # Delete the local branch too if not the default and it exists
-          if [ -n "$branch" ] && [ "$branch" != "$default_br" ]; then
-            git -C "$repo" branch -D "$branch" >/dev/null 2>&1 || true
-          fi
           acted=$((acted+1))
           printf '         %s-> removed%s\n' "$C_DIM" "$C_RESET"
+          if [ -n "$branch" ] && [ "$branch" != "$default_br" ] && has_branch "$repo" "$branch" \
+            && ! delete_branch "$repo" "$branch" "$default_br"; then
+            printf '         %s-> branch %s kept: it has commits found nowhere else%s\n' "$C_YELLOW" "$branch" "$C_RESET"
+          fi
         else
           # remove succeeds when the directory is already gone, so a failure
           # is git refusing, most often over modified or untracked files.
           err=${err%%$'\n'*}
           failed=$((failed+1))
+          # The worktree stays, so its state stays authoritative there.
+          [ "${#COPIED[@]}" -gt 0 ] && rm -f "${COPIED[@]}"
           printf '         %s-> not removed: %s%s\n' "$C_YELLOW" "${err#fatal: }" "$C_RESET"
           # The tree stays on disk, so it keeps the lock its host set.
           if [ "$unlocked" = "1" ] && ! err=$(git -C "$repo" worktree lock --reason "$(unquote_c "$lock_reason")" "$path" 2>&1); then

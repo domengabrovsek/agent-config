@@ -1,17 +1,23 @@
 #!/bin/bash
 # Shared .claude/state/ lookup for the test lock and the evidence gate.
 #
-# .claude/state/ is untracked and per checkout, so a worktree looks in its own
-# tree first and then in the main checkout.
+# .claude/state/ is untracked and per checkout. The main checkout is searched
+# first, so a worktree's own copy of a file (an empty tests.lock, say) cannot
+# shadow the main checkout's. The worktree is searched only for files the main
+# checkout lacks.
 
 # state_roots <toplevel>
-# Sets ROOTS to <toplevel>, then the main checkout when <toplevel> is a worktree.
+# Sets ROOTS to the main checkout, then <toplevel> when it is a worktree.
 state_roots() {
-  local common
+  local common main
   ROOTS=("$1")
   common=$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-  if [ -n "$common" ] && [ "$(dirname "$common")" != "$1" ]; then
-    ROOTS+=("$(dirname "$common")")
+  [ -n "$common" ] || return 0
+  # A bare repo's common dir is not a .git inside a checkout, so its parent is no checkout.
+  [ "$(basename "$common")" = .git ] || return 0
+  main=$(dirname "$common")
+  if [ "$main" != "$1" ] && [ -d "$main" ]; then
+    ROOTS=("$main" "$1")
   fi
 }
 
