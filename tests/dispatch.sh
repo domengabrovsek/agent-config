@@ -77,6 +77,14 @@ cat > "$REGISTRY" <<JSON
       {
         "matcher": "compact",
         "hooks": [ { "type": "command", "command": "echo compacted" } ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [ { "type": "command", "command": "echo \"hook \$CLAUDE_PROJECT_DIR/hooks/x.sh project \$CLAUDE_PROJECT_DIR\"" } ]
+      },
+      {
+        "matcher": "clear",
+        "hooks": [ { "type": "command", "command": "HOOK=\"\$CLAUDE_PROJECT_DIR/hooks/probe.sh\"; [ -x \"\$HOOK\" ] || HOOK=\"\$HOME/.claude/hooks/probe.sh\"; [ -x \"\$HOOK\" ] && exec \"\$HOOK\"" } ]
       }
     ]
   }
@@ -166,6 +174,15 @@ eq "$(jq -r .hookSpecificOutput.additionalContext "$OUT")" "compacted" "SessionS
 
 dispatch SessionStart "$(printf '{"source":"startup","cwd":"%s"}' "$WORK")"
 eq "$(jq -r .hookSpecificOutput.additionalContext "$OUT")" "hooks at $PROJECT_DIR/hooks/" "the ~/.claude/hooks fallback resolves to the dispatcher's repo"
+
+dispatch SessionStart "$(printf '{"source":"resume","cwd":"%s"}' "$WORK")"
+eq "$(jq -r .hookSpecificOutput.additionalContext "$OUT")" "hook $PROJECT_DIR/hooks/x.sh project $WORK" "a project hook path resolves to the dispatcher's repo, and CLAUDE_PROJECT_DIR stays the project"
+
+mkdir -p "$WORK/hooks"
+printf '#!/bin/bash\necho project-copy-ran >> "%s"\n' "$LOG" > "$WORK/hooks/probe.sh"
+chmod +x "$WORK/hooks/probe.sh"
+dispatch SessionStart "$(printf '{"source":"clear","cwd":"%s"}' "$WORK")"
+eq "$RC $(cat "$LOG")" "0 " "an executable hooks/ script in the project never replaces a registry hook"
 
 dispatch Stop "$(printf '{"cwd":"%s"}' "$WORK")"
 eq "$RC $(cat "$OUT")$(ran)" "0 " "an event missing from the registry is a no-op"

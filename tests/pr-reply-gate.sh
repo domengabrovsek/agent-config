@@ -123,6 +123,72 @@ assert_gate "an approval without a body passes" \
   "$GH_PR_REVIEW 7 --approve" 0
 
 echo
+echo "== calls the gate cannot read =="
+printf '{"body": "Done."}\n' > "$TEST_DIR/reply.json"
+assert_gate "a comment sent with --input is blocked" \
+  "$GH_API repos/acme/app/pulls/1/comments --input reply.json" 2
+assert_gate "a reply sent with --input is blocked" \
+  "$GH_API repos/acme/app/pulls/1/comments/111/replies --input=reply.json" 2
+assert_gate "a variable in_reply_to is blocked" \
+  "$GH_API repos/acme/app/pulls/7/comments -F in_reply_to=\$ID -f body=\"Done. $FOOTER\"" 2
+assert_gate "a quoted variable in_reply_to is blocked" \
+  "$GH_API repos/acme/app/pulls/7/comments -F \"in_reply_to=\${ID}\" -f body=\"Done. $FOOTER\"" 2
+assert_gate "a bot in_reply_to in the body does not hide a human parent" \
+  "$GH_API repos/acme/app/pulls/7/comments -F in_reply_to=222 -f body=\"See in_reply_to=111 for context. $FOOTER\"" 2
+assert_gate "a human in_reply_to in the body still counts after a bot parent" \
+  "$GH_API repos/acme/app/pulls/7/comments -F in_reply_to=111 -f body=\"See in_reply_to=222 for context. $FOOTER\"" 2
+assert_gate "a quoted body field still gets the footer check" \
+  "$GH_API repos/acme/app/issues/7/comments -f \"body=Done.\"" 2
+assert_gate "a quoted body field with the footer passes" \
+  "$GH_API repos/acme/app/issues/7/comments -f \"body=Done. $FOOTER\"" 0
+assert_gate "a stdin heredoc body with the footer passes" \
+  "$GH_API repos/{owner}/{repo}/pulls/7/comments/111/replies -F body=@- <<'EOF'
+Done.
+
+$SIGNATURE
+EOF" 0
+assert_gate "a stdin heredoc body without the footer is blocked" \
+  "$GH_API repos/{owner}/{repo}/pulls/7/comments/111/replies -F body=@- <<'EOF'
+Done.
+EOF" 2
+assert_gate "a GraphQL thread reply is blocked" \
+  "$GH_API graphql -f query='mutation{addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:\"x\",body:\"Done. $FOOTER\"}){comment{id}}}'" 2
+assert_gate "a GraphQL review comment is blocked" \
+  "$GH_API graphql -f query='mutation{addPullRequestReviewComment(input:{body:\"x\"}){clientMutationId}}'" 2
+assert_gate "a GraphQL issue comment is blocked" \
+  "$GH_API graphql -f query='mutation(\$id:ID!,\$b:String!){addComment(input:{subjectId:\$id,body:\$b}){clientMutationId}}' -f id=x -f b=y" 2
+assert_gate "a GraphQL review with a body is blocked" \
+  "$GH_API graphql -f query='mutation{addPullRequestReview(input:{pullRequestId:\"x\",event:COMMENT,body:\"y\"}){clientMutationId}}'" 2
+assert_gate "a GraphQL approval without a body passes" \
+  "$GH_API graphql -f query='mutation{addPullRequestReview(input:{pullRequestId:\"x\",event:APPROVE}){clientMutationId}}'" 0
+printf 'mutation{addComment(input:{subjectId:"x",body:"y"}){clientMutationId}}\n' > "$TEST_DIR/comment.graphql"
+assert_gate "a GraphQL comment read from a query file is blocked" \
+  "$GH_API graphql -F query=@comment.graphql" 2
+assert_gate "a GraphQL query the shell builds is blocked" \
+  "$GH_API graphql -f query=\"\$(cat comment.graphql)\"" 2
+assert_gate "a GraphQL comment read from a quoted --input file is blocked" \
+  "$GH_API graphql --input \"comment.graphql\"" 2
+assert_gate "a GraphQL comment read from a quoted query file is blocked" \
+  "$GH_API graphql -F query=@'comment.graphql'" 2
+assert_gate "a GraphQL --input path the shell builds is blocked" \
+  "$GH_API graphql --input \"\$F\"" 2
+printf 'query{viewer{login}}\n' > "$TEST_DIR/viewer.graphql"
+assert_gate "a GraphQL query read from a quoted file passes" \
+  "$GH_API graphql --input \"viewer.graphql\"" 0
+assert_gate "a GraphQL document read from stdin is blocked" \
+  "$GH_API graphql --input -" 2
+assert_gate "a GraphQL comment sent to a quoted endpoint is blocked" \
+  "$GH_API 'graphql' -f query='mutation{addComment(input:{subjectId:\"x\",body:\"y\"}){clientMutationId}}'" 2
+assert_gate "a GraphQL comment sent to /graphql is blocked" \
+  "$GH_API /graphql -f query='mutation{addComment(input:{subjectId:\"x\",body:\"y\"}){clientMutationId}}'" 2
+assert_gate "a GraphQL review body edit is blocked" \
+  "$GH_API graphql -f query='mutation{updatePullRequestReview(input:{pullRequestReviewId:\"x\",body:\"y\"}){clientMutationId}}'" 2
+assert_gate "a GraphQL thread resolve passes" \
+  "$GH_API graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{id}}}'" 0
+assert_gate "a GraphQL query passes" \
+  "$GH_API graphql -f query='query{viewer{login}}'" 0
+
+echo
 echo "== bodies that are not comments =="
 assert_gate "a PR body posted through gh api passes" \
   "$GH_API repos/acme/app/pulls -f title=\"feat: x\" -f body=\"Adds x.\"" 0

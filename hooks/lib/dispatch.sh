@@ -11,9 +11,11 @@
 # apply_patch becomes one Edit call per patched file, because the edit hooks
 # read tool_input.file_path.
 #
-# Registry commands fall back to $HOME/.claude/hooks, which a machine set up
-# only for Codex or Pi lacks. The dispatcher rewrites that prefix to its own
-# repo's hooks directory, which is what ~/.claude/hooks links to anyway.
+# Registry commands run $HOME/.claude/hooks, which a machine set up only for
+# Codex or Pi lacks. The dispatcher rewrites that prefix, and any
+# $CLAUDE_PROJECT_DIR/hooks prefix, to its own repo's hooks directory, which is
+# what ~/.claude/hooks links to anyway. Hooks still get CLAUDE_PROJECT_DIR set
+# to the project, for the paths they inspect.
 #
 # Exit 2 with the first blocking hook's stderr; every other failure is ignored,
 # as Claude Code does. additionalContext from all hooks is merged into one
@@ -143,9 +145,15 @@ run_dir = cwd if os.path.isdir(cwd) else None
 contexts = []
 
 
+# Every hook path resolves to the dispatcher's own repo, the one whose registry
+# it read. A project-relative path would let any opened repo replace a gate.
+HOOK_PREFIXES = ("$HOME/.claude/hooks/", "${HOME}/.claude/hooks/", "~/.claude/hooks/",
+                 "$CLAUDE_PROJECT_DIR/hooks/", "${CLAUDE_PROJECT_DIR}/hooks/")
+
+
 def run_hook(hook, call):
     command = hook.get("command") or ""
-    for prefix in ("$HOME/.claude/hooks/", "~/.claude/hooks/"):
+    for prefix in HOOK_PREFIXES:
         command = command.replace(prefix, "$AGENT_CONFIG_HOOKS/")
     proc = subprocess.Popen(["bash", "-c", command], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, env=env, cwd=run_dir, start_new_session=True)

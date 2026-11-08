@@ -85,11 +85,8 @@ case "$MODE" in
 
   commit)
     COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-    case "$COMMAND" in
-      *"git commit --help"*|*"git commit -h"*) exit 0 ;;
-      *"git commit"*) ;;
-      *) exit 0 ;;
-    esac
+    git_runs "$COMMAND" commit || exit 0
+    git_args_ask_help && exit 0
     commit_reuses_message "$COMMAND" && exit 0
 
     LABEL="commit message"

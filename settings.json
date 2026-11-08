@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts"
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts:~/.claude/mods/session-focus"
   },
   "permissions": {
     "allow": [
@@ -113,7 +113,12 @@
       "Edit(~/.pnpmrc)",
       "Edit(~/.config/npm/**)",
       "Edit(~/.config/gke-gcloud-auth-plugin/**)",
+      "Edit(**/.git/verify-passed)",
+      "Write(**/.git/verify-passed)",
+      "Edit(**/.git/worktrees/*/verify-passed)",
+      "Write(**/.git/worktrees/*/verify-passed)",
       "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
       "Bash(sudo *)",
       "Bash(dd *)",
       "Bash(mkfs *)",
@@ -122,11 +127,14 @@
       "Bash(chmod * ~/.gnupg/*)",
       "Bash(git push --force *)",
       "Bash(git push -f *)",
+      "Bash(git push --force-with-lease *)",
       "Bash(git reset --hard *)",
       "Bash(git clean -fd *)",
       "Bash(git clean -f *)",
       "Bash(git push origin main *)",
       "Bash(git push * main)",
+      "Bash(git push origin master *)",
+      "Bash(git push * master)",
       "Bash(gh pr merge *)",
       "Bash(*DROP TABLE*)",
       "Bash(*DROP DATABASE*)",
@@ -143,7 +151,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/deny-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/deny-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/deny-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "timeout": 10
           }
         ]
@@ -153,7 +161,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-outbound-email-scrub.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-outbound-email-scrub.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-outbound-email-scrub.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "timeout": 5
           }
         ]
@@ -163,139 +171,163 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git push *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git commit *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(git -C *)",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-git-state-refresh.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-test-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-test-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-test-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr create *)",
             "timeout": 120
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-test-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-test-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-test-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr ready *)",
             "timeout": 120
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-evidence-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-evidence-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-evidence-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr create *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-push-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-push-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-push-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git push *)",
             "timeout": 300
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-push-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-push-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-push-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git -C *)",
             "timeout": 300
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-commit-branch-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-commit-branch-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-branch-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git commit *)",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-commit-branch-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-commit-branch-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-branch-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git -C *)",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-commit-coauthor-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-commit-coauthor-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-coauthor-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git commit *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-commit-conventional-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-commit-conventional-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-coauthor-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(git -C *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-conventional-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git commit *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\" commit",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-conventional-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "if": "Bash(git -C *)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\" commit",
             "if": "Bash(git commit *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\" pr",
+            "command": "HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\" commit",
+            "if": "Bash(git -C *)",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\" pr",
             "if": "Bash(gh pr create *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\" pr",
+            "command": "HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\" pr",
             "if": "Bash(gh pr edit *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr create *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr edit *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh issue create *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-body-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh issue edit *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh api *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr comment *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr review *)",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-pr-reply-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh issue comment *)",
             "timeout": 15
           }
@@ -306,7 +338,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/pre-edit-test-lock.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/pre-edit-test-lock.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-edit-test-lock.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "timeout": 10
           }
         ]
@@ -318,22 +350,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/auto-format.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/auto-format.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$HOME/.claude/hooks/auto-format.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-edit-typecheck.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-edit-typecheck.sh\"; if [ -x \"$HOOK\" ]; then \"$HOOK\"; fi",
+            "command": "HOOK=\"$HOME/.claude/hooks/post-edit-typecheck.sh\"; if [ -x \"$HOOK\" ]; then \"$HOOK\"; fi",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-edit-lint.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-edit-lint.sh\"; if [ -x \"$HOOK\" ]; then \"$HOOK\"; fi",
+            "command": "HOOK=\"$HOME/.claude/hooks/post-edit-lint.sh\"; if [ -x \"$HOOK\" ]; then \"$HOOK\"; fi",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/prose-gate.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; if [ -x \"$HOOK\" ]; then \"$HOOK\" file; fi",
+            "command": "HOOK=\"$HOME/.claude/hooks/prose-gate.sh\"; if [ -x \"$HOOK\" ]; then \"$HOOK\" file; fi",
             "timeout": 15
           }
         ]
@@ -343,19 +375,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr create *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/post-pr-open-watch.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(gh pr ready *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/post-verify-stamp.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/post-verify-stamp.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/post-verify-stamp.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(*npm run verify*)",
             "timeout": 10
           }
@@ -367,7 +399,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/worktree-cleanup.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/worktree-cleanup.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$HOME/.claude/hooks/worktree-cleanup.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 30
           }
         ]
@@ -400,7 +432,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/symlink-check.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/symlink-check.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$HOME/.claude/hooks/symlink-check.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
           }
         ]
@@ -415,7 +447,7 @@
           },
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
           }
         ]
@@ -426,7 +458,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
           }
         ]
@@ -437,7 +469,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] || HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
           }
         ]

@@ -15,6 +15,10 @@
 # failed lookup blocks, because a wrongly blocked bot reply is cheap and a post
 # to a human cannot be taken back.
 #
+# A `gh api` comment sent through --input, a GraphQL comment or reply
+# mutation, or an in_reply_to the shell expands also blocks, because the gate
+# cannot read its footer or parent. Other GraphQL calls pass.
+#
 # Exit 2 blocks the action and feeds the message back to the agent.
 # Bypass the footer check with SKIP_REPLY_FOOTER=1.
 
@@ -44,23 +48,73 @@ REPO_CMD=${COMMAND%%body=*}
 for flag in --body -b -F; do REPO_CMD=${REPO_CMD%%[[:space:]]"$flag"[[:space:]=]*}; done
 DIR=$(resolve_repo_dir "$REPO_CMD" "$CWD")
 
+# block <line>...: prints each line with the gate prefix on the first and exits 2.
+block() {
+  echo "[pre-pr-reply-gate] $1" >&2
+  shift
+  for line in "$@"; do echo "$line" >&2; done
+  exit 2
+}
+
 if [ "$KIND" = api ]; then
-  # The first match is the endpoint; a later one sits in the free-text body.
-  PARENT=$(printf '%s\n' "$COMMAND" | grep -oE 'pulls/[0-9]+/comments/[0-9]+/replies' | head -1 \
-    | sed -E 's#pulls/[0-9]+/comments/([0-9]+)/replies#\1#')
-  if [ -z "$PARENT" ]; then
-    PARENT=$(printf '%s\n' "$COMMAND" \
-      | sed -nE 's#.*in_reply_to(_id)?=([0-9]+).*#\2#p' | head -1)
-  fi
-  # PR, issue, and release bodies also travel as body=, and they must not
-  # carry the footer, so only comment and review endpoints count.
-  if [ -z "$PARENT" ] && ! { printf '%s\n' "$COMMAND" \
-      | grep -qE '(issues|pulls)/([0-9]+/(comments|reviews)|comments/[0-9]+)|commits/[0-9a-f]+/comments' \
-    && printf '%s\n' "$COMMAND" | grep -qE '(-f|-F|--field|--raw-field)[= ]+body='; }; then
+  # Flags sit before the first body= field; the body itself is free text.
+  FLAGS=${COMMAND%%body=*}
+  COMMENT_ENDPOINT='(issues|pulls)/([0-9]+/(comments|reviews)|comments/[0-9]+)|commits/[0-9a-f]+/comments'
+
+  if printf '%s\n' "$FLAGS" | grep -qE '(^|[[:space:]])["'\'']?/?graphql["'\'']?([[:space:]]|$)'; then
+    # A query the shell builds, such as query="$(cat q.graphql)", hides the mutation.
+    if printf '%s\n' "$COMMAND" | grep -qE 'query="?[$`]'; then
+      block "Cannot read a GraphQL query the shell builds." \
+        "Pass the query inline in single quotes, or with -F query=@<file>, so the gate can check it."
+    fi
+    # A query or --input file holds the mutation the call sends, so read it too.
+    GQL="$COMMAND"
+    while IFS= read -r f; do
+      case "$f" in -|*'$'*|*'`'*) f_ok=false ;; *) f_ok=true ;; esac
+      if ! $f_ok || ! GQL="$GQL $(cd "$DIR" 2>/dev/null && cat -- "$f")"; then
+        block "Cannot read the GraphQL document in $f." \
+          "Pass the query inline in single quotes, or with -F query=@<file>, so the gate can check it."
+      fi
+    done < <(printf '%s\n' "$COMMAND" \
+      | grep -oE '(query=@|--input[= ]+)("[^"]*"|'\''[^'\'']*'\''|[^[:space:]"'\'']+)' \
+      | sed -E 's/^(query=@|--input[= ]+)//; s/^["'\'']//; s/["'\'']$//')
+    if printf '%s\n' "$GQL" | grep -qE '(addPullRequestReviewThreadReply|addPullRequestReviewComment|addPullRequestReviewThread|addComment|updateIssueComment|updatePullRequestReviewComment)([^A-Za-z]|$)' \
+      || { printf '%s\n' "$GQL" | grep -qE '(addPullRequestReview|submitPullRequestReview|updatePullRequestReview)([^A-Za-z]|$)' \
+        && printf '%s\n' "$GQL" | grep -qE '(^|[^A-Za-z])body([^A-Za-z]|$)'; }; then
+      block "Refusing a GraphQL comment or reply mutation: the gate cannot check its footer or parent." \
+        "Post it through the REST endpoint, such as: gh api repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -f body='...'"
+    fi
     exit 0
   fi
 
-  if [ -n "$PARENT" ]; then
+  if printf '%s\n' "$FLAGS" | grep -qE '(^|[[:space:]])--input([= ]|$)' \
+    && printf '%s\n' "$FLAGS" | grep -qE "$COMMENT_ENDPOINT"; then
+    block "Refusing a comment sent with --input: the gate cannot check its footer or parent." \
+      "Pass the body with -f body='...' or -F body=@<file>, and in_reply_to as a literal number."
+  fi
+
+  # Every in_reply_to counts, so a later one in the body cannot stand in for the real parent.
+  PARENTS=""
+  while IFS= read -r value; do
+    case "$value" in
+      ''|*[!0-9]*)
+        block "Cannot check the parent of in_reply_to=$value." \
+          "Write the parent comment ID as a literal number, such as -F in_reply_to=123456." ;;
+    esac
+    PARENTS="$PARENTS $value"
+  done < <(printf '%s\n' "$COMMAND" \
+    | grep -oE 'in_reply_to(_id)?=["'\'']?[^[:space:]"'\'']*' | sed -E 's/^in_reply_to(_id)?=["'\'']?//')
+  # The first match is the endpoint; a later one sits in the free-text body.
+  PARENTS="$(printf '%s\n' "$COMMAND" | grep -oE 'pulls/[0-9]+/comments/[0-9]+/replies' | head -1 \
+    | sed -E 's#pulls/[0-9]+/comments/([0-9]+)/replies#\1#')$PARENTS"
+  # PR, issue, and release bodies also travel as body=, and they must not
+  # carry the footer, so only comment and review endpoints count.
+  if [ -z "${PARENTS// /}" ] && ! { printf '%s\n' "$COMMAND" | grep -qE "$COMMENT_ENDPOINT" \
+    && printf '%s\n' "$COMMAND" | grep -qE '(-f|-F|--field|--raw-field)[= ]+["'\'']?body='; }; then
+    exit 0
+  fi
+
+  for PARENT in $PARENTS; do
     REPO=$(printf '%s\n' "$COMMAND" | grep -oE 'repos/[{}A-Za-z0-9_.-]+/[{}A-Za-z0-9_.-]+/pulls/' | head -1 \
       | sed -E 's#repos/(.*)/pulls/#\1#')
     REPO=${REPO:-"{owner}/{repo}"}
@@ -71,17 +125,13 @@ if [ "$KIND" = api ]; then
     case "$CLASS" in
       bot) ;;
       human:*)
-        echo "[pre-pr-reply-gate] Refusing to reply to ${CLASS#human:}, a human reviewer." >&2
-        echo "Write the reply as a draft and give it to the user to post." >&2
-        exit 2
-        ;;
+        block "Refusing to reply to ${CLASS#human:}, a human reviewer." \
+          "Write the reply as a draft and give it to the user to post." ;;
       *)
-        echo "[pre-pr-reply-gate] Could not resolve the author of comment $PARENT." >&2
-        echo "Check the comment ID and gh auth, then retry." >&2
-        exit 2
-        ;;
+        block "Could not resolve the author of comment $PARENT." \
+          "Check the comment ID and gh auth, then retry." ;;
     esac
-  fi
+  done
 fi
 
 [ "$SKIP_REPLY_FOOTER" = "1" ] && exit 0
@@ -96,19 +146,7 @@ if [ "$KIND" = cli ]; then
     exit 0
   fi
 else
-  BODY=$(cd "$DIR" 2>/dev/null && printf '%s' "$COMMAND" | python3 -c '
-import re, sys
-cmd = sys.stdin.read()
-m = re.search(r"(?:^|\s)(-f|-F|--field|--raw-field)[=\s]+body=(?:([\x27\"])(.*?)\2|(\S+))", cmd, re.S)
-if m:
-    val = m.group(3) if m.group(2) else m.group(4)
-    if m.group(1) in ("-F", "--field") and val.startswith("@"):
-        try:
-            val = open(val[1:]).read()
-        except OSError:
-            val = ""
-    print(val)
-' 2>/dev/null)
+  BODY=$(cd "$DIR" 2>/dev/null && extract_api_body "$COMMAND")
 fi
 
 # A "$(cat <<EOF ... EOF)" body ends with the heredoc close, so unwrap it

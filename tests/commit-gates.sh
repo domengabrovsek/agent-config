@@ -110,6 +110,10 @@ assert_gate "a plain message passes" "$PROSE commit" \
   "$GIT_COMMIT -m \"fix(hooks): read the payload cwd\"" 0
 assert_gate "a blocked word is caught" "$PROSE commit" \
   "$GIT_COMMIT -m \"fix(x): utilize the thing\"" 2
+assert_gate "a blocked word behind git -C is caught" "$PROSE commit" \
+  'git -C . commit -m "fix(x): utilize the thing"' 2
+assert_gate "git -C commit --help is not linted" "$PROSE commit" \
+  'git -C . commit --help' 0
 assert_gate "a blocked word in a real heredoc is caught" "$PROSE commit" \
   "$GIT_COMMIT -F- <<'MSG'
 fix(x): a fine subject
