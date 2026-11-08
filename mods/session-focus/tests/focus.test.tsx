@@ -194,3 +194,18 @@ test('outside herdr, nothing is reported', async ($, on) => {
 
   expect(runs).toBe(0)
 })
+
+test('a failed herdr report still shows the new label', async ($, on) => {
+  engine(on, { HERDR_PANE_ID: 'w1:p2' })
+  on('model.complete', () => ({ value: { isAnswered: true, text: 'Herdr Report Fails', usage: USAGE } }))
+  on('process.run', () => ({ deny: 'herdr is not on PATH' }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit(submit('report while herdr is missing'))
+  await settle()
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Herdr Report Fails' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /update failed/ })).toBeUndefined()
+  await ui.unmount()
+})
