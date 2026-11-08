@@ -1,1 +1,1 @@
-{ "name": "session-focus", "version": "0.1.0", "description": "Shows a few-word summary of what you are working on in this terminal, kept across /clear", "types": "./types/index.d.ts" }
+{ "name": "session-focus", "version": "0.1.0", "description": "Shows a few-word summary of what you are working on in this terminal in a row above the prompt, kept across /clear", "types": "./types/index.d.ts" }

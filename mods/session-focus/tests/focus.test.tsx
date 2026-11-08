@@ -1,15 +1,14 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-const PANE = {
+const BAND = {
   plugin: 'session-focus',
-  component: 'Pane',
-  requestId: 'session-focus',
+  component: 'AbovePrompt',
   props: {
-    title: 'Focus',
-    isFocused: false,
-    bodyColumns: 40,
-    placement: 'dock',
+    hasSurvey: false,
+    isWorking: false,
+    maxRows: 10,
+    bodyColumns: 100,
     scroll: { offset: 0, bodyRows: 10 },
     view: {},
   },
@@ -19,10 +18,13 @@ const USAGE = { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 
 
 function engine(on: On) {
   mock.clock(on, { now: 0 })
-  on('command.register', () => ({ value: { command: 'focus' } }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
+  /* Stands for the engine and the plugins beneath, such as pr-band. */
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>beneath</Text>
+  })
 }
 
 /* The mod summarizes without holding up the prompt, so a test lets that work finish. */
@@ -37,7 +39,7 @@ function submit(text: string) {
   return { text, wait: false, origin: { kind: 'composer' } } as const
 }
 
-test('the pane shows the model summary of recent prompts, on every surface', async ($, on) => {
+test('the band shows the model summary of recent prompts, on every surface', async ($, on) => {
   engine(on)
   const asked: string[] = []
   on('model.complete', (_, e) => {
@@ -51,8 +53,8 @@ test('the pane shows the model summary of recent prompts, on every surface', asy
 
   expect(asked[0]).toContain('the alerts test fails on CI')
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
-    const ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ type: 'Text', text: /Alerts/ }))?.text).toBe('Fix Alerts Pane Tests')
+    const ui = await $.ui.mount({ ...BAND, surface })
+    expect((await ui.find({ type: 'Text', text: /Alerts/ }))?.text).toBe('▸ Fix Alerts Pane Tests')
     await ui.unmount()
   }
 })
@@ -69,8 +71,9 @@ test('slash commands are not summarized', async ($, on) => {
   await $.prompt.submit({ ...submit('/clear'), command: { name: 'clear', args: '' } })
 
   expect(calls).toBe(0)
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text' }))?.text).toBe('No prompts yet.')
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /▸/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
   await ui.unmount()
 })
 
@@ -90,9 +93,9 @@ test('a failed call keeps the last summary and says it failed', async ($, on) =>
   await $.prompt.submit(submit('add tests'))
   await settle()
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: 'Write Session Focus Mod' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /last update failed: api-error/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /update failed: api-error/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -125,4 +128,34 @@ test('only the last six prompts reach the model', async ($, on) => {
   expect(last).not.toContain('prompt number 2')
   expect(last).toContain('prompt number 3')
   expect(last).toContain('prompt number 8')
+})
+
+test('the summary takes one row above what the plugins beneath draw', async ($, on) => {
+  engine(on)
+  on('model.complete', () => ({ value: { isAnswered: true, text: 'Compact Focus Band', usage: USAGE } }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit(submit('make the focus pane a band'))
+  await settle()
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const band = await ui.drawn()
+  const rows = band.type === 'Box' ? (band.children ?? []) : []
+  expect(rows).toHaveLength(2)
+  expect(await ui.find({ type: 'Text', text: 'Compact Focus Band' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'beneath' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a survey hides the band', async ($, on) => {
+  engine(on)
+  on('model.complete', () => ({ value: { isAnswered: true, text: 'Compact Focus Band', usage: USAGE } }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit(submit('make the focus pane a band'))
+  await settle()
+
+  const ui = await $.ui.mount({ ...BAND, props: { ...BAND.props, hasSurvey: true }, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Compact Focus Band' })).toBeUndefined()
+  await ui.unmount()
 })

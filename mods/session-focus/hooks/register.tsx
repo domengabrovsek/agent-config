@@ -3,7 +3,6 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Focus } from '../types'
 
-const PANE = 'session-focus'
 const KEEP = 6
 const PROMPT_CHARS = 400
 
@@ -44,17 +43,6 @@ function clockTime(ms: number): string {
 }
 
 export const register: Register = on => {
-  on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'focus', description: 'Show what this terminal session is working on' })
-    await $.ui.open({ id: PANE, title: 'Focus' })
-    return next(e)
-  })
-
-  on('command.run', { command: 'focus' }, async $ => {
-    await $.ui.open({ id: PANE, title: 'Focus' })
-    return { text: 'Focus pane opened.' }
-  })
-
   on('prompt.submit', async ($, e, next) => {
     const text = e.text.trim()
     const typed = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
@@ -66,23 +54,42 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
+  /* Plugins listed earlier in CLAUDE_CODE_PLUGIN_DIRS run outermost, and pr-band
+     answers without calling next, so this mod is listed first and draws its row
+     above whatever the plugins beneath draw. */
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, focus)
+    if (e.props.hasSurvey || current.status === 'idle') {
+      return next(e)
+    }
 
-    if (current.status === 'idle') {
-      return <Text dimColor>No prompts yet.</Text>
-    }
-    if (current.status === 'error') {
-      return <Text color="error">{current.message}</Text>
-    }
+    const { Box, Text } = $.ui.resolve(e)
+    const beneath = await next(e)
+    const row =
+      current.status === 'error' ? (
+        <Box paddingX={1}>
+          <Text color="error" wrap="truncate-end">{current.message}</Text>
+        </Box>
+      ) : (
+        <Box paddingX={1} gap={2}>
+          <Box flexGrow={1} flexShrink={1}>
+            <Text wrap="truncate-end">
+              <Text color="suggestion">▸ </Text>
+              <Text bold>{current.summary}</Text>
+            </Text>
+          </Box>
+          <Box flexShrink={0}>
+            <Text dimColor>
+              {current.error ? `update failed: ${current.error} · ` : ''}↻ {clockTime(current.updatedAt)}
+            </Text>
+          </Box>
+        </Box>
+      )
+
     return (
       <Box flexDirection="column">
-        <Text bold>{current.summary}</Text>
-        <Text dimColor>
-          updated {clockTime(current.updatedAt)}
-          {current.error ? ` · last update failed: ${current.error}` : ''}
-        </Text>
+        {row}
+        {beneath}
       </Box>
     )
   })
