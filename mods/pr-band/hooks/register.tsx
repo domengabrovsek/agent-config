@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ThemeKey } from 'claude-code'
 
-import type { Ci, Overall, Pr, PrInfo, Worktree } from '../types'
+import type { Ci, Overall, Pr } from '../types'
 
 type Rollup = {
   name?: string | null
@@ -84,12 +84,6 @@ function names(list: string[]): string {
   return list.length > 3 ? `${list.slice(0, 3).join(', ')} +${list.length - 3}` : list.join(', ')
 }
 
-async function worktreeOf($: EngineInterface): Promise<Worktree> {
-  const { stdout } = await $.process.run(['git', 'rev-parse', '--show-toplevel', '--git-dir', '--git-common-dir'])
-  const [top = '', gitDir = '', commonDir = ''] = stdout.trim().split('\n')
-  return { name: top.split('/').pop() ?? top, isLinked: gitDir !== commonDir }
-}
-
 async function refresh($: EngineInterface): Promise<void> {
   const head = await $.process.run(['git', 'branch', '--show-current'])
   const branch = head.stdout.trim()
@@ -120,9 +114,8 @@ async function refresh($: EngineInterface): Promise<void> {
   if (previous?.ci && pr && previous.number === pr.number && previous.ci.overall !== pr.ci.overall && pr.ci.overall !== 'pending') {
     $.ui.toast(`PR #${pr.number}: ${OVERALL[pr.ci.overall].text}`)
   }
-  const worktree = await worktreeOf($)
   const checkedAt = await $.clock.now()
-  await update($, info, () => ({ branch, worktree, checkedAt, pr }))
+  await update($, info, () => ({ branch, checkedAt, pr }))
 }
 
 export const register: Register = on => {
@@ -146,44 +139,44 @@ export const register: Register = on => {
       return next(e)
     }
 
-    const { Box, Text, Link } = $.ui.resolve(e)
+    /* The status line already shows the repo, branch and a PR link, so the band
+       carries only what it lacks: PR state, title and CI, on one row. */
+    const { Box, Text } = $.ui.resolve(e)
     const ci = pr?.ci ?? null
     const overall = ci ? OVERALL[ci.overall] : null
     const badge = pr ? stateBadge(pr) : null
     const borderColor: ThemeKey = pr && pr.attention.length > 0 && ci?.overall !== 'fail' ? 'permission' : (overall?.color ?? 'subtle')
+    const details =
+      pr !== null && ci !== null && (ci.failed.length > 0 || ci.waiting.length > 0 || pr.attention.length > 0)
 
     return (
       <Box borderStyle="round" borderColor={borderColor} paddingX={1} flexDirection="column">
-        <Box gap={2} justifyContent="space-between">
-          <Box gap={2} flexShrink={1}>
-            {current.worktree ? (
-              <Text color={current.worktree.isLinked ? 'suggestion' : 'subtle'}>
-                {current.worktree.isLinked ? '⌂ worktree ' : '⌂ '}{current.worktree.name}
-              </Text>
-            ) : null}
-            <Text color="claude" bold>⎇ {current.branch}</Text>
-            {pr === null || badge === null ? (
-              <Text dimColor italic>no PR yet</Text>
-            ) : (
-              <Box gap={2} flexShrink={1}>
-                <Text color="inverseText" backgroundColor={badge.color} bold> {badge.text} </Text>
-                <Text bold><Link href={pr.url} label={`#${pr.number}`} /></Text>
-                <Text dimColor wrap="truncate-end">{pr.title}</Text>
+        <Box gap={2}>
+          {pr === null || badge === null ? (
+            <Text dimColor italic>no PR yet</Text>
+          ) : (
+            <>
+              <Text color="inverseText" backgroundColor={badge.color} bold> {badge.text} #{pr.number} </Text>
+              <Box flexGrow={1} flexShrink={1}>
+                <Text wrap="truncate-end">{pr.title}</Text>
               </Box>
-            )}
-          </Box>
+            </>
+          )}
+          {ci !== null && overall !== null ? (
+            <Box gap={1} flexShrink={0}>
+              <Text color={overall.color} bold>{overall.icon} {overall.text}</Text>
+              {ci.passed > 0 ? <Text color="success">✓{ci.passed}</Text> : null}
+              {ci.failed.length > 0 ? <Text color="error">✗{ci.failed.length}</Text> : null}
+              {ci.running.length > 0 ? <Text color="warning">◌{ci.running.length}</Text> : null}
+              {ci.skipped > 0 ? <Text dimColor>⤼{ci.skipped}</Text> : null}
+            </Box>
+          ) : null}
           {typeof current.checkedAt === 'number' ? <Text dimColor>↻ {clockTime(current.checkedAt)}</Text> : null}
         </Box>
-        {pr !== null && ci !== null && overall !== null ? (
+        {details && pr !== null && ci !== null ? (
           <Box gap={2} flexWrap="wrap">
-            <Text color={overall.color} bold>{overall.icon} {overall.text}</Text>
-            {ci.passed > 0 ? <Text color="success">✓ {ci.passed}</Text> : null}
-            {ci.failed.length > 0 ? <Text color="error">✗ {ci.failed.length}</Text> : null}
-            {ci.running.length > 0 ? <Text color="warning">◌ {ci.running.length}</Text> : null}
-            {ci.skipped > 0 ? <Text dimColor>⤼ {ci.skipped} skipped</Text> : null}
             {ci.failed.length > 0 ? <Text color="error" wrap="truncate-end">failed: {names(ci.failed)}</Text> : null}
             {ci.waiting.length > 0 ? <Text color="permission" bold>⏸ approve: {names(ci.waiting)}</Text> : null}
-            {ci.failed.length === 0 && ci.running.length > 0 ? <Text dimColor wrap="truncate-end">running: {names(ci.running)}</Text> : null}
             {pr.attention.map(item => <Text key={item} color="permission" bold>⚑ {item}</Text>)}
           </Box>
         ) : null}
