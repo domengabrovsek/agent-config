@@ -134,7 +134,9 @@ assert_gate "a variable in_reply_to is blocked" \
 assert_gate "a quoted variable in_reply_to is blocked" \
   "$GH_API repos/acme/app/pulls/7/comments -F \"in_reply_to=\${ID}\" -f body=\"Done. $FOOTER\"" 2
 assert_gate "a bot in_reply_to in the body does not hide a human parent" \
-  "$GH_API repos/acme/app/pulls/7/comments -F in_reply_to=222 -f body=\"See in_reply_to=111. $FOOTER\"" 2
+  "$GH_API repos/acme/app/pulls/7/comments -F in_reply_to=222 -f body=\"See in_reply_to=111 for context. $FOOTER\"" 2
+assert_gate "a human in_reply_to in the body still counts after a bot parent" \
+  "$GH_API repos/acme/app/pulls/7/comments -F in_reply_to=111 -f body=\"See in_reply_to=222 for context. $FOOTER\"" 2
 assert_gate "a quoted body field still gets the footer check" \
   "$GH_API repos/acme/app/issues/7/comments -f \"body=Done.\"" 2
 assert_gate "a quoted body field with the footer passes" \
