@@ -174,9 +174,37 @@ test('inside herdr, the summary goes to the sidebar as the focus token', async (
   await $.prompt.submit(submit('show the focus in the herdr sidebar'))
   await settle()
 
+  const clear = ['herdr', 'pane', 'report-metadata', 'w1:p2', '--source', 'agent-config:session-focus', '--clear-token', 'focus']
   expect(ran).toEqual([
+    clear,
+    clear,
     ['herdr', 'pane', 'report-metadata', 'w1:p2', '--source', 'agent-config:session-focus', '--token', 'focus=Herdr Sidebar Focus'],
   ])
+})
+
+test('each prompt resends the current label to herdr before the new summary', async ($, on) => {
+  engine(on, { HERDR_PANE_ID: 'w1:p2' })
+  let fail = false
+  on('model.complete', () =>
+    fail
+      ? { value: { isAnswered: false, reason: 'api-error', status: 529, error: 'overloaded', usage: USAGE } }
+      : { value: { isAnswered: true, text: 'Kept Label', usage: USAGE } },
+  )
+  const ran: (readonly string[])[] = []
+  on('process.run', (_, e) => {
+    ran.push(e.argv)
+    return { value: { exitCode: 0, stdout: '', stderr: '' } }
+  })
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit(submit('first'))
+  await settle()
+  fail = true
+  ran.length = 0
+  await $.prompt.submit(submit('second'))
+  await settle()
+
+  expect(ran.map(argv => argv.slice(-2))).toEqual([['--token', 'focus=Kept Label']])
 })
 
 test('outside herdr, nothing is reported', async ($, on) => {
