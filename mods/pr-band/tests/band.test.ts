@@ -17,7 +17,6 @@ const BAND = {
 function prJson(overrides: Record<string, string | boolean | object[]> = {}): string {
   return JSON.stringify({
     number: 223,
-    url: 'https://github.com/owner/repo/pull/223',
     state: 'OPEN',
     isDraft: false,
     title: 'feat(mods): add a pane',
