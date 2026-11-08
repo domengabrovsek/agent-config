@@ -122,6 +122,9 @@ describe('normalizeSegment', () => {
     assert.equal(normalizeSegment('FOO=1 BAR=2 git push -f'), 'git push -f');
     assert.equal(normalizeSegment('command rm -rf x'), 'rm -rf x');
     assert.equal(normalizeSegment('env -u X builtin exec /bin/rm -rf x'), 'rm -rf x');
+    assert.equal(normalizeSegment('time -p nice -n 5 nohup git push -f origin x'), 'git push -f origin x');
+    assert.equal(normalizeSegment('timeout -s KILL 60 rm -rf x'), 'rm -rf x');
+    assert.equal(normalizeSegment('git --attr-source HEAD push -f origin x'), 'git push -f origin x');
     assert.equal(normalizeSegment('git -C . -c a=b --no-pager --git-dir=.git --work-tree . push --force'), 'git push --force');
     assert.equal(normalizeSegment('gh  pr   merge 1'), 'gh pr merge 1');
   });
@@ -149,6 +152,10 @@ describe('Bash rule bypasses', () => {
       'git push --repo origin +HEAD:feat/x',
       'git push --repo=origin +HEAD:feat/x',
       'git -C . push --force',
+      'time git push -f origin x',
+      'nice git push -f origin x',
+      'timeout 60 git push --force origin x',
+      'git --attr-source HEAD push -f origin x',
       'FOO=1 git push -f',
       'cd /tmp && command git -c k=v push -f origin x',
     ]) {
@@ -173,7 +180,7 @@ describe('Bash rule bypasses', () => {
   });
 
   it('blocks rm with a recursive and a force flag in any order', () => {
-    for (const command of ['rm -rf x', 'rm -fr x', 'rm -r -f x', 'rm -Rf x', 'rm -rfv x', 'rm --recursive --force x', 'command rm -rf x', 'X=1 rm -fr x']) {
+    for (const command of ['rm -rf x', 'rm -fr x', 'rm -r -f x', 'rm -Rf x', 'rm -rfv x', 'rm --recursive --force x', 'command rm -rf x', 'X=1 rm -fr x', 'nohup rm -rf x']) {
       assert.notEqual(denied(command), undefined, command);
     }
   });

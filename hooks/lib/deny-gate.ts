@@ -188,14 +188,23 @@ export function candidatePaths(command: string, cwd: string, home: string = home
 }
 
 const WRAPPERS = new Set(['command', 'builtin', 'exec']);
+/* Wrappers that take options before the command, with the options whose value is the next word. */
+const OPTION_WRAPPERS = new Map<string, Set<string>>([
+  ['env', new Set(['-u', '-C', '-S'])],
+  ['time', new Set(['-f', '-o'])],
+  ['nice', new Set(['-n'])],
+  ['nohup', new Set()],
+  ['timeout', new Set(['-s', '-k'])],
+]);
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 /* Git global options that take the next word as their value unless written with `=`. */
-const GIT_VALUE_OPTIONS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--exec-path']);
+const GIT_VALUE_OPTIONS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--exec-path', '--attr-source']);
 
 /**
  * The words a segment runs, with what changes nothing about the command
- * removed: leading VAR=value assignments, `env`, `command`, `builtin` and
- * `exec`, a directory on the program name, and git's global options. Rules
+ * removed: leading VAR=value assignments, `env`, `command`, `builtin`,
+ * `exec`, `time`, `nice`, `nohup`, `timeout` and its duration, a directory
+ * on the program name, and git's global options. Rules
  * then match `git -C . push -f` and `FOO=1 command git push -f` as
  * `git push -f`.
  */
@@ -204,9 +213,11 @@ export function normalizedWords(segment: string): string[] {
   let i = 0;
   while (i < words.length) {
     if (ASSIGNMENT.test(words[i]) || WRAPPERS.has(words[i])) i++;
-    else if (words[i] === 'env') {
-      i++;
-      while (i < words.length && words[i].startsWith('-')) i += words[i] === '-u' ? 2 : 1;
+    else if (OPTION_WRAPPERS.has(words[i])) {
+      const wrapper = words[i++];
+      const valueOptions = OPTION_WRAPPERS.get(wrapper) ?? new Set<string>();
+      while (i < words.length && words[i].startsWith('-')) i += valueOptions.has(words[i]) ? 2 : 1;
+      if (wrapper === 'timeout') i++;
     } else break;
   }
   const rest = words.slice(i);

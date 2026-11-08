@@ -118,7 +118,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 - An `Edit` rule also blocks writes: natively on Pi, and through `deny-gate.sh` on every host.
 - `deny-gate.sh` also blocks a shell command that names a denied path, so `cat .env` fails like a `Read` of `.env` on every host.
 - The `verify-passed` rules keep the agent from forging the stamp that `pre-pr-test-gate.sh` reads. Only `post-verify-stamp.sh` writes it.
-- `deny-gate.sh` applies `Bash` rules on every host, because native matching reads a command literally. It first normalizes each segment: it drops leading `VAR=value` assignments, `env`, `command`, `builtin`, and `exec`, a directory on the program name, and git global options such as `-C <dir>` and `-c k=v`, then collapses whitespace.
+- `deny-gate.sh` applies `Bash` rules on every host, because native matching reads a command literally. It first normalizes each segment: it drops leading `VAR=value` assignments, the wrappers `env`, `command`, `builtin`, `exec`, `time`, `nice`, `nohup`, and `timeout`, a directory on the program name, and git global options such as `-C <dir>` and `-c k=v`, then collapses whitespace.
 - It also catches `rm` with recursive and force flags in any order, every force push (`-f`, `--force-with-lease`, `+<refspec>`, `--mirror`), and a push whose destination is `main` or `master`, such as `HEAD:main`.
 - A command built at run time, such as `bash -c '...'` or `eval`, still gets past the rules, so the deny list adds friction, not a sandbox.
 - `deny-gate.sh` needs Node.js 22.18 or later. When it cannot run, or cannot read the deny list, it blocks every call on Codex, which has no native deny rules. Elsewhere it passes, because the host's native rules still apply.
