@@ -42,22 +42,33 @@ function engine(on: On, pr: string) {
   })
 }
 
-test('the band shows PR state, title and CI on one row, without the branch or URL', async ($, on) => {
+test('the band shows PR state, a clickable URL, title and CI on one row, without the branch', async ($, on) => {
   engine(on, prJson())
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
-    expect(await ui.find({ type: 'Text', text: / OPEN #223 / })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: ' OPEN ' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'feat(mods): add a pane' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /CI green/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '✓2' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '⤼1' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /feat\/some-branch/ })).toBeUndefined()
-    expect(await ui.find({ type: 'Link' })).toBeUndefined()
+    expect(await ui.find({ type: 'Link' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /failed:/ })).toBeUndefined()
     await ui.unmount()
   }
+})
+
+test('a long title on a narrow band leaves the badge, URL and time whole', async ($, on) => {
+  engine(on, prJson({ title: 'feat(mods): a very long pull request title that cannot fit beside everything else' }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, bodyColumns: 60 } })
+  expect(await ui.find({ type: 'Text', text: ' OPEN ' })).toBeDefined()
+  expect(await ui.find({ type: 'Link' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /↻/ })).toBeDefined()
+  await ui.unmount()
 })
 
 test('a failing check and a conflict add a second row', async ($, on) => {

@@ -139,9 +139,11 @@ export const register: Register = on => {
       return next(e)
     }
 
-    /* The status line already shows the repo, branch and a PR link, so the band
-       carries only what it lacks: PR state, title and CI, on one row. */
-    const { Box, Text } = $.ui.resolve(e)
+    /* The status line already shows the repo and branch, so the band leaves them
+       out. A Link with no label draws the URL itself, which some terminals would
+       otherwise print after the label. Only the title box may shrink, so nothing
+       else wraps on a narrow terminal. */
+    const { Box, Text, Link } = $.ui.resolve(e)
     const ci = pr?.ci ?? null
     const overall = ci ? OVERALL[ci.overall] : null
     const badge = pr ? stateBadge(pr) : null
@@ -156,7 +158,12 @@ export const register: Register = on => {
             <Text dimColor italic>no PR yet</Text>
           ) : (
             <>
-              <Text color="inverseText" backgroundColor={badge.color} bold> {badge.text} #{pr.number} </Text>
+              <Box flexShrink={0}>
+                <Text color="inverseText" backgroundColor={badge.color} bold> {badge.text} </Text>
+              </Box>
+              <Box flexShrink={0}>
+                <Text bold><Link href={pr.url} /></Text>
+              </Box>
               <Box flexGrow={1} flexShrink={1}>
                 <Text wrap="truncate-end">{pr.title}</Text>
               </Box>
@@ -171,7 +178,11 @@ export const register: Register = on => {
               {ci.skipped > 0 ? <Text dimColor>⤼{ci.skipped}</Text> : null}
             </Box>
           ) : null}
-          {typeof current.checkedAt === 'number' ? <Text dimColor>↻ {clockTime(current.checkedAt)}</Text> : null}
+          {typeof current.checkedAt === 'number' ? (
+            <Box flexShrink={0}>
+              <Text dimColor>↻ {clockTime(current.checkedAt)}</Text>
+            </Box>
+          ) : null}
         </Box>
         {details && pr !== null && ci !== null ? (
           <Box gap={2} flexWrap="wrap">
