@@ -25,6 +25,8 @@
 # and the target of an ssh, scp, sftp, rsync or mosh command. A literal
 # `curl -u <email>:<token>` is scrubbed, because it sends the address to
 # whatever host the URL names; pass a basic-auth login through a variable.
+# A login in a command that sends the request through a proxy or another
+# address, such as `curl -x` or `--resolve`, is scrubbed too.
 # Bypass with SKIP_EMAIL_SCRUB=1.
 
 [ "${SKIP_EMAIL_SCRUB:-}" = "1" ] && { cat >/dev/null; exit 0; }
@@ -52,6 +54,12 @@ GIT_NETWORK = {"push", "fetch", "pull", "clone", "ls-remote", "remote", "submodu
                "send-email", "request-pull", "imap-send", "archive"}
 # Commands whose URL argument is the request itself, so its userinfo is a login.
 URL_CLIENTS = {"curl", "wget", "git", "http", "https", "xh"}
+# curl options that send the request somewhere other than the URL host, so its
+# userinfo reaches a proxy or another address.
+REROUTE_LONG = {"--proxy", "--proxy1.0", "--preproxy", "--connect-to", "--resolve", "--socks4",
+                "--socks4a", "--socks5", "--socks5-hostname"}
+REROUTE_SHORT = re.compile(r"-[A-Za-z0-9]*x")
+PROXY_ENV = re.compile(r"(?:^|[\s;&|(])(?:all|https?|ftp)_proxy=", re.I)
 NETWORK = re.compile(
     r"https?://|(?:^|[^A-Za-z0-9_.-])"
     r"(?:curl|wget|http|https|xh|nc|ncat|socat|telnet|gh|Invoke-WebRequest|Invoke-RestMethod)"
@@ -177,7 +185,26 @@ def is_userinfo(start, end):
     if len(tokens) < 2 or os.path.basename(tokens[0]) not in URL_CLIENTS \
             or not re.fullmatch(r"[A-Za-z][A-Za-z0-9+.-]*://[^/?#\s]*", tokens[-1]):
         return False
-    return not tokens[-2].startswith("-")
+    if tokens[-2].startswith("-"):
+        return False
+    return not reroutes(segment)
+
+def reroutes(segment):
+    """True when the command sends its request somewhere other than the URL
+    host: a proxy variable set anywhere in the command, because an
+    earlier export reaches it, or a curl option that names a proxy or another address.
+    A segment shlex cannot split counts as rerouted."""
+    if PROXY_ENV.search(text):
+        return True
+    tokens = words(segment)
+    if tokens is None:
+        return True
+    if os.path.basename(tokens[0]) != "curl":
+        return False
+    for token in tokens[1:]:
+        if token.split("=", 1)[0] in REROUTE_LONG or REROUTE_SHORT.match(token):
+            return True
+    return False
 
 def is_login_target(start, end):
     """True when the match is the destination of an ssh-family command: the

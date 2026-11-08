@@ -2,9 +2,9 @@
 # Every ~/.agents path named in shared content must resolve to a real file in
 # this checkout, and its first segment must be a tree the bootstrap links.
 #
-# This is the guard for the class of bug where a shared file names a path that
-# does not exist: the rulebook skill shipped 14 such rows after a vendoring,
-# and nothing caught it. Repo-only, so it holds in CI and on any machine.
+# A shared file that names a missing path points every host at a file that is
+# not there, and no other check reads these paths. The test reads only the
+# repo, so it holds in CI and on any machine.
 
 set -u
 

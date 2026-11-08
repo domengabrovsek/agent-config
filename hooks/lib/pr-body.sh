@@ -8,6 +8,32 @@
 # Handles the three shapes gh accepts: `--body-file <path>`, a `--body`
 # heredoc, and a quoted `--body` / `-b` value. A command with no body prints
 # nothing, which every caller already treats as "nothing to check".
+#
+# extract_api_body reads the `body=` field of a `gh api` call for the reply
+# gate. Both extractors share the heredoc reader below.
+
+# Python prepended to each extractor. heredoc(cmd, start) returns the body of
+# the first heredoc opened at or after start, or None. The body ends at its
+# delimiter, not at the end of the command, so a later flag on the same line
+# never gets read as prose.
+_PR_BODY_HEREDOC='
+import re, sys
+
+def heredoc(cmd, start):
+    m = re.compile(r"<<-?[\x27\"]?(\w+)[\x27\"]?").search(cmd, start)
+    if not m:
+        return None
+    after = cmd[m.end():]
+    nl = after.find("\n")
+    if nl == -1:
+        return None
+    out = []
+    for line in after[nl + 1:].split("\n"):
+        if line.strip() == m.group(1):
+            break
+        out.append(line)
+    return "\n".join(out)
+'
 
 # pr_body_file <command>
 # Prints the --body-file / -F path, or nothing when the command uses no such
@@ -32,25 +58,14 @@ extract_pr_body() {
     return 0
   fi
 
-  printf '%s' "$command" | python3 -c '
-import sys, re
-
+  printf '%s' "$command" | python3 -c "$_PR_BODY_HEREDOC"'
 cmd = sys.stdin.read()
 
-# A heredoc body ends at its delimiter, not at the end of the command, so a
-# later flag on the same line never gets read as prose.
-m = re.search(r"--body[=\s]+<<-?[\x27\"]?(\w+)[\x27\"]?", cmd)
+m = re.search(r"--body[=\s]+(?=<<)", cmd)
 if m:
-    delim = m.group(1)
-    after = cmd[m.end():]
-    nl = after.find("\n")
-    if nl != -1:
-        out = []
-        for line in after[nl + 1:].split("\n"):
-            if line.strip() == delim:
-                break
-            out.append(line)
-        print("\n".join(out))
+    body = heredoc(cmd, m.end())
+    if body is not None:
+        print(body)
         sys.exit(0)
 
 # The backreference keeps a quote of the other kind inside the body from
@@ -59,6 +74,34 @@ vals = [m.group(2) for m in
         re.finditer(r"(?:-b|--body)[=\s]+([\x27\"])(.*?)\1", cmd, re.S)]
 if vals:
     print("\n".join(vals))
+' 2>/dev/null
+}
+
+# extract_api_body <command>
+# Prints the body= field a `gh api` call sends: a quoted or bare -f value, a
+# -F @file read relative to the current dir, or a -F @- heredoc. Prints
+# nothing when the call has no body field.
+extract_api_body() {
+  printf '%s' "$1" | python3 -c "$_PR_BODY_HEREDOC"'
+cmd = sys.stdin.read()
+m = re.search(r"(?:^|\s)(-f|-F|--field|--raw-field)[=\s]+"
+              r"(?:([\x27\"])body=(.*?)\2|body=(?:([\x27\"])(.*?)\4|(\S+)))", cmd, re.S)
+if m:
+    if m.group(2):
+        val = m.group(3)
+    elif m.group(4):
+        val = m.group(5)
+    else:
+        val = m.group(6)
+    if m.group(1) in ("-F", "--field") and val.startswith("@"):
+        if val == "@-":
+            val = heredoc(cmd, m.end()) or ""
+        else:
+            try:
+                val = open(val[1:]).read()
+            except OSError:
+                val = ""
+    print(val)
 ' 2>/dev/null
 }
 
