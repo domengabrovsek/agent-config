@@ -19,7 +19,7 @@ const USAGE = { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 
 
 function engine(on: On) {
   mock.clock(on, { now: 0 })
-  on('command.register', () => ({ value: { command: 'focus' } }))
+  on('command.register', () => ({ value: { command: 'session-focus' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
@@ -125,4 +125,26 @@ test('only the last six prompts reach the model', async ($, on) => {
   expect(last).not.toContain('prompt number 2')
   expect(last).toContain('prompt number 3')
   expect(last).toContain('prompt number 8')
+})
+
+test('/session-focus opens the pane', async ($, on) => {
+  mock.clock(on, { now: 0 })
+  on('command.register', () => ({ value: { command: 'session-focus' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  const opened: string[] = []
+  on('ui.open', (_, e) => {
+    opened.push(e.id)
+    return { value: { isPlaced: true } }
+  })
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const result = await $.command.run({
+    command: 'session-focus',
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: true, columns: 160 },
+  })
+
+  expect(result).toMatchObject({ text: 'Focus pane opened.' })
+  expect(opened).toContain('session-focus')
 })

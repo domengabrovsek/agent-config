@@ -45,12 +45,12 @@ function clockTime(ms: number): string {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'focus', description: 'Show what this terminal session is working on' })
+    await $.command.register({ name: 'session-focus', description: 'Show what this terminal session is working on' })
     await $.ui.open({ id: PANE, title: 'Focus' })
     return next(e)
   })
 
-  on('command.run', { command: 'focus' }, async $ => {
+  on('command.run', { command: 'session-focus' }, async $ => {
     await $.ui.open({ id: PANE, title: 'Focus' })
     return { text: 'Focus pane opened.' }
   })
