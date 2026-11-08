@@ -17,6 +17,15 @@ const SYSTEM =
 
 let latest = 0
 
+/* herdr shows the label as the $focus token in its agent sidebar. */
+async function reportToHerdr($: EngineInterface, summary: string): Promise<void> {
+  const pane = await $.env.get('HERDR_PANE_ID')
+  if (!pane) return
+  await $.process.run(['herdr', 'pane', 'report-metadata', pane, '--source', 'agent-config:session-focus', '--token', `focus=${summary}`], {
+    timeoutMs: 5000,
+  })
+}
+
 async function summarize($: EngineInterface, recent: string[]): Promise<void> {
   const seq = ++latest
   const prompt = recent.map((text, i) => `Request ${i + 1}:\n${text}`).join('\n\n')
@@ -28,6 +37,7 @@ async function summarize($: EngineInterface, recent: string[]): Promise<void> {
     const summary = (reply.text.trim().split('\n')[0] ?? '').replace(/[."']/g, '').slice(0, 60)
     if (summary) {
       await update($, focus, (): Focus => ({ status: 'ok', summary, updatedAt }))
+      await reportToHerdr($, summary).catch(() => undefined)
       return
     }
   }
