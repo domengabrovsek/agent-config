@@ -138,6 +138,7 @@ test('/session-focus opens the pane', async ($, on) => {
   })
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  opened.length = 0
   const result = await $.command.run({
     command: 'session-focus',
     args: '',
@@ -146,5 +147,5 @@ test('/session-focus opens the pane', async ($, on) => {
   })
 
   expect(result).toMatchObject({ text: 'Focus pane opened.' })
-  expect(opened).toContain('session-focus')
+  expect(opened).toEqual(['session-focus'])
 })
