@@ -166,6 +166,13 @@ assert_scrubbed "a proxy variable sends a URL login to the proxy" Bash command \
   "HTTPS_PROXY=http://proxy.test curl https://deploy@api.corp.test/v1" \
   "HTTPS_PROXY=http://proxy.test curl https://redacted@example.invalid/v1"
 
+assert_scrubbed "curl --proxy1.0 sends a URL login to the proxy" Bash command \
+  "curl --proxy1.0 proxy.test:8080 https://deploy@api.corp.test/v1" \
+  "curl --proxy1.0 proxy.test:8080 https://redacted@example.invalid/v1"
+assert_scrubbed "a proxy exported earlier in the command reroutes it" Bash command \
+  "export HTTPS_PROXY=http://p.test; curl https://deploy@api.corp.test/v1" \
+  "export HTTPS_PROXY=http://p.test; curl https://redacted@example.invalid/v1"
+
 echo "== leaves alone =="
 assert_untouched "a quoted clone URL with userinfo" Bash command \
   "git clone \"https://oauth2@gitlab.corp.test/o/r.git\""

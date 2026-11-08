@@ -164,6 +164,15 @@ assert_gate "a GraphQL comment read from a query file is blocked" \
   "$GH_API graphql -F query=@comment.graphql" 2
 assert_gate "a GraphQL query the shell builds is blocked" \
   "$GH_API graphql -f query=\"\$(cat comment.graphql)\"" 2
+assert_gate "a GraphQL comment read from a quoted --input file is blocked" \
+  "$GH_API graphql --input \"comment.graphql\"" 2
+assert_gate "a GraphQL comment read from a quoted query file is blocked" \
+  "$GH_API graphql -F query=@'comment.graphql'" 2
+assert_gate "a GraphQL --input path the shell builds is blocked" \
+  "$GH_API graphql --input \"\$F\"" 2
+printf 'query{viewer{login}}\n' > "$TEST_DIR/viewer.graphql"
+assert_gate "a GraphQL query read from a quoted file passes" \
+  "$GH_API graphql --input \"viewer.graphql\"" 0
 assert_gate "a GraphQL document read from stdin is blocked" \
   "$GH_API graphql --input -" 2
 assert_gate "a GraphQL thread resolve passes" \

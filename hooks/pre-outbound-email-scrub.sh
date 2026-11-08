@@ -56,7 +56,7 @@ GIT_NETWORK = {"push", "fetch", "pull", "clone", "ls-remote", "remote", "submodu
 URL_CLIENTS = {"curl", "wget", "git", "http", "https", "xh"}
 # curl options that send the request somewhere other than the URL host, so its
 # userinfo reaches a proxy or another address.
-REROUTE_LONG = {"--proxy", "--preproxy", "--connect-to", "--resolve", "--socks4",
+REROUTE_LONG = {"--proxy", "--proxy1.0", "--preproxy", "--connect-to", "--resolve", "--socks4",
                 "--socks4a", "--socks5", "--socks5-hostname"}
 REROUTE_SHORT = re.compile(r"-[A-Za-z0-9]*x")
 PROXY_ENV = re.compile(r"(?:^|[\s;&|(])(?:all|https?|ftp)_proxy=", re.I)
@@ -191,9 +191,10 @@ def is_userinfo(start, end):
 
 def reroutes(segment):
     """True when the command sends its request somewhere other than the URL
-    host: a proxy variable, or a curl option that names a proxy or another
-    address. A segment shlex cannot split counts as rerouted."""
-    if PROXY_ENV.search(segment):
+    host: a proxy variable set anywhere in the command, because an
+    earlier export reaches it, or a curl option that names a proxy or another address.
+    A segment shlex cannot split counts as rerouted."""
+    if PROXY_ENV.search(text):
         return True
     tokens = words(segment)
     if tokens is None:

@@ -70,12 +70,14 @@ if [ "$KIND" = api ]; then
     # A query or --input file holds the mutation the call sends, so read it too.
     GQL="$COMMAND"
     while IFS= read -r f; do
-      if [ "$f" = - ] || ! GQL="$GQL $(cd "$DIR" 2>/dev/null && cat -- "$f")"; then
+      case "$f" in -|*'$'*|*'`'*) f_ok=false ;; *) f_ok=true ;; esac
+      if ! $f_ok || ! GQL="$GQL $(cd "$DIR" 2>/dev/null && cat -- "$f")"; then
         block "Cannot read the GraphQL document in $f." \
           "Pass the query inline in single quotes, or with -F query=@<file>, so the gate can check it."
       fi
     done < <(printf '%s\n' "$COMMAND" \
-      | grep -oE '(query=@|--input[= ]+)[^[:space:]"'\'']+' | sed -E 's/^(query=@|--input[= ]+)//')
+      | grep -oE '(query=@|--input[= ]+)("[^"]*"|'\''[^'\'']*'\''|[^[:space:]"'\'']+)' \
+      | sed -E 's/^(query=@|--input[= ]+)//; s/^["'\'']//; s/["'\'']$//')
     if printf '%s\n' "$GQL" | grep -qE '(addPullRequestReviewThreadReply|addPullRequestReviewComment|addPullRequestReviewThread|addComment|updateIssueComment|updatePullRequestReviewComment)([^A-Za-z]|$)' \
       || { printf '%s\n' "$GQL" | grep -qE '(addPullRequestReview|submitPullRequestReview)([^A-Za-z]|$)' \
         && printf '%s\n' "$GQL" | grep -qE '(^|[^A-Za-z])body([^A-Za-z]|$)'; }; then
