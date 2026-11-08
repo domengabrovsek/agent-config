@@ -190,12 +190,17 @@ export function candidatePaths(command: string, cwd: string, home: string = home
 const WRAPPERS = new Set(['command', 'builtin', 'exec']);
 /* Wrappers that take options before the command, with the options whose value is the next word. */
 const OPTION_WRAPPERS = new Map<string, Set<string>>([
-  ['env', new Set(['-u', '-C', '-S'])],
-  ['time', new Set(['-f', '-o'])],
-  ['nice', new Set(['-n'])],
+  ['env', new Set(['-u', '--unset', '-C', '--chdir', '-S', '--split-string'])],
+  ['time', new Set(['-f', '--format', '-o', '--output'])],
+  ['nice', new Set(['-n', '--adjustment'])],
   ['nohup', new Set()],
-  ['timeout', new Set(['-s', '-k'])],
+  ['timeout', new Set(['-s', '--signal', '-k', '--kill-after'])],
 ]);
+
+/* `/usr/bin/env` runs as `env`; a word ending in `/` is a directory, not a program. */
+function programName(word: string): string {
+  return word.includes('/') && !word.endsWith('/') ? word.slice(word.lastIndexOf('/') + 1) : word;
+}
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 /* Git global options that take the next word as their value unless written with `=`. */
 const GIT_VALUE_OPTIONS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--exec-path', '--attr-source']);
@@ -212,16 +217,23 @@ export function normalizedWords(segment: string): string[] {
   const words = shellWords(segment);
   let i = 0;
   while (i < words.length) {
-    if (ASSIGNMENT.test(words[i]) || WRAPPERS.has(words[i])) i++;
-    else if (OPTION_WRAPPERS.has(words[i])) {
-      const wrapper = words[i++];
-      const valueOptions = OPTION_WRAPPERS.get(wrapper) ?? new Set<string>();
-      while (i < words.length && words[i].startsWith('-')) i += valueOptions.has(words[i]) ? 2 : 1;
-      if (wrapper === 'timeout') i++;
+    const name = programName(words[i]);
+    if (ASSIGNMENT.test(words[i]) || WRAPPERS.has(name)) i++;
+    else if (OPTION_WRAPPERS.has(name)) {
+      i++;
+      const valueOptions = OPTION_WRAPPERS.get(name) ?? new Set<string>();
+      while (i < words.length && words[i].startsWith('-')) {
+        if (words[i] === '--') {
+          i++;
+          break;
+        }
+        i += valueOptions.has(words[i]) ? 2 : 1;
+      }
+      if (name === 'timeout') i++;
     } else break;
   }
   const rest = words.slice(i);
-  if (rest.length > 0 && rest[0].includes('/') && !rest[0].endsWith('/')) rest[0] = rest[0].slice(rest[0].lastIndexOf('/') + 1);
+  if (rest.length > 0) rest[0] = programName(rest[0]);
   if (rest[0] !== 'git') return rest;
   let j = 1;
   while (j < rest.length && rest[j].startsWith('-')) {
