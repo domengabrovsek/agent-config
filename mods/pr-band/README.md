@@ -1,6 +1,6 @@
 # pr-band
 
-A Claude Code mod that draws a one-row band above the prompt with the branch's pull request. It shows the PR's state, its clickable URL, its title, and the CI result with counts. A second row appears only for failing check names, checks waiting on approval, and flags that need you: changes requested, a merge conflict, or a branch behind main. The status line already shows the repo and branch, so the band leaves them out. It refreshes after every turn and every 60 seconds, and toasts when CI turns green, red, or waits on an approval.
+A Claude Code mod that draws a one-row band above the prompt with the branch's pull request. It shows the PR's state, its clickable URL, its title, and the CI result with counts. When the terminal is too narrow for the full URL beside the rest, the URL moves to its own row. A second row appears only for failing check names, checks waiting on approval, and flags that need you: changes requested, a merge conflict, or a branch behind main. The status line already shows the repo and branch, so the band leaves them out. It refreshes after every turn and every 60 seconds, and toasts when CI turns green, red, or waits on an approval.
 
 It reads `git` and `gh pr view` in the session's working directory, so `gh` must be signed in.
 

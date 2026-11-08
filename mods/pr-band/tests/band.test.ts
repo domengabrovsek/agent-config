@@ -60,14 +60,27 @@ test('the band shows PR state, a clickable URL, title and CI on one row, without
   }
 })
 
-test('a long title on a narrow band leaves the badge, URL and time whole', async ($, on) => {
-  engine(on, prJson({ title: 'feat(mods): a very long pull request title that cannot fit beside everything else' }))
+const REAL_URL = 'https://github.com/domengabrovsek/agent-config/pull/224'
+
+test('on an 80-column terminal a full-length URL moves to its own row', async ($, on) => {
+  engine(on, prJson({ url: REAL_URL, title: 'fix(mods): a long pull request title that cannot fit beside everything' }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, bodyColumns: 60 } })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, bodyColumns: 80 } })
+  expect(await ui.find({ key: 'url-row' })).toBeDefined()
+  expect(await ui.findAll({ type: 'Link' })).toHaveLength(1)
   expect(await ui.find({ type: 'Text', text: ' OPEN ' })).toBeDefined()
-  expect(await ui.find({ type: 'Link' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /↻/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('on a wide terminal the full-length URL stays on the first row', async ($, on) => {
+  engine(on, prJson({ url: REAL_URL }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, bodyColumns: 160 } })
+  expect(await ui.find({ key: 'url-row' })).toBeUndefined()
+  expect(await ui.findAll({ type: 'Link' })).toHaveLength(1)
   await ui.unmount()
 })
 
