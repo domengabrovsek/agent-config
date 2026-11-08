@@ -16,8 +16,9 @@ const BAND = {
 
 const USAGE = { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
 
-function engine(on: On) {
+function engine(on: On, env: Record<string, string> = {}) {
   mock.clock(on, { now: 0 })
+  mock.env(on, env)
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   /* Stands for the engine and the plugins beneath, such as pr-band. */
@@ -157,5 +158,82 @@ test('a survey hides the band', async ($, on) => {
 
   const ui = await $.ui.mount({ ...BAND, props: { ...BAND.props, hasSurvey: true }, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: 'Compact Focus Band' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('inside herdr, the summary goes to the sidebar as the focus token', async ($, on) => {
+  engine(on, { HERDR_PANE_ID: 'w1:p2' })
+  on('model.complete', () => ({ value: { isAnswered: true, text: 'Herdr Sidebar Focus', usage: USAGE } }))
+  const ran: (readonly string[])[] = []
+  on('process.run', (_, e) => {
+    ran.push(e.argv)
+    return { value: { exitCode: 0, stdout: '', stderr: '' } }
+  })
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit(submit('show the focus in the herdr sidebar'))
+  await settle()
+
+  const clear = ['herdr', 'pane', 'report-metadata', 'w1:p2', '--source', 'agent-config:session-focus', '--clear-token', 'focus']
+  expect(ran).toEqual([
+    clear,
+    clear,
+    ['herdr', 'pane', 'report-metadata', 'w1:p2', '--source', 'agent-config:session-focus', '--token', 'focus=Herdr Sidebar Focus'],
+  ])
+})
+
+test('each prompt resends the current label to herdr before the new summary', async ($, on) => {
+  engine(on, { HERDR_PANE_ID: 'w1:p2' })
+  let fail = false
+  on('model.complete', () =>
+    fail
+      ? { value: { isAnswered: false, reason: 'api-error', status: 529, error: 'overloaded', usage: USAGE } }
+      : { value: { isAnswered: true, text: 'Kept Label', usage: USAGE } },
+  )
+  const ran: (readonly string[])[] = []
+  on('process.run', (_, e) => {
+    ran.push(e.argv)
+    return { value: { exitCode: 0, stdout: '', stderr: '' } }
+  })
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit(submit('first'))
+  await settle()
+  fail = true
+  ran.length = 0
+  await $.prompt.submit(submit('second'))
+  await settle()
+
+  expect(ran.map(argv => argv.slice(-2))).toEqual([['--token', 'focus=Kept Label']])
+})
+
+test('outside herdr, nothing is reported', async ($, on) => {
+  engine(on)
+  on('model.complete', () => ({ value: { isAnswered: true, text: 'Plain Terminal', usage: USAGE } }))
+  let runs = 0
+  on('process.run', () => {
+    runs += 1
+    return { value: { exitCode: 0, stdout: '', stderr: '' } }
+  })
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit(submit('no herdr here'))
+  await settle()
+
+  expect(runs).toBe(0)
+})
+
+test('a failed herdr report still shows the new label', async ($, on) => {
+  engine(on, { HERDR_PANE_ID: 'w1:p2' })
+  on('model.complete', () => ({ value: { isAnswered: true, text: 'Herdr Report Fails', usage: USAGE } }))
+  on('process.run', () => ({ deny: 'herdr is not on PATH' }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit(submit('report while herdr is missing'))
+  await settle()
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Herdr Report Fails' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /update failed/ })).toBeUndefined()
   await ui.unmount()
 })

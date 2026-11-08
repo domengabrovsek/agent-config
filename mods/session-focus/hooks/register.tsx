@@ -17,6 +17,28 @@ const SYSTEM =
 
 let latest = 0
 
+/* herdr shows the label as the $focus token in its agent sidebar. herdr keeps
+   the token per pane, past this process and until a herdr restart, so each sync
+   sends the current label, or clears a token another session left in the pane. */
+let syncing: Promise<void> = Promise.resolve()
+
+/* Syncs run one at a time, each reading the label when it starts, so an older
+   label never lands after a newer one. */
+function syncHerdr($: EngineInterface): Promise<void> {
+  syncing = syncing.then(() => sendToHerdr($)).catch(() => undefined)
+  return syncing
+}
+
+async function sendToHerdr($: EngineInterface): Promise<void> {
+  const pane = await $.env.get('HERDR_PANE_ID')
+  if (!pane) return
+  const current = await read($, focus)
+  const token = current.status === 'ok' ? ['--token', `focus=${current.summary}`] : ['--clear-token', 'focus']
+  await $.process.run(['herdr', 'pane', 'report-metadata', pane, '--source', 'agent-config:session-focus', ...token], {
+    timeoutMs: 5000,
+  })
+}
+
 async function summarize($: EngineInterface, recent: string[]): Promise<void> {
   const seq = ++latest
   const prompt = recent.map((text, i) => `Request ${i + 1}:\n${text}`).join('\n\n')
@@ -28,6 +50,7 @@ async function summarize($: EngineInterface, recent: string[]): Promise<void> {
     const summary = (reply.text.trim().split('\n')[0] ?? '').replace(/[."']/g, '').slice(0, 60)
     if (summary) {
       await update($, focus, (): Focus => ({ status: 'ok', summary, updatedAt }))
+      await syncHerdr($)
       return
     }
   }
@@ -43,7 +66,14 @@ function clockTime(ms: number): string {
 }
 
 export const register: Register = on => {
+  on('session.start', async ($, e, next) => {
+    void syncHerdr($)
+    return next(e)
+  })
+
   on('prompt.submit', async ($, e, next) => {
+    /* Resends the label a herdr restart or a hot reload may have dropped. */
+    void syncHerdr($)
     const text = e.text.trim()
     const typed = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
     if (typed && !e.command && !e.isMeta && text) {
