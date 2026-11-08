@@ -13,7 +13,6 @@ type Rollup = {
 
 type RawPr = {
   number: number
-  url: string
   state: string
   isDraft: boolean
   title: string
@@ -75,11 +74,6 @@ function stateBadge(pr: Pr): { text: string; color: ThemeKey } {
   return { text: 'OPEN', color: 'success' }
 }
 
-const BORDER_AND_PADDING = 4
-const GAP = 2
-const CLOCK_WIDTH = 7
-const MIN_TITLE = 20
-
 function clockTime(ms: number): string {
   const d = new Date(ms)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -98,7 +92,7 @@ async function refresh($: EngineInterface): Promise<void> {
   }
 
   const view = await $.process.run(
-    ['gh', 'pr', 'view', '--json', 'number,url,state,isDraft,title,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup'],
+    ['gh', 'pr', 'view', '--json', 'number,state,isDraft,title,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup'],
     { timeoutMs: 15000 },
   )
   let pr: Pr | null = null
@@ -106,7 +100,6 @@ async function refresh($: EngineInterface): Promise<void> {
     const raw = JSON.parse(view.stdout) as RawPr
     pr = {
       number: raw.number,
-      url: raw.url,
       state: raw.state,
       isDraft: raw.isDraft,
       title: raw.title,
@@ -144,54 +137,30 @@ export const register: Register = on => {
       return next(e)
     }
 
-    /* The status line already shows the repo and branch, so the band leaves them
-       out. A Link with no label draws the URL itself, which some terminals would
-       otherwise print after the label. Only the title box may shrink, so nothing
-       else wraps on a narrow terminal. */
-    const { Box, Text, Link } = $.ui.resolve(e)
+    /* Claude Code's footer already shows the repo, branch and a clickable PR
+       number, so the band adds only what the footer lacks: state, title and CI. */
+    const { Box, Text } = $.ui.resolve(e)
     const ci = pr?.ci ?? null
     const overall = ci ? OVERALL[ci.overall] : null
     const badge = pr ? stateBadge(pr) : null
     const borderColor: ThemeKey = pr && pr.attention.length > 0 && ci?.overall !== 'fail' ? 'permission' : (overall?.color ?? 'subtle')
     const details =
       pr !== null && ci !== null && (ci.failed.length > 0 || ci.waiting.length > 0 || pr.attention.length > 0)
-    const ciParts =
-      ci !== null && overall !== null
-        ? [
-            `${overall.icon} ${overall.text}`,
-            ci.passed > 0 ? `✓${ci.passed}` : '',
-            ci.failed.length > 0 ? `✗${ci.failed.length}` : '',
-            ci.running.length > 0 ? `◌${ci.running.length}` : '',
-            ci.skipped > 0 ? `⤼${ci.skipped}` : '',
-          ].filter(Boolean)
-        : []
-    /* The URL never shrinks, so when it and the other fixed parts leave the title
-       too little room, the URL takes its own row instead of forcing a wrap. */
-    const fixedWidth =
-      BORDER_AND_PADDING +
-      (badge ? badge.text.length + 2 + GAP : 0) +
-      (pr ? pr.url.length + GAP : 0) +
-      (ciParts.length > 0 ? ciParts.join(' ').length + GAP : 0) +
-      (typeof current.checkedAt === 'number' ? CLOCK_WIDTH + GAP : 0)
-    const urlOnOwnRow = fixedWidth + MIN_TITLE > e.props.bodyColumns
-    const link = pr ? <Text bold><Link href={pr.url} /></Text> : null
 
     return (
       <Box borderStyle="round" borderColor={borderColor} paddingX={1} flexDirection="column">
         <Box gap={2}>
-          {pr === null || badge === null ? (
-            <Text dimColor italic>no PR yet</Text>
-          ) : (
-            <>
-              <Box flexShrink={0}>
-                <Text color="inverseText" backgroundColor={badge.color} bold> {badge.text} </Text>
-              </Box>
-              {urlOnOwnRow ? null : <Box flexShrink={0}>{link}</Box>}
-              <Box flexGrow={1} flexShrink={1}>
-                <Text wrap="truncate-end">{pr.title}</Text>
-              </Box>
-            </>
-          )}
+          {pr === null || badge === null ? <Text dimColor italic>no PR yet</Text> : null}
+          {pr !== null && badge !== null ? (
+            <Box flexShrink={0}>
+              <Text color="inverseText" backgroundColor={badge.color} bold> {badge.text} </Text>
+            </Box>
+          ) : null}
+          {pr !== null ? (
+            <Box flexGrow={1} flexShrink={1}>
+              <Text wrap="truncate-end">{pr.title}</Text>
+            </Box>
+          ) : null}
           {ci !== null && overall !== null ? (
             <Box gap={1} flexShrink={0}>
               <Text color={overall.color} bold>{overall.icon} {overall.text}</Text>
@@ -207,7 +176,6 @@ export const register: Register = on => {
             </Box>
           ) : null}
         </Box>
-        {urlOnOwnRow && link !== null ? <Box key="url-row">{link}</Box> : null}
         {details && pr !== null && ci !== null ? (
           <Box gap={2} flexWrap="wrap">
             {ci.failed.length > 0 ? <Text color="error" wrap="truncate-end">failed: {names(ci.failed)}</Text> : null}

@@ -11,7 +11,6 @@ export type Ci = {
 
 export type Pr = {
   number: number
-  url: string
   state: string
   isDraft: boolean
   title: string

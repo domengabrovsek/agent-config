@@ -42,7 +42,7 @@ function engine(on: On, pr: string) {
   })
 }
 
-test('the band shows PR state, a clickable URL, title and CI on one row, without the branch', async ($, on) => {
+test('the band shows PR state, title and CI, leaving the branch and link to the footer', async ($, on) => {
   engine(on, prJson())
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
@@ -54,33 +54,24 @@ test('the band shows PR state, a clickable URL, title and CI on one row, without
     expect(await ui.find({ type: 'Text', text: '✓2' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '⤼1' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /feat\/some-branch/ })).toBeUndefined()
-    expect(await ui.find({ type: 'Link' })).toBeDefined()
+    expect(await ui.find({ type: 'Link' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /#223/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /failed:/ })).toBeUndefined()
     await ui.unmount()
   }
 })
 
-const REAL_URL = 'https://github.com/domengabrovsek/agent-config/pull/224'
-
-test('on an 80-column terminal a full-length URL moves to its own row', async ($, on) => {
-  engine(on, prJson({ url: REAL_URL, title: 'fix(mods): a long pull request title that cannot fit beside everything' }))
+test('badge, title, CI and time sit side by side in a single row', async ($, on) => {
+  engine(on, prJson())
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, bodyColumns: 80 } })
-  expect(await ui.find({ key: 'url-row' })).toBeDefined()
-  expect(await ui.findAll({ type: 'Link' })).toHaveLength(1)
-  expect(await ui.find({ type: 'Text', text: ' OPEN ' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /↻/ })).toBeDefined()
-  await ui.unmount()
-})
-
-test('on a wide terminal the full-length URL stays on the first row', async ($, on) => {
-  engine(on, prJson({ url: REAL_URL }))
-  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, bodyColumns: 160 } })
-  expect(await ui.find({ key: 'url-row' })).toBeUndefined()
-  expect(await ui.findAll({ type: 'Link' })).toHaveLength(1)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const band = await ui.drawn()
+  const rows = band.type === 'Box' ? (band.children ?? []) : []
+  expect(rows).toHaveLength(1)
+  const row = rows[0]
+  const cells = typeof row === 'object' && row !== null && 'type' in row && row.type === 'Box' ? (row.children ?? []) : []
+  expect(cells).toHaveLength(4)
   await ui.unmount()
 })
 
