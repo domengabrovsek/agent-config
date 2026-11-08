@@ -85,8 +85,7 @@ function names(list: string[]): string {
 
 async function refresh($: EngineInterface): Promise<void> {
   const head = await $.process.run(['git', 'branch', '--show-current'])
-  const branch = head.stdout.trim()
-  if (head.exitCode !== 0 || branch === '') {
+  if (head.exitCode !== 0 || head.stdout.trim() === '') {
     await update($, info, () => null)
     return
   }
@@ -113,7 +112,7 @@ async function refresh($: EngineInterface): Promise<void> {
     $.ui.toast(`PR #${pr.number}: ${OVERALL[pr.ci.overall].text}`)
   }
   const checkedAt = await $.clock.now()
-  await update($, info, () => ({ branch, checkedAt, pr }))
+  await update($, info, () => ({ checkedAt, pr }))
 }
 
 export const register: Register = on => {

@@ -19,7 +19,6 @@ export type Pr = {
 }
 
 export type PrInfo = {
-  branch: string
   checkedAt: number
   pr: Pr | null
 }
