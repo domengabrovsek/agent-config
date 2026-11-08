@@ -18,13 +18,13 @@ description: "Create a merge request or pull request from the current branch: ve
    - GitLab: `glab repo view --output json`, field `default_branch` `(review-time: see section note)`
    - If the user specifies a different target, use that instead `(review-time: see section note)`
 4. **Review all commits on the branch**: run `git log <base>..HEAD` and `git diff <base>...HEAD` to understand the full changeset `(review-time: see section note)`
-5. **Enforce conventional commits**: every commit on the branch must match `^(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert)(\(.+\))?!?: .+`. If any commit fails, stop and ask the user to amend or rewrite the commit history. Do not proceed. `(review-time: see section note)`
+5. **Enforce conventional commits**: every commit subject on the branch must pass `is_conventional` in `hooks/lib/commit-msg.sh`, which lists the allowed types in `CONVENTIONAL_TYPES`. If any commit fails, stop and ask the user to amend or rewrite the commit history. Do not proceed. `(review-time: see section note)`
 6. **Check for env-specific values**: scan diff for hard-coded URLs, credentials, environment names that look wrong for the target branch `(review-time: see section note)`
 7. **Push branch** with `-u` flag `(review-time: see section note)`
 8. **Generate and validate the PR title**: `(review-time: see section note)`
    - Compose a conventional-commit title summarizing the change `(review-time: see section note)`
-   - Validate against the same regex as commit messages: `^(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert)(\(.+\))?!?: .+` `(review-time: see section note)`
-   - If the generated title fails the regex, regenerate. Do not show the user a non-conforming title. `(review-time: see section note)`
+   - Validate it with the same `is_conventional` check as commit subjects. `hooks/pre-pr-test-gate.sh` blocks a create whose title fails it `(hook)`
+   - If the generated title fails the check, regenerate. Do not show the user a non-conforming title. `(review-time: see section note)`
 9. **Create MR/PR using the template**: `(review-time: see section note)`
     - If `.github/pull_request_template.md` or `.gitlab/merge_request_templates/` exists, use that template `(review-time: see section note)`
     - Otherwise use `~/.agents/pull_request_template.md` `(review-time: see section note)`

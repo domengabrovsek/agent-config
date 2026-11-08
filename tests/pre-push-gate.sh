@@ -125,7 +125,7 @@ check "a Bun repo audits with bun audit" \
 
 # A PATH holding only the tools the gate needs leaves bun out.
 mkdir -p "$TEST_ROOT/nobun"
-for tool in bash sh env cat dirname ls grep tail jq git node npm; do
+for tool in bash sh env cat dirname ls grep tail jq git node npm python3; do
   ln -s "$(command -v "$tool")" "$TEST_ROOT/nobun/$tool"
 done
 PATH="$TEST_ROOT/nobun" run_gate "$BUNREPO"
@@ -172,7 +172,25 @@ gate_as "OPEN https://github.com/o/r/pull/8" "git push origin feature/x"
 check "a push to a branch with an open PR passes the merge check" omits "already merged"
 
 gate_as "$MERGED" "SKIP_PUSH_GATE=1 git push origin feature/x"
-check "SKIP_PUSH_GATE=1 bypasses the merge check" exited 0
+check "an inline SKIP_PUSH_GATE=1 is not a bypass" exited 2 says "already merged"
+check "the merged block never suggests a bypass" omits "SKIP_PUSH_GATE"
+
+OUT=$(payload "git push origin feature/x" "$MERGEDREPO" \
+  | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" SKIP_PUSH_GATE=1 STUB_PR_STATE="$MERGED" PATH="$TEST_ROOT/ghbin:$PATH" \
+    bash "$PROJECT_DIR/hooks/pre-push-gate.sh" 2>&1))
+STATUS=$?
+check "SKIP_PUSH_GATE=1 in the host environment bypasses the gate" exited 0
+
+gate_as "$MERGED" "git -C \"$MERGEDREPO\" -c core.x=y push origin feature/x"
+check "a quoted git -C push on a merged branch blocks" exited 2 says "already merged"
+
+# A failing check runs first, so the merged block must still show.
+printf '{"scripts":{"build":"exit 1"}}\n' > "$MERGEDREPO/package.json"
+gate_as "$MERGED" "git push origin feature/x"
+check "a failing check does not hide the merged block" exited 2 says "build" says "already merged"
+
+gate_as "OPEN https://github.com/o/r/pull/8" "git push origin feature/x"
+check "a failing step names the step without a bypass hint" exited 2 says "[pre-push-gate] build" omits "SKIP_PUSH_GATE"
 
 echo ""
 echo "== package manager =="
@@ -181,7 +199,7 @@ echo "== package manager =="
 # stub answers --version with STUB_VERSION and an audit with STUB_AUDIT_EXIT.
 BIN="$TEST_ROOT/bin"
 mkdir -p "$BIN"
-for TOOL in bash cat dirname git grep head jq ls node sed tail; do
+for TOOL in bash cat dirname git grep head jq ls node python3 sed tail; do
   TOOL_PATH=$(command -v "$TOOL") || { echo "Missing required tool: $TOOL" >&2; exit 1; }
   ln -s "$TOOL_PATH" "$BIN/$TOOL"
 done
@@ -275,18 +293,79 @@ check "a missing package manager blocks" exited 2
 check "the block names the missing manager" says "uses pnpm, which is not on PATH"
 make_stub pnpm
 
-REPO=$(pm_project no-modules)
+REPO=$(pm_project no-modules '{"scripts":{"lint":"x"},"devDependencies":{"x":"1.0.0"}}')
 : > "$REPO/pnpm-lock.yaml"
 rmdir "$REPO/node_modules"
 run_pm_gate "$REPO"
-check "a missing node_modules blocks" exited 2
-check "the block names the pnpm install" says "run 'pnpm install' there first"
+check "a missing node_modules blocks when dependencies are declared" exited 2
+check "the block names the pnpm install" says "[pre-push-gate]" says "run 'pnpm install' there first"
+
+REPO=$(pm_project no-deps '{"scripts":{"lint":"x"},"peerDependencies":{"x":"*"}}')
+rmdir "$REPO/node_modules"
+run_pm_gate "$REPO"
+check "a repo declaring no dependencies needs no node_modules" exited 0 logged "npm --silent run lint"
 
 REPO=$(pm_project pnpm-husky)
 : > "$REPO/pnpm-lock.yaml"
 git -C "$REPO" config core.hooksPath .husky/_
 run_pm_gate "$REPO"
 check "a missing hooksPath directory names the pnpm install" says "Run 'pnpm install' in"
+
+echo ""
+echo "== audit only when the lockfile changed =="
+
+# A repo pushed to a bare origin, so @{upstream} and origin/HEAD resolve.
+REPO=$(pm_project lock-upstream)
+echo '{}' > "$REPO/package-lock.json"
+git -C "$REPO" add -A
+git -C "$REPO" commit -q -m "chore: init"
+git init -q --bare "$TEST_ROOT/lock-origin.git"
+git -C "$REPO" remote add origin "$TEST_ROOT/lock-origin.git"
+git -C "$REPO" push -q -u origin HEAD 2>/dev/null
+git -C "$REPO" remote set-head origin -a >/dev/null 2>&1
+git -C "$REPO" commit -q --allow-empty -m "fix: touch nothing"
+run_pm_gate "$REPO"
+check "an unchanged lockfile skips npm audit" exited 0 says "audit skipped" never_ran "npm audit"
+
+echo '{"lockfileVersion":3}' > "$REPO/package-lock.json"
+git -C "$REPO" commit -q -am "chore: bump lock"
+run_pm_gate "$REPO"
+check "a changed lockfile runs npm audit" logged "npm audit --audit-level=critical"
+
+git -C "$REPO" branch -q --unset-upstream
+run_pm_gate "$REPO"
+check "without an upstream, origin/HEAD is the base" logged "npm audit --audit-level=critical"
+git -C "$REPO" reset -q --hard HEAD~1
+run_pm_gate "$REPO"
+check "origin/HEAD with an unchanged lockfile skips the audit" says "audit skipped"
+
+echo ""
+echo "== main checkout and worktree =="
+
+# verify:fast marks the directory it ran in. The main checkout's marker
+# proves the gate ran the wrong checkout's checks.
+MAIN="$TEST_ROOT/main-checkout"
+mkdir -p "$MAIN"
+printf '%s\n' '{"scripts":{"verify:fast":"touch ran-here"}}' > "$MAIN/package.json"
+make_repo "$MAIN"
+LANE="$MAIN/.claude/worktrees/lane"
+git -C "$MAIN" worktree add -q -b feature/lane "$LANE"
+
+# run_lane <cwd> <command>: the gate with CLAUDE_PROJECT_DIR on the main checkout.
+run_lane() {
+  rm -f "$MAIN/ran-here" "$LANE/ran-here"
+  OUT=$(payload "$2" "$1" | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="$MAIN" SKIP_PUSH_GATE="" \
+    bash "$PROJECT_DIR/hooks/pre-push-gate.sh" 2>&1))
+  STATUS=$?
+}
+run_lane "$MAIN" "git -C \"$LANE\" push origin feature/lane"
+check "a dependency-free worktree without node_modules passes" exited 0
+check "a quoted git -C worktree push from the main checkout runs the worktree's checks" test -f "$LANE/ran-here"
+check "the main checkout's checks do not run for a worktree push" not test -f "$MAIN/ran-here"
+run_lane "$LANE" "git push origin feature/lane"
+check "a push from the worktree cwd checks the worktree" test -f "$LANE/ran-here"
+run_lane "$LANE" "cd \"$MAIN\" && git push origin main"
+check "a cd to the main checkout beats the worktree cwd" test -f "$MAIN/ran-here"
 
 make_stub yarn
 

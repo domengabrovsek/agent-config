@@ -4,8 +4,9 @@
  * On session teardown (every reason except reload), opportunistically prune
  * safely-disposable git worktrees in the session cwd by invoking
  * scripts/worktree-prune.sh --apply - the same conservative oracle Claude
- * uses: only upstream-gone, merged-into-default, or squash-merged branches go,
- * locked worktrees ride inside its safety verdicts, uncertain entries stay.
+ * uses: only merged-into-default, squash-merged, or fully pushed upstream-gone
+ * branches go. Locked worktrees and ones touched in the last 30 minutes stay,
+ * because another live session may be using them.
  *
  * Fully silent by design: the prune is advisory, shutdown-time UI does not
  * render, and scripted pi runs must not gain prune chatter. Dry-run
@@ -58,7 +59,7 @@ export default function (pi: ExtensionAPI) {
     try {
       /* Synchronous like the Claude hook: the prune (fast, conservative)
        * completes before the process exits instead of dying mid-prune. */
-      execFileSync('bash', [scriptPath, '--apply', '--repo', ctx.cwd], { timeout: 30_000, stdio: 'ignore' });
+      execFileSync('bash', [scriptPath, '--apply', '--min-idle', '30', '--repo', ctx.cwd], { timeout: 30_000, stdio: 'ignore' });
     } catch {
       // Advisory only: prune failures never block shutdown (hook parity).
     }
