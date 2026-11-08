@@ -175,6 +175,12 @@ assert_gate "a GraphQL query read from a quoted file passes" \
   "$GH_API graphql --input \"viewer.graphql\"" 0
 assert_gate "a GraphQL document read from stdin is blocked" \
   "$GH_API graphql --input -" 2
+assert_gate "a GraphQL comment sent to a quoted endpoint is blocked" \
+  "$GH_API 'graphql' -f query='mutation{addComment(input:{subjectId:\"x\",body:\"y\"}){clientMutationId}}'" 2
+assert_gate "a GraphQL comment sent to /graphql is blocked" \
+  "$GH_API /graphql -f query='mutation{addComment(input:{subjectId:\"x\",body:\"y\"}){clientMutationId}}'" 2
+assert_gate "a GraphQL review body edit is blocked" \
+  "$GH_API graphql -f query='mutation{updatePullRequestReview(input:{pullRequestReviewId:\"x\",body:\"y\"}){clientMutationId}}'" 2
 assert_gate "a GraphQL thread resolve passes" \
   "$GH_API graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{id}}}'" 0
 assert_gate "a GraphQL query passes" \

@@ -61,7 +61,7 @@ if [ "$KIND" = api ]; then
   FLAGS=${COMMAND%%body=*}
   COMMENT_ENDPOINT='(issues|pulls)/([0-9]+/(comments|reviews)|comments/[0-9]+)|commits/[0-9a-f]+/comments'
 
-  if printf '%s\n' "$FLAGS" | grep -qE '(^|[[:space:]])graphql([[:space:]]|$)'; then
+  if printf '%s\n' "$FLAGS" | grep -qE '(^|[[:space:]])["'\'']?/?graphql["'\'']?([[:space:]]|$)'; then
     # A query the shell builds, such as query="$(cat q.graphql)", hides the mutation.
     if printf '%s\n' "$COMMAND" | grep -qE 'query="?[$`]'; then
       block "Cannot read a GraphQL query the shell builds." \
@@ -79,7 +79,7 @@ if [ "$KIND" = api ]; then
       | grep -oE '(query=@|--input[= ]+)("[^"]*"|'\''[^'\'']*'\''|[^[:space:]"'\'']+)' \
       | sed -E 's/^(query=@|--input[= ]+)//; s/^["'\'']//; s/["'\'']$//')
     if printf '%s\n' "$GQL" | grep -qE '(addPullRequestReviewThreadReply|addPullRequestReviewComment|addPullRequestReviewThread|addComment|updateIssueComment|updatePullRequestReviewComment)([^A-Za-z]|$)' \
-      || { printf '%s\n' "$GQL" | grep -qE '(addPullRequestReview|submitPullRequestReview)([^A-Za-z]|$)' \
+      || { printf '%s\n' "$GQL" | grep -qE '(addPullRequestReview|submitPullRequestReview|updatePullRequestReview)([^A-Za-z]|$)' \
         && printf '%s\n' "$GQL" | grep -qE '(^|[^A-Za-z])body([^A-Za-z]|$)'; }; then
       block "Refusing a GraphQL comment or reply mutation: the gate cannot check its footer or parent." \
         "Post it through the REST endpoint, such as: gh api repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -f body='...'"
