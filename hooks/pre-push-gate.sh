@@ -17,6 +17,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/husky-hooks.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/husky-hooks.sh"
 
 # detect_package_manager <dir>
 # The packageManager field, then the lockfile, walking up to the git top level
@@ -150,6 +152,7 @@ if [ -n "$HOOKS_PATH" ]; then
     /*) HOOKS_DIR="$HOOKS_PATH" ;;
     *) HOOKS_DIR="$TOP/$HOOKS_PATH" ;;
   esac
+  [ -n "$TOP" ] && restore_husky_hooks "$TOP" "$HOOKS_PATH"
   if [ -n "$TOP" ] && [ ! -d "$HOOKS_DIR" ]; then
     INSTALL=$(install_cmd "$(detect_package_manager "$TOP")")
     echo "[pre-push-gate] core.hooksPath is $HOOKS_PATH, but $HOOKS_DIR does not exist, so the repo's own hooks would not run. Run '$INSTALL' in $TOP, then push again." >&2

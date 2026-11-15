@@ -490,6 +490,9 @@
         "~/.config/gcloud-agent",
         "~/.cache/pentla-shared.git",
         "~/.cache/gh",
+        "~/.docker/buildx/.lock",
+        "~/.docker/buildx/activity",
+        "~/.docker/buildx/refs",
         "~/dev"
       ],
       "denyWrite": [
