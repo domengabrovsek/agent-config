@@ -30,6 +30,7 @@ case "$*" in
     [ -z "${STUB_MINT_FAIL:-}" ] || { echo "denied" >&2; exit 1; }
     for a in "$@"; do case "$a" in --impersonate-service-account=*) echo "token-for-${a#*=}" ;; esac; done ;;
   *"configurations describe"*) exit 1 ;;
+  *"core/project"*) [ -z "${STUB_SET_FAIL:-}" ] || { echo "bad project" >&2; exit 1; } ;;
 esac
 exit 0
 EOF
@@ -70,6 +71,9 @@ check "agent config never mints" not grep -q "^$GCLOUD_AGENT_CONFIG|auth print-a
 
 STUB_MINT_FAIL=1 run
 check "a failed mint stops with a hint" exited 1 says "own terminal" says "denied"
+
+STUB_SET_FAIL=1 run
+check "a failed config step names the target and step" exited 1 says "bad project" says "set the project for target 'nonprod'"
 
 run --bogus
 check "rejects unknown arguments" exited 2

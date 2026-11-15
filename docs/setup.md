@@ -71,9 +71,15 @@ The `env` block in `settings.json` sets two variables for every Claude Code sess
 | Limit | Setting |
 | --- | --- |
 | Reads | Every `Read(...)` deny rule also blocks subprocesses, so no command reads `~/.config/gcloud`, `~/.aws`, or `~/.ssh` |
-| Writes | The working directory plus the npm, Terraform, cache, and agent gcloud dirs. The links in `~/.claude`, `~/.agents`, and `~/.pi/agent` are read-only, and on macOS so are their targets in the checkout, wherever it lives. So a command cannot turn the sandbox off. `.git/hooks` is read-only in every repo under your home, so a command cannot plant code that git later runs outside the sandbox. That glob works on macOS only. A worktree outside the working directory is not writable |
+| Writes | The working directory plus the npm, Terraform, cache, and agent gcloud dirs. The links in `~/.claude`, `~/.agents`, and `~/.pi/agent` are read-only, and on macOS so are their targets in the checkout, wherever it lives, so there a command cannot turn the sandbox off. `.git/hooks` is read-only in every repo under your home, on macOS only. See the known gaps below. A worktree outside the working directory is not writable |
 | Network | The listed hosts pass. A new host prompts once |
 | Escapes | None. `docker` stays sandboxed and cannot reach its socket, because a container can mount any host path. Run `docker` yourself |
+
+### Known gaps
+
+- `.git/config` stays writable, because `git push -u` writes there. A command can point `core.hooksPath` or a clean filter at its own script, and git runs that outside the sandbox the next time you run git yourself. Check `git config --local --list` after an unattended session.
+- On Linux the sandbox does not follow links, so the config's real files are not protected. A session started in the config checkout itself can rewrite `settings.json` and the hooks in place.
+- A worktree outside the working directory is not writable.
 
 ### gcloud for agents
 

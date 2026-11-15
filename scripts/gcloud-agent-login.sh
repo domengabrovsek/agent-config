@@ -37,6 +37,18 @@ mkdir -p "$AGENT_CONFIG/tokens"
 
 agent_gcloud() { CLOUDSDK_CONFIG="$AGENT_CONFIG" gcloud --quiet "$@"; }
 
+# step <target> <what> <gcloud args...>: runs one agent-config call and names
+# the target and step when it fails, with gcloud's own error.
+step() {
+  local target="$1" what="$2" err
+  shift 2
+  if ! err=$(agent_gcloud "$@" 2>&1 >/dev/null); then
+    printf '%s\n' "$err" >&2
+    echo "Failed to $what for target '$target'." >&2
+    exit 1
+  fi
+}
+
 FIRST=""
 while read -r name sa project _ <&3; do
   case "$name" in ''|'#'*) continue ;; esac
@@ -57,9 +69,9 @@ while read -r name sa project _ <&3; do
   printf '%s\n' "$token" > "$token_file"
 
   agent_gcloud config configurations describe "$name" >/dev/null 2>&1 \
-    || agent_gcloud config configurations create "$name" --no-activate >/dev/null 2>&1
-  agent_gcloud config set auth/access_token_file "$token_file" --configuration="$name" >/dev/null 2>&1
-  agent_gcloud config set core/project "$project" --configuration="$name" >/dev/null 2>&1
+    || step "$name" "create the configuration" config configurations create "$name" --no-activate
+  step "$name" "set the token file" config set auth/access_token_file "$token_file" --configuration="$name"
+  step "$name" "set the project" config set core/project "$project" --configuration="$name"
 
   [ -n "$FIRST" ] || FIRST="$name"
   echo "$name: $sa on $project"
@@ -70,5 +82,5 @@ if [ -z "$FIRST" ]; then
   exit 1
 fi
 
-agent_gcloud config configurations activate "$FIRST" >/dev/null 2>&1
+step "$FIRST" "activate the configuration" config configurations activate "$FIRST"
 echo "Active: $FIRST. Tokens expire in about an hour; run this again to refresh."
