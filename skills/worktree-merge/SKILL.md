@@ -25,6 +25,7 @@ If the branch is not safe to remove, stop and explain what's still pending (unpu
 2. If this session created the worktree with `EnterWorktree` and `name`, call `ExitWorktree` with `action: "remove"`. It returns the session to the main checkout and deletes both the worktree and its branch.
    - A squash-merged branch has commits that are not on the default branch, so the tool refuses. Retry with `discard_changes: true` only when the precondition check passed and `git status --porcelain` printed nothing.
    - Ask the user before discarding uncommitted files, even with `--force`.
+   - `/worktree` renames the branch after creation, so the tool may leave it behind. If `git show-ref --verify --quiet "refs/heads/$BRANCH"` still succeeds, delete it with `git branch -d "$BRANCH"`, or `-D` once the precondition check passed.
 3. Otherwise the worktree came from an earlier session, a teammate, or `EnterWorktree` with `path`, and `ExitWorktree` will not remove it:
    1. Call `ExitWorktree` with `action: "keep"` if this session entered it, else `cd "$(git rev-parse --git-common-dir)/.."`.
    2. Remove the worktree: `git worktree remove "$WORKTREE"`, adding `--force` only when `--force` was passed.

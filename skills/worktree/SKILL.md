@@ -27,15 +27,16 @@ Worktrees live at `<repo-root>/.claude/worktrees/<slug>`, the directory Claude C
 ## Steps
 
 1. Find the repo root: `git rev-parse --show-toplevel`. Refuse if not inside a git repo.
-2. Check that `git check-ignore -q .claude/worktrees/x` succeeds. If it fails, add `.claude/worktrees/` to `.gitignore` in the new worktree and commit it with the task. Otherwise the main checkout lists every worktree as untracked.
+2. Check that `git check-ignore -q .claude/worktrees/x` succeeds. If it fails, append `.claude/worktrees/` to `$(git rev-parse --git-common-dir)/info/exclude` now. Otherwise the main checkout lists every worktree as untracked.
 3. If `<repo-root>/.claude/worktrees/<slug>` already exists, offer to enter it with `EnterWorktree` and `path` instead of creating a new one.
 4. Create and enter the worktree with `EnterWorktree` and `name: "<slug>"`. It branches from `origin/<default-branch>` on a branch named `worktree-<slug>`, and moves the session into the worktree.
 5. Rename the branch to the chosen type: `git branch -m "<branch>"`.
-6. If `package-lock.json` exists, run `npm ci`. If only `package.json` exists, run `npm install --no-package-lock`, because `npm ci` needs a lockfile. The worktree holds only tracked files, and the push hooks need `node_modules`.
-7. If `git config core.hooksPath` is `.husky/_`, check that `.husky/_` exists. If it does not, stop and report it: git skips every repo hook without a word, and the pre-push gate blocks the push.
-8. Report the new working dir and branch name, then continue with the task.
+6. If step 2 had to add the exclude, also add `.claude/worktrees/` to `.gitignore` and commit it with the task. The exclude covers this clone only; the `.gitignore` entry covers every clone once it merges.
+7. If `package-lock.json` exists, run `npm ci`. If only `package.json` exists, run `npm install --no-package-lock`, because `npm ci` needs a lockfile. The worktree holds only tracked files, and the push hooks need `node_modules`.
+8. If `git config core.hooksPath` is `.husky/_`, check that `.husky/_` exists. If it does not, stop and report it: git skips every repo hook without a word, and the pre-push gate blocks the push.
+9. Report the new working dir and branch name, then continue with the task.
 
-A host without `EnterWorktree` creates the same layout itself: `git worktree add "<repo-root>/.claude/worktrees/<slug>" -b "<branch>" origin/<default-branch>`, then `cd` into it.
+A host without `EnterWorktree` creates the same layout itself: `git worktree add --no-track -b "<branch>" "<repo-root>/.claude/worktrees/<slug>" origin/<default-branch>`, then `cd` into it.
 
 ## After creation
 
