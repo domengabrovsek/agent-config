@@ -68,7 +68,7 @@ The conventional and co-author gates read the message from the command. A messag
 Two gates defer to the repo they run in:
 
 - `pre-push-gate.sh` first blocks a push of the checked-out branch when `gh` reports its PR as merged. A delete or a push of another branch skips this check. It then steps aside when the repo has its own executable pre-push hook, and runs `verify:fast` when `package.json` declares it. Otherwise it runs each of `lint`, `typecheck`, `knip`, `test`, and `build` that `package.json` declares, then a critical-only audit. In a Node repo it blocks when the detected npm, pnpm, or yarn is not on `PATH`. In a Terraform dir it runs `terraform fmt -check` and `terraform validate`, and passes when `terraform` is not installed. A dir with neither `package.json` nor `.tf` files passes.
-- `pre-pr-test-gate.sh` reads the `verify-passed` stamp that `post-verify-stamp.sh` writes to the git dir after a successful `npm run verify`. It runs `npm test` only in repos without `verify`.
+- `pre-pr-test-gate.sh` reads the `agent-verify-passed` stamp that `post-verify-stamp.sh` writes to the git dir after a successful `npm run verify`. It runs `npm test` only in repos without `verify`.
 
 ## PostToolUse hooks
 
@@ -81,7 +81,7 @@ These run after a Write or Edit, except `post-pr-open-watch.sh` and `post-verify
 | `post-edit-lint.sh` | Replaces em dashes, then checks the added lines | Tracker refs in comments, stacked `//` or `--` comments, `var`, TODO markers, `SELECT *`, `:latest` | `SKIP_POST_EDIT_LINT` |
 | `prose-gate.sh file` | Checks the added lines of a Markdown file | A blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `post-pr-open-watch.sh` | After a non-draft `gh pr create` or a `gh pr ready` succeeds, tells the agent to watch the PR with `scripts/pr-ready.sh --watch` and how to clear each blocker | Never | `SKIP_PR_WATCH` |
-| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code. A redirected log must go outside the repo or to an ignored path. Also skips a `VAR=value` prefix, `npm_config_*`, and `--ignore-scripts` | Never | `SKIP_VERIFY_STAMP` |
+| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/agent-verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code. A redirected log must go outside the repo or to an ignored path. Also skips a `VAR=value` prefix, `npm_config_*`, and `--ignore-scripts` | Never | `SKIP_VERIFY_STAMP` |
 
 The prose gate also prints advisories that never block: words to reconsider, sentences over 25 words, and a causal "since".
 
@@ -109,16 +109,16 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 
 | Kind | Count | Examples |
 | --- | --- | --- |
-| `Read(...)` | 47 | `Read(**/.env)`, `Read(~/.ssh/**)`, `Read(**/*.pem)` |
-| `Edit(...)` | 46 | `Edit(**/.env.production)`, `Edit(~/.aws/**)`, `Edit(**/.git/verify-passed)` |
-| `Write(...)` | 2 | `Write(**/.git/verify-passed)`, `Write(**/.git/worktrees/*/verify-passed)` |
+| `Read(...)` | 46 | `Read(**/.env)`, `Read(~/.ssh/**)`, `Read(**/*.pem)` |
+| `Edit(...)` | 47 | `Edit(**/.env.production)`, `Edit(~/.aws/**)`, `Edit(**/.git/agent-verify-passed)` |
+| `Write(...)` | 2 | `Write(**/.git/agent-verify-passed)`, `Write(**/.git/worktrees/*/agent-verify-passed)` |
 | `Bash(...)` | 22 | `Bash(rm -rf *)`, `Bash(git push --force *)`, `Bash(git push * main)`, `Bash(gh pr merge *)` |
 | MCP | 1 | `mcp__claude_ai_Atlassian__*` |
 
 - Deny wins over allow on every host.
 - An `Edit` rule also blocks writes: natively on Pi, and through `deny-gate.sh` on every host.
 - `deny-gate.sh` also blocks a shell command that names a denied path, so `cat .env` fails like a `Read` of `.env` on every host.
-- The `verify-passed` rules keep the agent from forging the stamp that `pre-pr-test-gate.sh` reads. Only `post-verify-stamp.sh` writes it.
+- The `agent-verify-passed` rules keep the agent from forging the stamp that `pre-pr-test-gate.sh` reads. The sandbox turns them into write denies too, so only `post-verify-stamp.sh`, which runs outside the sandbox, writes it. A repo's own verify script may still write `<git-dir>/verify-passed`, which the gate ignores.
 - `deny-gate.sh` applies `Bash` rules on every host, because native matching reads a command literally. It first normalizes each segment: it drops leading `VAR=value` assignments, the wrappers `env`, `command`, `builtin`, `exec`, `time`, `nice`, `nohup`, and `timeout`, a directory on the program name, and git global options such as `-C <dir>` and `-c k=v`, then collapses whitespace.
 - It also catches `rm` with recursive and force flags in any order, every force push (`-f`, `--force-with-lease`, `+<refspec>`, `--mirror`), and a push whose destination is `main` or `master`, such as `HEAD:main`.
 - A command built at run time, such as `bash -c '...'` or `eval`, still gets past the rules, so the deny list adds friction, not a sandbox.

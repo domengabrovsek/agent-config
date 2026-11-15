@@ -70,16 +70,20 @@ The `env` block in `settings.json` sets two variables for every Claude Code sess
 
 | Limit | Setting |
 | --- | --- |
-| Reads | Every `Read(...)` deny rule also blocks subprocesses, so no command reads `~/.config/gcloud`, `~/.aws`, or `~/.ssh` |
-| Writes | The working directory plus `~/.npm`, `~/.terraform.d/plugin-cache`, and the agent gcloud dir. The links in `~/.claude`, `~/.agents`, and `~/.pi/agent` are read-only, and on macOS so are their targets in the checkout, wherever it lives, so there a command cannot turn the sandbox off. `.git/hooks` is read-only in every repo under your home, on macOS only. See the known gaps below. A worktree outside the working directory is not writable |
-| Network | The listed hosts pass. A new host prompts once |
-| Escapes | None. `docker` stays sandboxed and cannot reach its socket, because a container can mount any host path. Run `docker` yourself |
+| Reads | Every `Read(...)` deny rule also blocks subprocesses, so no command reads `~/.config/gcloud`, `~/.aws`, or `~/.ssh`. `allowRead` reopens `~/.config/gh/hosts.yml`, so `gh` works |
+| Writes | The working directory plus `~/.npm`, `~/.terraform.d/plugin-cache`, the agent gcloud dir, `~/.cache/gh`, and `~/.cache/pentla-shared.git`. The links in `~/.claude`, `~/.agents`, and `~/.pi/agent` are read-only, and on macOS so are their targets in the checkout, wherever it lives, so there a command cannot turn the sandbox off. `.git/hooks` is read-only in every repo under your home, on macOS only. See the known gaps below. A worktree outside the working directory is not writable |
+| Network | The listed hosts pass. A new host prompts once. `allowLocalBinding` and `allowAllUnixSockets` let tools such as tflint plugins open local sockets. `enableWeakerNetworkIsolation` lets Go tools such as `gh` verify TLS certificates |
+| Escapes | None. `docker` stays sandboxed, but see the socket gap below |
 
 ### Known gaps
 
-- `.git/config` stays writable, because `git push -u` writes there. A command can point `core.hooksPath` or a clean filter at its own script, and git runs that outside the sandbox the next time you run git yourself. Check `git config --local --list` after an unattended session.
+- `allowAllUnixSockets` lets a command connect to any Unix socket, including the Docker socket. A container can mount any host path, so `docker` is a way out of the sandbox. tflint plugins need the setting.
+- `.git/config` is read-only. `git switch -c <branch> origin/main`, `git push -u`, and `git branch -u` fail because they write upstream tracking. Use `git switch -c <branch> --no-track origin/main` and `git push origin <branch>`.
+- A command can read `~/.config/gh/hosts.yml`, which holds your `gh` token, and `~/.gitconfig`.
+- macOS `mktemp` without a template ignores `TMPDIR` and writes under `/var/folders`, which the sandbox refuses. An `allowWrite` entry with a wildcard mid-path has no effect there. Give scripts a template: `mktemp -d "${TMPDIR:-/tmp}/<name>.XXXXXX"`.
+- A command can write `<git-dir>/verify-passed`, so a repo's own verify script can record its pass there. The PR gate ignores that file. It reads `<git-dir>/agent-verify-passed`, which only the `post-verify-stamp.sh` hook writes.
 - On Linux the sandbox does not follow links, so the config's real files are not protected. A session started in the config checkout itself can rewrite `settings.json` and the hooks in place.
-- `~/.npm` stays writable, because npm needs it. A command can change a cached package under `~/.npm/_npx`, and your next `npx` outside the sandbox runs it. Other caches, such as `~/.cache/pre-commit`, are not writable for the same reason.
+- `~/.npm` stays writable, because npm needs it. A command can change a cached package under `~/.npm/_npx`, and your next `npx` outside the sandbox runs it. The rest of `~/.cache`, such as `~/.cache/pre-commit`, stays read-only for the same reason. Only `~/.cache/gh` and `~/.cache/pentla-shared.git` are writable.
 - A worktree outside the working directory is not writable.
 
 ### gcloud for agents

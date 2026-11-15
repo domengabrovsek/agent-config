@@ -1,7 +1,7 @@
 #!/bin/bash
 # Tests for hooks/pre-pr-test-gate.sh.
 #
-# A repo declaring `verify` opens a PR only when <git-dir>/verify-passed holds
+# A repo declaring `verify` opens a PR only when <git-dir>/agent-verify-passed holds
 # HEAD and the tree is clean; the hook never runs the suite itself. The repo
 # comes from a leading `cd`, not the payload cwd, so a hub session opening a
 # sibling repo's PR checks the sibling. Every create also checks the title.
@@ -26,7 +26,8 @@ JSON
   make_repo "$1"
 }
 
-stamp() { git -C "$1" rev-parse HEAD > "$(git -C "$1" rev-parse --path-format=absolute --git-dir)/verify-passed"; }
+git_dir() { git -C "$1" rev-parse --path-format=absolute --git-dir; }
+stamp() { git -C "$1" rev-parse HEAD > "$(git_dir "$1")/agent-verify-passed"; }
 
 # assert_gate <name> <payload-cwd> <command> <expected-exit> [expected-output]
 assert_gate() {
@@ -50,6 +51,9 @@ TITLE='--title "feat(api): add a thing" --body "Adds it."'
 
 echo "== verify stamp =="
 assert_gate "no stamp blocks and says how to verify" "$REPO" "$GH_CREATE $TITLE" 2 "npm run verify"
+git -C "$REPO" rev-parse HEAD > "$(git_dir "$REPO")/verify-passed"
+assert_gate "a repo-written verify-passed at HEAD does not count" "$REPO" "$GH_CREATE $TITLE" 2 "npm run verify"
+rm "$(git_dir "$REPO")/verify-passed"
 stamp "$REPO"
 assert_gate "a stamp at HEAD with a clean tree passes" "$REPO" "$GH_CREATE $TITLE" 0
 assert_gate "ready reads the same stamp" "$REPO" "$GH_READY 12" 0

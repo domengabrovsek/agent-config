@@ -55,7 +55,6 @@
       "Read(**/.vault-token)",
       "Read(**/.htpasswd)",
       "Read(~/.git-credentials)",
-      "Read(~/.gitconfig)",
       "Read(**/.terraform.tfstate*)",
       "Read(~/.terraformrc)",
       "Read(~/.config/terraform/**)",
@@ -114,10 +113,10 @@
       "Edit(~/.pnpmrc)",
       "Edit(~/.config/npm/**)",
       "Edit(~/.config/gke-gcloud-auth-plugin/**)",
-      "Edit(**/.git/verify-passed)",
-      "Write(**/.git/verify-passed)",
-      "Edit(**/.git/worktrees/*/verify-passed)",
-      "Write(**/.git/worktrees/*/verify-passed)",
+      "Edit(**/.git/agent-verify-passed)",
+      "Write(**/.git/agent-verify-passed)",
+      "Edit(**/.git/worktrees/*/agent-verify-passed)",
+      "Write(**/.git/worktrees/*/agent-verify-passed)",
       "Bash(rm -rf *)",
       "Bash(rm -fr *)",
       "Bash(sudo *)",
@@ -489,7 +488,9 @@
       "allowWrite": [
         "~/.npm",
         "~/.terraform.d/plugin-cache",
-        "~/.config/gcloud-agent"
+        "~/.config/gcloud-agent",
+        "~/.cache/pentla-shared.git",
+        "~/.cache/gh"
       ],
       "denyWrite": [
         "~/.claude/settings.json",
@@ -508,6 +509,9 @@
         "~/.agents",
         "~/.pi/agent",
         "~/**/.git/hooks"
+      ],
+      "allowRead": [
+        "~/.config/gh/hosts.yml"
       ]
     },
     "network": {
@@ -521,8 +525,11 @@
         "releases.hashicorp.com",
         "context7.com",
         "*.context7.com"
-      ]
-    }
+      ],
+      "allowLocalBinding": true,
+      "allowAllUnixSockets": true
+    },
+    "enableWeakerNetworkIsolation": true
   },
   "statusLine": {
     "type": "command",
