@@ -488,8 +488,7 @@
     "filesystem": {
       "allowWrite": [
         "~/.npm",
-        "~/.cache",
-        "~/.terraform.d",
+        "~/.terraform.d/plugin-cache",
         "~/.config/gcloud-agent"
       ],
       "denyWrite": [
