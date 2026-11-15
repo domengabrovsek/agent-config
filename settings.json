@@ -449,6 +449,11 @@
             "type": "command",
             "command": "HOOK=\"$HOME/.claude/hooks/herdr-pane-context.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "[ -n \"$CLAUDE_ENV_FILE\" ] && echo 'export CLOUDSDK_CONFIG=\"$HOME/.config/gcloud-agent\"' >> \"$CLAUDE_ENV_FILE\" || true",
+            "timeout": 5
           }
         ]
       }
@@ -475,6 +480,36 @@
         ]
       }
     ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "excludedCommands": [
+      "docker *"
+    ],
+    "filesystem": {
+      "allowWrite": [
+        "~/dev",
+        "~/.npm",
+        "~/.cache",
+        "~/.terraform.d",
+        "~/.config/gcloud-agent"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com",
+        "registry.npmjs.org",
+        "*.googleapis.com",
+        "registry.terraform.io",
+        "releases.hashicorp.com",
+        "api.cloudflare.com",
+        "context7.com",
+        "*.context7.com"
+      ]
+    }
   },
   "statusLine": {
     "type": "command",

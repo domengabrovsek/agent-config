@@ -64,6 +64,27 @@ The `env` block in `settings.json` sets two variables for every Claude Code sess
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Claude Code's experimental agent teams feature, for the teammates that lane and panel mode spawn |
 | `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts` | Loads the [pr-band](../mods/pr-band/README.md), [pr-fleet](../mods/pr-fleet/README.md), and [alerts](../mods/alerts/README.md) mods from the linked `mods/` dir |
 
+## Claude Code sandbox
+
+`settings.json` turns on Claude Code's [sandbox](https://code.claude.com/docs/en/sandboxing) for every session on the machine. Bash commands run under OS-level limits:
+
+| Limit | Setting |
+| --- | --- |
+| Reads | Every `Read(...)` deny rule also blocks subprocesses, so no command reads `~/.config/gcloud`, `~/.aws`, or `~/.ssh` |
+| Writes | The working directory plus `~/dev`, which holds the worktrees, and the npm, Terraform, cache, and agent gcloud dirs |
+| Network | The listed hosts pass. A new host prompts once |
+| Escapes | None. `docker` runs outside the sandbox through `excludedCommands` |
+
+### gcloud for agents
+
+Agents never use your gcloud login. A `SessionStart` hook sets `CLOUDSDK_CONFIG` to `~/.config/gcloud-agent`, which holds only short-lived impersonated tokens.
+
+1. List targets in `~/.config/gcloud-agent/targets`, one per line: `<configuration-name> <service-account-email> <project-id>`. The first is active by default.
+2. In your own terminal, run `scripts/gcloud-agent-login.sh`. It mints a one-hour token per target.
+3. Agents pick a target with `gcloud --configuration=<name>`. Run the script again when the tokens expire.
+
+Anything that needs your own rights, such as a PAM grant or a write, you run yourself outside the agent session.
+
 ## Keep runtime state out of commits
 
 Claude Code and Pi write runtime keys into `settings.json`. The two `git config` lines in the [quick start](../README.md#quick-start) install a clean filter that strips them. `.gitattributes` applies the filter to `settings.json` and `pi/settings.json`.
