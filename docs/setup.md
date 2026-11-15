@@ -64,6 +64,34 @@ The `env` block in `settings.json` sets two variables for every Claude Code sess
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Claude Code's experimental agent teams feature, for the teammates that lane and panel mode spawn |
 | `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts` | Loads the [pr-band](../mods/pr-band/README.md), [pr-fleet](../mods/pr-fleet/README.md), and [alerts](../mods/alerts/README.md) mods from the linked `mods/` dir |
 
+## Claude Code sandbox
+
+`settings.json` turns on Claude Code's [sandbox](https://code.claude.com/docs/en/sandboxing) for every session on the machine. Bash commands run under OS-level limits:
+
+| Limit | Setting |
+| --- | --- |
+| Reads | Every `Read(...)` deny rule also blocks subprocesses, so no command reads `~/.config/gcloud`, `~/.aws`, or `~/.ssh` |
+| Writes | The working directory plus `~/.npm`, `~/.terraform.d/plugin-cache`, and the agent gcloud dir. The links in `~/.claude`, `~/.agents`, and `~/.pi/agent` are read-only, and on macOS so are their targets in the checkout, wherever it lives, so there a command cannot turn the sandbox off. `.git/hooks` is read-only in every repo under your home, on macOS only. See the known gaps below. A worktree outside the working directory is not writable |
+| Network | The listed hosts pass. A new host prompts once |
+| Escapes | None. `docker` stays sandboxed and cannot reach its socket, because a container can mount any host path. Run `docker` yourself |
+
+### Known gaps
+
+- `.git/config` stays writable, because `git push -u` writes there. A command can point `core.hooksPath` or a clean filter at its own script, and git runs that outside the sandbox the next time you run git yourself. Check `git config --local --list` after an unattended session.
+- On Linux the sandbox does not follow links, so the config's real files are not protected. A session started in the config checkout itself can rewrite `settings.json` and the hooks in place.
+- `~/.npm` stays writable, because npm needs it. A command can change a cached package under `~/.npm/_npx`, and your next `npx` outside the sandbox runs it. Other caches, such as `~/.cache/pre-commit`, are not writable for the same reason.
+- A worktree outside the working directory is not writable.
+
+### gcloud for agents
+
+Agents never use your gcloud login. A `SessionStart` hook sets `CLOUDSDK_CONFIG` to `~/.config/gcloud-agent`, which holds only short-lived impersonated tokens.
+
+1. List targets in `~/.config/gcloud-agent/targets`, one per line: `<configuration-name> <service-account-email> <project-id>`. The first is active by default. Agents cannot edit this file, so they cannot add a service account for you to mint.
+2. In your own terminal, run `scripts/gcloud-agent-login.sh`. It mints a one-hour token per target.
+3. Agents pick a target with `gcloud --configuration=<name>`. Run the script again when the tokens expire.
+
+Anything that needs your own rights, such as a PAM grant or a write, you run yourself outside the agent session.
+
 ## Keep runtime state out of commits
 
 Claude Code and Pi write runtime keys into `settings.json`. The two `git config` lines in the [quick start](../README.md#quick-start) install a clean filter that strips them. `.gitattributes` applies the filter to `settings.json` and `pi/settings.json`.

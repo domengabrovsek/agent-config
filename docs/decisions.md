@@ -75,10 +75,13 @@ The design decisions this config still runs on. Each entry states the choice and
 - Each registry command runs `~/.claude/hooks/<name>`, which links to the main checkout. An opened repo cannot replace a gate with its own `hooks/` copy, and a worktree runs the main checkout's hooks.
 - Cost: a hook edit takes effect only once it reaches the main checkout, so its `tests/*.sh` suite or `npm test` verifies it first.
 
-### The deny list adds friction, not a sandbox
+### The deny list adds friction; the Claude Code sandbox is the boundary
 
 - One literal list in `settings.json` blocks the same commands and paths on every host, such as `rm -rf`, force-pushes, and reads of secrets.
-- Literal patterns miss variants such as `rm -fr`. Unattended work needs an external boundary, as [setup](setup.md#pi) notes for Pi.
+- Literal patterns miss variants such as `rm -fr`, and a `Read` deny never stopped a CLI from reading its own credentials. Claude Code runs Bash in its OS sandbox, which enforces the `Read` denies for every subprocess. See [the sandbox](setup.md#claude-code-sandbox).
+- `allowUnsandboxedCommands` is `false`, because under auto mode an escape request may not reach a human. `excludedCommands` stays empty: an excluded `docker` could mount any host path and read what the denies protect.
+- The boundary has [known gaps](setup.md#known-gaps), chiefly a writable `.git/config`.
+- Codex and Pi have no such boundary, so unattended work there still needs an external one, as [setup](setup.md#pi) notes for Pi.
 
 ### Cap the always-loaded text
 
