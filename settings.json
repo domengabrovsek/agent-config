@@ -511,7 +511,12 @@
         "~/.agents",
         "~/.pi/agent",
         "~/**/.git/hooks",
-        "~/dev/**/.claude",
+        "~/dev/**/.claude/settings.json",
+        "~/dev/**/.claude/settings.local.json",
+        "~/dev/**/.claude/hooks",
+        "~/dev/**/.claude/skills",
+        "~/dev/**/.claude/agents",
+        "~/dev/**/.claude/commands",
         "~/dev/**/.husky",
         "~/.cache/pentla-shared.git/hooks",
         "~/.cache/pentla-shared.git/config"
@@ -535,11 +540,7 @@
       "allowLocalBinding": true,
       "allowAllUnixSockets": true
     },
-    "enableWeakerNetworkIsolation": true,
-    "excludedCommands": [
-      "ps",
-      "ps *"
-    ]
+    "enableWeakerNetworkIsolation": true
   },
   "statusLine": {
     "type": "command",
