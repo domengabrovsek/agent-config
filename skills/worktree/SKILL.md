@@ -33,10 +33,10 @@ Worktrees live at `<repo-root>/.claude/worktrees/<slug>`, the directory Claude C
 5. Rename the branch to the chosen type: `git branch -m "<branch>"`.
 6. If step 2 had to add the exclude, also add `.claude/worktrees/` to `.gitignore` and commit it with the task. The exclude covers this clone only; the `.gitignore` entry covers every clone once it merges.
 7. If `package-lock.json` exists, run `npm ci`. If only `package.json` exists, run `npm install --no-package-lock`, because `npm ci` needs a lockfile. The worktree holds only tracked files, and the push hooks need `node_modules`.
-8. If `git config core.hooksPath` is `.husky/_`, check that `.husky/_` exists. If it does not, stop and report it: git skips every repo hook without a word, and the pre-push gate blocks the push.
+8. If `git config core.hooksPath` is `.husky/_` and `.husky/_` is missing, continue. The sandbox keeps `.husky` read-only, so the install cannot create it, and the pre-push gate copies it from the main worktree before the first push. Until then git skips the repo's commit hooks.
 9. Report the new working dir and branch name, then continue with the task.
 
-A host without `EnterWorktree` creates the same layout itself: `git worktree add --no-track -b "<branch>" "<repo-root>/.claude/worktrees/<slug>" origin/<default-branch>`, then `cd` into it.
+A host without `EnterWorktree` creates the same layout itself: `git worktree add --no-track -b "<branch>" "<repo-root>/.claude/worktrees/<slug>" origin/<default-branch>`, then `cd` into it. Under the Claude Code sandbox, always use `EnterWorktree`. A sandboxed `git worktree add` fails on a repo that tracks files under `.husky`, and on another repo's `.git/worktrees`.
 
 ## After creation
 
