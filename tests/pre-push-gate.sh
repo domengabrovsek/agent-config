@@ -84,6 +84,23 @@ git -C "$NOHOOKS" config core.hooksPath .husky/_
 run_gate "$NOHOOKS"
 check "a missing hooksPath directory blocks the push" says "Run 'npm ci'" exited 2
 
+# A linked worktree gets the main worktree's husky directory, because the
+# sandbox stops its own install from creating one.
+LINKED="$TEST_ROOT/linked"
+printf '.husky/_\n' > "$HUSKY/.gitignore"
+git -C "$HUSKY" add -A >/dev/null 2>&1
+git -C "$HUSKY" -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1
+git -C "$HUSKY" worktree add -q -b feature/linked "$LINKED" >/dev/null 2>&1
+mkdir -p "$LINKED/node_modules"
+run_gate "$LINKED"
+check "a linked worktree copies the main worktree's hooksPath directory" \
+  omits "Run 'npm ci'" says "has its own pre-push hook"
+if [ -x "$LINKED/.husky/_/pre-push" ]; then
+  pass "the copied hook stays executable"
+else
+  fail "the copied hook stays executable"
+fi
+
 # A global hooksPath is not the repo's own setting, and git expands its ~.
 GLOBALHOOKS="$TEST_ROOT/globalhooks"
 make_project "$GLOBALHOOKS"

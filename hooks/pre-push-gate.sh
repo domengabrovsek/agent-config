@@ -150,6 +150,16 @@ if [ -n "$HOOKS_PATH" ]; then
     /*) HOOKS_DIR="$HOOKS_PATH" ;;
     *) HOOKS_DIR="$TOP/$HOOKS_PATH" ;;
   esac
+  # The sandbox keeps .husky read-only, so a sandboxed install cannot create
+  # the directory in a new worktree. This hook runs outside the sandbox and
+  # copies it from the main worktree, which the same rule protects.
+  if [ -n "$TOP" ] && [ ! -d "$HOOKS_DIR" ] && [ "${HOOKS_PATH#/}" = "$HOOKS_PATH" ]; then
+    MAIN_TOP=$(git -C "$TOP" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
+    if [ -n "$MAIN_TOP" ] && [ "$MAIN_TOP" != "$TOP" ] && [ -d "$MAIN_TOP/$HOOKS_PATH" ]; then
+      mkdir -p "$(dirname "$HOOKS_DIR")" &&
+        cp -R "$MAIN_TOP/$HOOKS_PATH" "$HOOKS_DIR" 2>/dev/null || rm -rf "$HOOKS_DIR"
+    fi
+  fi
   if [ -n "$TOP" ] && [ ! -d "$HOOKS_DIR" ]; then
     INSTALL=$(install_cmd "$(detect_package_manager "$TOP")")
     echo "[pre-push-gate] core.hooksPath is $HOOKS_PATH, but $HOOKS_DIR does not exist, so the repo's own hooks would not run. Run '$INSTALL' in $TOP, then push again." >&2
