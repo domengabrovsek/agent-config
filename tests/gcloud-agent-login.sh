@@ -32,6 +32,8 @@ exit 0
 EOF
 export PATH="$BIN:$PATH" STUB_LOG="$LOG"
 
+# run [arg...]: sets OUT and STATUS, which the harness predicates read.
+# shellcheck disable=SC2034
 run() {
   : > "$LOG"
   set +e
@@ -56,7 +58,7 @@ EOF
 run
 check "mints a token per target" exited 0 says "nonprod: agent@staging" says "production: agent@prod"
 check "writes the nonprod token" grep -qx "token-for-agent@staging.iam.gserviceaccount.com" "$GCLOUD_AGENT_CONFIG/tokens/nonprod"
-check "token file is private" test "$(stat -f %Lp "$GCLOUD_AGENT_CONFIG/tokens/nonprod" 2>/dev/null || stat -c %a "$GCLOUD_AGENT_CONFIG/tokens/nonprod")" = 600
+check "token file is private" test "$(stat -c %a "$GCLOUD_AGENT_CONFIG/tokens/nonprod" 2>/dev/null || stat -f %Lp "$GCLOUD_AGENT_CONFIG/tokens/nonprod")" = 600
 check "mints with the user config" logged "$GCLOUD_USER_CONFIG|auth print-access-token --impersonate-service-account=agent@prod"
 check "points the agent config at the token file" logged "$GCLOUD_AGENT_CONFIG|--quiet config set auth/access_token_file $GCLOUD_AGENT_CONFIG/tokens/production --configuration=production"
 check "sets the project" logged "--quiet config set core/project staging-project --configuration=nonprod"
