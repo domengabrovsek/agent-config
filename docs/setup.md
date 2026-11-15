@@ -71,7 +71,7 @@ The `env` block in `settings.json` sets two variables for every Claude Code sess
 | Limit | Setting |
 | --- | --- |
 | Reads | Every `Read(...)` deny rule also blocks subprocesses, so no command reads `~/.config/gcloud`, `~/.aws`, or `~/.ssh` |
-| Writes | The working directory plus `~/dev`, which holds the worktrees, and the npm, Terraform, cache, and agent gcloud dirs. The config files, hooks, rules, and skills that `~/.claude` and `~/.agents` link to stay read-only, so a command cannot turn the sandbox off. These paths assume the checkout is at `~/dev/personal/agent-config` |
+| Writes | The working directory plus the npm, Terraform, cache, and agent gcloud dirs. The links in `~/.claude`, `~/.agents`, and `~/.pi/agent` are read-only, and on macOS so are their targets in the checkout, wherever it lives. So a command cannot turn the sandbox off. `.git/hooks` is read-only in every repo under your home, so a command cannot plant code that git later runs outside the sandbox. That glob works on macOS only. A worktree outside the working directory is not writable |
 | Network | The listed hosts pass. A new host prompts once |
 | Escapes | None. `docker` stays sandboxed and cannot reach its socket, because a container can mount any host path. Run `docker` yourself |
 

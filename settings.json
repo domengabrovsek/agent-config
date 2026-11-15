@@ -487,7 +487,6 @@
     "allowUnsandboxedCommands": false,
     "filesystem": {
       "allowWrite": [
-        "~/dev",
         "~/.npm",
         "~/.cache",
         "~/.terraform.d",
@@ -495,16 +494,21 @@
       ],
       "denyWrite": [
         "~/.claude/settings.json",
+        "~/.claude/CLAUDE.md",
         "~/.claude/hooks",
+        "~/.claude/rules",
+        "~/.claude/skills",
+        "~/.claude/agents",
+        "~/.claude/mods",
+        "~/.claude/scripts",
+        "~/.claude/docs",
+        "~/.claude/references",
+        "~/.claude/templates",
+        "~/.claude/statusline.sh",
+        "~/.claude/pull_request_template.md",
         "~/.agents",
-        "~/dev/personal/agent-config/settings.json",
-        "~/dev/personal/agent-config/AGENTS.md",
-        "~/dev/personal/agent-config/hooks",
-        "~/dev/personal/agent-config/rules",
-        "~/dev/personal/agent-config/scripts",
-        "~/dev/personal/agent-config/skills",
-        "~/dev/personal/agent-config/agents",
-        "~/dev/personal/agent-config/mods"
+        "~/.pi/agent",
+        "~/**/.git/hooks"
       ]
     },
     "network": {
@@ -516,7 +520,6 @@
         "*.googleapis.com",
         "registry.terraform.io",
         "releases.hashicorp.com",
-        "api.cloudflare.com",
         "context7.com",
         "*.context7.com"
       ]
