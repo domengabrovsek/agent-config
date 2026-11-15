@@ -38,7 +38,7 @@
       "Read(~/.config/gh/hosts.yml)",
       "Read(~/.gradle/gradle.properties)",
       "Read(~/.pypirc)",
-      "Read(~/.terraform.d/**)",
+      "Read(~/.terraform.d/credentials.tfrc.json)",
       "Read(~/.vault-token)",
       "Read(~/.kube/**)",
       "Read(~/.docker/config.json)",
@@ -87,6 +87,7 @@
       "Edit(~/.gitconfig)",
       "Edit(~/.kube/**)",
       "Edit(~/.config/gcloud/**)",
+      "Edit(~/.config/gcloud-agent/targets)",
       "Edit(~/.azure/**)",
       "Edit(**/*.pem)",
       "Edit(**/*.key)",
@@ -105,7 +106,7 @@
       "Edit(~/.config/gh/hosts.yml)",
       "Edit(~/.pypirc)",
       "Edit(~/.gradle/gradle.properties)",
-      "Edit(~/.terraform.d/**)",
+      "Edit(~/.terraform.d/credentials.tfrc.json)",
       "Edit(~/.terraformrc)",
       "Edit(~/.config/terraform/**)",
       "Edit(~/.yarnrc.yml)",
@@ -484,9 +485,6 @@
   "sandbox": {
     "enabled": true,
     "allowUnsandboxedCommands": false,
-    "excludedCommands": [
-      "docker *"
-    ],
     "filesystem": {
       "allowWrite": [
         "~/dev",
@@ -494,6 +492,19 @@
         "~/.cache",
         "~/.terraform.d",
         "~/.config/gcloud-agent"
+      ],
+      "denyWrite": [
+        "~/.claude/settings.json",
+        "~/.claude/hooks",
+        "~/.agents",
+        "~/dev/personal/agent-config/settings.json",
+        "~/dev/personal/agent-config/AGENTS.md",
+        "~/dev/personal/agent-config/hooks",
+        "~/dev/personal/agent-config/rules",
+        "~/dev/personal/agent-config/scripts",
+        "~/dev/personal/agent-config/skills",
+        "~/dev/personal/agent-config/agents",
+        "~/dev/personal/agent-config/mods"
       ]
     },
     "network": {

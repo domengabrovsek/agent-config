@@ -18,12 +18,15 @@ export GCLOUD_USER_CONFIG="$TEST_ROOT/user"
 export GCLOUD_AGENT_CONFIG="$TEST_ROOT/agent"
 
 # The stub prints a token named after the impersonated SA, fails minting when
-# STUB_MINT_FAIL is set, and logs which config dir each call used.
+# STUB_MINT_FAIL is set, and logs which config dir each call used. Minting
+# drains stdin, as a reauth prompt can, so a loop sharing stdin
+# with the targets file loses a target.
 stub "$BIN" gcloud <<'EOF'
 #!/bin/bash
 printf '%s|%s\n' "$CLOUDSDK_CONFIG" "$*" >> "$STUB_LOG"
 case "$*" in
   *print-access-token*)
+    cat >/dev/null
     [ -z "${STUB_MINT_FAIL:-}" ] || { echo "denied" >&2; exit 1; }
     for a in "$@"; do case "$a" in --impersonate-service-account=*) echo "token-for-${a#*=}" ;; esac; done ;;
   *"configurations describe"*) exit 1 ;;
@@ -37,7 +40,7 @@ export PATH="$BIN:$PATH" STUB_LOG="$LOG"
 run() {
   : > "$LOG"
   set +e
-  OUT=$("$SCRIPT" "$@" 2>&1)
+  OUT=$("$SCRIPT" "$@" 2>&1 </dev/null)
   STATUS=$?
   set -e
 }

@@ -79,7 +79,7 @@ The design decisions this config still runs on. Each entry states the choice and
 
 - One literal list in `settings.json` blocks the same commands and paths on every host, such as `rm -rf`, force-pushes, and reads of secrets.
 - Literal patterns miss variants such as `rm -fr`, and a `Read` deny never stopped a CLI from reading its own credentials. Claude Code runs Bash in its OS sandbox, which enforces the `Read` denies for every subprocess. See [the sandbox](setup.md#claude-code-sandbox).
-- `allowUnsandboxedCommands` is `false`, because under auto mode an escape request may not reach a human. A command that needs to leave the sandbox goes in `excludedCommands` through a reviewed change.
+- `allowUnsandboxedCommands` is `false`, because under auto mode an escape request may not reach a human. `excludedCommands` stays empty: an excluded `docker` could mount any host path and read what the denies protect.
 - Codex and Pi have no such boundary, so unattended work there still needs an external one, as [setup](setup.md#pi) notes for Pi.
 
 ### Cap the always-loaded text

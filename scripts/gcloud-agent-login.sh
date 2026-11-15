@@ -38,7 +38,7 @@ mkdir -p "$AGENT_CONFIG/tokens"
 agent_gcloud() { CLOUDSDK_CONFIG="$AGENT_CONFIG" gcloud --quiet "$@"; }
 
 FIRST=""
-while read -r name sa project _; do
+while read -r name sa project _ <&3; do
   case "$name" in ''|'#'*) continue ;; esac
   if [ -z "$sa" ] || [ -z "$project" ]; then
     echo "Skipping malformed line for '$name' in $TARGETS" >&2
@@ -63,7 +63,7 @@ while read -r name sa project _; do
 
   [ -n "$FIRST" ] || FIRST="$name"
   echo "$name: $sa on $project"
-done < "$TARGETS"
+done 3< "$TARGETS"
 
 if [ -z "$FIRST" ]; then
   echo "No targets in $TARGETS" >&2

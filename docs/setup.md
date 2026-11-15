@@ -71,15 +71,15 @@ The `env` block in `settings.json` sets two variables for every Claude Code sess
 | Limit | Setting |
 | --- | --- |
 | Reads | Every `Read(...)` deny rule also blocks subprocesses, so no command reads `~/.config/gcloud`, `~/.aws`, or `~/.ssh` |
-| Writes | The working directory plus `~/dev`, which holds the worktrees, and the npm, Terraform, cache, and agent gcloud dirs |
+| Writes | The working directory plus `~/dev`, which holds the worktrees, and the npm, Terraform, cache, and agent gcloud dirs. The config files, hooks, rules, and skills that `~/.claude` and `~/.agents` link to stay read-only, so a command cannot turn the sandbox off. These paths assume the checkout is at `~/dev/personal/agent-config` |
 | Network | The listed hosts pass. A new host prompts once |
-| Escapes | None. `docker` runs outside the sandbox through `excludedCommands` |
+| Escapes | None. `docker` stays sandboxed and cannot reach its socket, because a container can mount any host path. Run `docker` yourself |
 
 ### gcloud for agents
 
 Agents never use your gcloud login. A `SessionStart` hook sets `CLOUDSDK_CONFIG` to `~/.config/gcloud-agent`, which holds only short-lived impersonated tokens.
 
-1. List targets in `~/.config/gcloud-agent/targets`, one per line: `<configuration-name> <service-account-email> <project-id>`. The first is active by default.
+1. List targets in `~/.config/gcloud-agent/targets`, one per line: `<configuration-name> <service-account-email> <project-id>`. The first is active by default. Agents cannot edit this file, so they cannot add a service account for you to mint.
 2. In your own terminal, run `scripts/gcloud-agent-login.sh`. It mints a one-hour token per target.
 3. Agents pick a target with `gcloud --configuration=<name>`. Run the script again when the tokens expire.
 
