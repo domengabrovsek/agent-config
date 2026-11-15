@@ -490,7 +490,9 @@
         "~/.config/gcloud-agent",
         "~/.cache/pentla-shared.git",
         "~/.cache/gh",
-        "~/.docker/buildx",
+        "~/.docker/buildx/.lock",
+        "~/.docker/buildx/activity",
+        "~/.docker/buildx/refs",
         "~/dev"
       ],
       "denyWrite": [
@@ -518,10 +520,7 @@
         "~/dev/**/.claude/commands",
         "~/dev/**/.husky",
         "~/.cache/pentla-shared.git/hooks",
-        "~/.cache/pentla-shared.git/config",
-        "~/.docker/buildx/current",
-        "~/.docker/buildx/defaults",
-        "~/.docker/buildx/instances"
+        "~/.cache/pentla-shared.git/config"
       ],
       "allowRead": [
         "~/.config/gh/hosts.yml"

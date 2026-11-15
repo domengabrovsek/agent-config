@@ -101,6 +101,18 @@ else
   fail "the copied hook stays executable"
 fi
 
+# Any other relative hooksPath is not copied, so the copy cannot reach out of the repo.
+# The linked worktree sits one level deeper, so ../outside names a directory
+# that exists from the main worktree and not from the linked one.
+ESCAPE="$HUSKY/wt/escape"
+git -C "$HUSKY" worktree add -q -b feature/escape "$ESCAPE" >/dev/null 2>&1
+mkdir -p "$ESCAPE/node_modules" "$TEST_ROOT/outside"
+git -C "$ESCAPE" config core.hooksPath ../outside
+run_gate "$ESCAPE"
+check "a hooksPath other than .husky/_ is not copied" says "Run 'npm ci'" exited 2
+[ -e "$HUSKY/wt/outside" ] && fail "nothing is copied for another hooksPath"
+git -C "$ESCAPE" config core.hooksPath .husky/_
+
 # A global hooksPath is not the repo's own setting, and git expands its ~.
 GLOBALHOOKS="$TEST_ROOT/globalhooks"
 make_project "$GLOBALHOOKS"

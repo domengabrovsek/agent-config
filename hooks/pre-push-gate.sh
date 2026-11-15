@@ -153,7 +153,9 @@ if [ -n "$HOOKS_PATH" ]; then
   # The sandbox keeps .husky read-only, so a sandboxed install cannot create
   # the directory in a new worktree. This hook runs outside the sandbox and
   # copies it from the main worktree, which the same rule protects.
-  if [ -n "$TOP" ] && [ ! -d "$HOOKS_DIR" ] && [ "${HOOKS_PATH#/}" = "$HOOKS_PATH" ]; then
+  # Only husky's own path: .git/config is writable, so any other value could
+  # make this unsandboxed copy read a path the sandbox denies.
+  if [ -n "$TOP" ] && [ ! -d "$HOOKS_DIR" ] && [ "${HOOKS_PATH%/}" = ".husky/_" ]; then
     MAIN_TOP=$(git -C "$TOP" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
     if [ -n "$MAIN_TOP" ] && [ "$MAIN_TOP" != "$TOP" ] && [ -d "$MAIN_TOP/$HOOKS_PATH" ]; then
       mkdir -p "$(dirname "$HOOKS_DIR")" &&
