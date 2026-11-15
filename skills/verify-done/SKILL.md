@@ -9,7 +9,7 @@ Comprehensive quality gate before declaring work done.
 
 - Run `npm run verify` once in the foreground with a 600000ms timeout. It takes minutes. Run it alone: no pipe, `;` or `||`.
 - Do not read workflow YAML or run individual checks. `verify` mirrors CI and prints what it skips.
-- On success with a clean tree, the `post-verify-stamp.sh` hook writes HEAD to `<git-dir>/verify-passed`. The PR-open hook reads that stamp. A background run never stamps.
+- On success with a clean tree, the `post-verify-stamp.sh` hook writes HEAD to `<git-dir>/agent-verify-passed`. The PR-open hook reads that stamp and ignores a repo's own `verify-passed`. A background run never stamps.
 - Continue at step 3.
 
 **Otherwise:**

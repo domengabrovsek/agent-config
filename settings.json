@@ -2,7 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/session-focus:~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts"
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/session-focus:~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts",
+    "NODE_USE_ENV_PROXY": "1"
   },
   "permissions": {
     "allow": [
@@ -55,7 +56,6 @@
       "Read(**/.vault-token)",
       "Read(**/.htpasswd)",
       "Read(~/.git-credentials)",
-      "Read(~/.gitconfig)",
       "Read(**/.terraform.tfstate*)",
       "Read(~/.terraformrc)",
       "Read(~/.config/terraform/**)",
@@ -114,10 +114,10 @@
       "Edit(~/.pnpmrc)",
       "Edit(~/.config/npm/**)",
       "Edit(~/.config/gke-gcloud-auth-plugin/**)",
-      "Edit(**/.git/verify-passed)",
-      "Write(**/.git/verify-passed)",
-      "Edit(**/.git/worktrees/*/verify-passed)",
-      "Write(**/.git/worktrees/*/verify-passed)",
+      "Edit(**/.git/agent-verify-passed)",
+      "Write(**/.git/agent-verify-passed)",
+      "Edit(**/.git/worktrees/*/agent-verify-passed)",
+      "Write(**/.git/worktrees/*/agent-verify-passed)",
       "Bash(rm -rf *)",
       "Bash(rm -fr *)",
       "Bash(sudo *)",
@@ -489,7 +489,10 @@
       "allowWrite": [
         "~/.npm",
         "~/.terraform.d/plugin-cache",
-        "~/.config/gcloud-agent"
+        "~/.config/gcloud-agent",
+        "~/.cache/pentla-shared.git",
+        "~/.cache/gh",
+        "~/dev"
       ],
       "denyWrite": [
         "~/.claude/settings.json",
@@ -507,7 +510,19 @@
         "~/.claude/pull_request_template.md",
         "~/.agents",
         "~/.pi/agent",
-        "~/**/.git/hooks"
+        "~/**/.git/hooks",
+        "~/dev/**/.claude/settings.json",
+        "~/dev/**/.claude/settings.local.json",
+        "~/dev/**/.claude/hooks",
+        "~/dev/**/.claude/skills",
+        "~/dev/**/.claude/agents",
+        "~/dev/**/.claude/commands",
+        "~/dev/**/.husky",
+        "~/.cache/pentla-shared.git/hooks",
+        "~/.cache/pentla-shared.git/config"
+      ],
+      "allowRead": [
+        "~/.config/gh/hosts.yml"
       ]
     },
     "network": {
@@ -521,8 +536,11 @@
         "releases.hashicorp.com",
         "context7.com",
         "*.context7.com"
-      ]
-    }
+      ],
+      "allowLocalBinding": true,
+      "allowAllUnixSockets": true
+    },
+    "enableWeakerNetworkIsolation": true
   },
   "statusLine": {
     "type": "command",

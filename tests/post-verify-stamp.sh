@@ -2,7 +2,7 @@
 # Tests for hooks/post-verify-stamp.sh.
 #
 # A successful foreground `npm run verify` on a clean tree writes HEAD to
-# <git-dir>/verify-passed. Any command whose exit code could come from
+# <git-dir>/agent-verify-passed. Any command whose exit code could come from
 # something else, a background run, a dirty tree or a repo without `verify`
 # leaves no stamp.
 
@@ -21,7 +21,7 @@ probe_repo() {
   make_repo "$1"
 }
 
-stamp_file() { echo "$(git -C "$1" rev-parse --path-format=absolute --git-dir)/verify-passed"; }
+stamp_file() { echo "$(git -C "$1" rev-parse --path-format=absolute --git-dir)/agent-verify-passed"; }
 
 # run_hook <payload-cwd> <command> [background] [interrupted]
 run_hook() {

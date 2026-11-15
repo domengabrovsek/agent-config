@@ -10,7 +10,7 @@ description: "Create a merge request or pull request from the current branch: ve
 **why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
 1. **Make sure the full gate passed at HEAD**: hard-fail on any failure. Do not proceed to push, title generation, or PR ceremony if the gate fails `(review-time: see section note)`
-   - Repo declares `verify` in package.json: skip the run when `<git-dir>/verify-passed` equals HEAD and the tree is clean. Otherwise run `/verify-done`, which runs `npm run verify` once. The PR-open hook blocks without that stamp `(hook)`
+   - Repo declares `verify` in package.json: skip the run when `<git-dir>/agent-verify-passed` equals HEAD and the tree is clean. Otherwise run `/verify-done`, which runs `npm run verify` once. The PR-open hook blocks without that stamp `(hook)`
    - Otherwise run `/verify-done`. It pre-empts the most common CI failures before they cost a CI run `(review-time: see section note)`
 2. **Detect VCS platform**: check for `.gitlab-ci.yml` (-> glab) or `.github/` (-> gh) `(review-time: see section note)`
 3. **Determine base branch**: `(review-time: see section note)`

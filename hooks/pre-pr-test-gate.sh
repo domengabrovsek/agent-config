@@ -5,8 +5,9 @@
 # Exit code 2 blocks the action and sends the error message to Claude.
 #
 # In a repo that declares a `verify` script, post-verify-stamp.sh records each
-# full pass by writing HEAD to `<git-dir>/verify-passed`. This hook only reads
-# that stamp: the full run takes minutes, longer than a hook may block. A draft
+# full pass by writing HEAD to `<git-dir>/agent-verify-passed`. This hook only
+# reads that stamp: the full run takes minutes, longer than a hook may block.
+# It ignores `<git-dir>/verify-passed`, which sandboxed commands can write. A draft
 # PR skips the stamp check, because `gh pr ready` checks it before anyone
 # reviews.
 # A repo without `verify` gets `npm test` on create, run here.
@@ -66,7 +67,7 @@ cd "$PROJECT_ROOT" || exit 0
 
 if has_script verify; then
   [ "$ACTION" = create ] && [ -n "$DRAFT" ] && exit 0
-  STAMP="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null)/verify-passed"
+  STAMP="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null)/agent-verify-passed"
   HEAD_SHA=$(git rev-parse HEAD 2>/dev/null)
   if [ -n "$HEAD_SHA" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "$HEAD_SHA" ] \
     && [ -z "$(git status --porcelain 2>/dev/null)" ]; then

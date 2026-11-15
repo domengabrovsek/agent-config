@@ -1,7 +1,12 @@
 #!/bin/bash
 # PostToolUse hook: after a foreground `npm run verify` succeeds on a clean
-# tree, write HEAD to <git-dir>/verify-passed. pre-pr-test-gate.sh reads that
-# stamp before `gh pr create` and `gh pr ready`.
+# tree, write HEAD to <git-dir>/agent-verify-passed. pre-pr-test-gate.sh reads
+# that stamp before `gh pr create` and `gh pr ready`.
+#
+# The name differs from <git-dir>/verify-passed, which a repo's own verify
+# script may write from inside the sandbox. Deny rules keep sandboxed commands
+# and the Edit and Write tools away from agent-verify-passed, and this hook
+# runs outside the sandbox, so only it can write the stamp the gate trusts.
 #
 # PostToolUse fires only when the Bash call exits 0, so success is the exit
 # code of the whole command. The command must therefore be `npm run verify`
@@ -70,7 +75,7 @@ GIT_DIR=$(git rev-parse --path-format=absolute --git-dir 2>/dev/null) || exit 0
 HEAD_SHA=$(git rev-parse HEAD 2>/dev/null) || exit 0
 [ -z "$(git status --porcelain 2>/dev/null)" ] || exit 0
 
-printf '%s\n' "$HEAD_SHA" > "$GIT_DIR/verify-passed" || exit 0
+printf '%s\n' "$HEAD_SHA" > "$GIT_DIR/agent-verify-passed" || exit 0
 
 emit_context PostToolUse "[verify-stamp] Recorded a verify pass for HEAD $HEAD_SHA in $DIR."
 exit 0
