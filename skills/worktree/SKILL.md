@@ -20,20 +20,22 @@ The slug must be lowercase, hyphen-separated, no spaces.
 
 Default to `feat/<slug>`. If the user's request looks like a bug fix, use `fix/<slug>`. For cleanups, `chore/<slug>`.
 
+## Location
+
+Worktrees live at `<repo-root>/.claude/worktrees/<slug>`, the directory Claude Code's `EnterWorktree` tool uses. Agent teammates with `isolation: "worktree"` land there too. The path sits inside the session's working directory, so the sandbox lets the session write to it.
+
 ## Steps
 
 1. Find the repo root: `git rev-parse --show-toplevel`. Refuse if not inside a git repo.
-2. Compute target dir: `<repo-parent>/<repo-basename>-<slug>`. Refuse if it already exists (offer to `cd` into the existing one instead).
-3. Create the worktree on a new branch:
+2. Check that `git check-ignore -q .claude/worktrees/x` succeeds. If it fails, add `.claude/worktrees/` to `.gitignore` in the new worktree and commit it with the task. Otherwise the main checkout lists every worktree as untracked.
+3. If `<repo-root>/.claude/worktrees/<slug>` already exists, offer to enter it with `EnterWorktree` and `path` instead of creating a new one.
+4. Create and enter the worktree with `EnterWorktree` and `name: "<slug>"`. It branches from `origin/<default-branch>` on a branch named `worktree-<slug>`, and moves the session into the worktree.
+5. Rename the branch to the chosen type: `git branch -m "<branch>"`.
+6. If `package-lock.json` exists, run `npm ci`. If only `package.json` exists, run `npm install --no-package-lock`, because `npm ci` needs a lockfile. The worktree holds only tracked files, and the push hooks need `node_modules`.
+7. If `git config core.hooksPath` is `.husky/_`, check that `.husky/_` exists. If it does not, stop and report it: git skips every repo hook without a word, and the pre-push gate blocks the push.
+8. Report the new working dir and branch name, then continue with the task.
 
-   ```bash
-   git worktree add "<target>" -b "<branch>"
-   ```
-
-4. `cd` into the worktree dir for all subsequent operations.
-5. If `package-lock.json` exists, run `npm ci`. If only `package.json` exists, run `npm install --no-package-lock`, because `npm ci` needs a lockfile. The worktree holds only tracked files, and the push hooks need `node_modules`.
-6. If `git config core.hooksPath` is `.husky/_`, check that `.husky/_` exists. If it does not, stop and report it: git skips every repo hook without a word, and the pre-push gate blocks the push.
-7. Report the new working dir and branch name, then continue with the task.
+A host without `EnterWorktree` creates the same layout itself: `git worktree add "<repo-root>/.claude/worktrees/<slug>" -b "<branch>" origin/<default-branch>`, then `cd` into it.
 
 ## After creation
 

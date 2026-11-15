@@ -22,10 +22,15 @@ If the branch is not safe to remove, stop and explain what's still pending (unpu
    BRANCH=$(git rev-parse --abbrev-ref HEAD)
    ```
 
-2. Move out of the worktree to the main checkout (`cd "$(git rev-parse --git-common-dir)/.."`).
-3. Remove the worktree: `git worktree remove "$WORKTREE"`. If it has uncommitted changes and `--force` was passed, use `git worktree remove --force "$WORKTREE"`.
-4. Delete the local branch: `git branch -d "$BRANCH"` (or `-D` with `--force`).
-5. Report what was cleaned up.
+2. If this session created the worktree with `EnterWorktree` and `name`, call `ExitWorktree` with `action: "remove"`. It returns the session to the main checkout and deletes both the worktree and its branch.
+   - A squash-merged branch has commits that are not on the default branch, so the tool refuses. Retry with `discard_changes: true` only when the precondition check passed and `git status --porcelain` printed nothing.
+   - Ask the user before discarding uncommitted files, even with `--force`.
+3. Otherwise the worktree came from an earlier session, a teammate, or `EnterWorktree` with `path`, and `ExitWorktree` will not remove it:
+   1. Call `ExitWorktree` with `action: "keep"` if this session entered it, else `cd "$(git rev-parse --git-common-dir)/.."`.
+   2. Remove the worktree: `git worktree remove "$WORKTREE"`, adding `--force` only when `--force` was passed.
+   3. Delete the local branch: `git branch -d "$BRANCH"` (or `-D` with `--force`).
+   4. If the sandbox refuses to write `.git/worktrees/`, give the user both commands to run with the `!` prefix.
+4. Report what was cleaned up.
 
 ## After cleanup
 
@@ -38,4 +43,4 @@ When several lane-mode teammates finish, merge their branches into the integrati
 1. Review each teammate's diff for correctness.
 2. Merge one branch. Resolve any conflict with `/resolve-conflicts` before merging the next.
 3. After the last merge, run the full test suite, typecheck, and lint.
-4. Prune the worktrees: `~/.agents/scripts/worktree-prune.sh --apply`. It removes only unlocked worktrees whose branch is merged, squash-merged, or upstream-gone with nothing unpushed, which is the post-merge state. Lane worktrees stay locked while their teammate runs, so they survive until it finishes.
+4. Prune the worktrees: `~/.agents/scripts/worktree-prune.sh --apply`. It removes only unlocked worktrees whose branch is merged, squash-merged, or upstream-gone with nothing unpushed, which is the post-merge state. Lane worktrees under `.claude/worktrees/` stay locked while their teammate runs, so they survive until it finishes.

@@ -81,7 +81,7 @@ Rows marked **user** start only when you type them.
 | `summarize` | model | Writes a session diary, then prunes merged worktrees |
 | `handoff` | model | Compacts the conversation into a doc a fresh session can pick up |
 | `wait-what` | **user** | Restates the last reply in simpler terms |
-| `worktree` | model | Creates a worktree for the current task and switches into it |
+| `worktree` | model | Creates a worktree under `.claude/worktrees/` for the current task and switches into it |
 | `worktree-merge` | model | Removes a merged worktree and its local branch |
 | `worktrees` | model | Audits or prunes worktrees in this repo or across `~/dev` |
 
