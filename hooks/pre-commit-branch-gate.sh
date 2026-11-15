@@ -10,6 +10,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/husky-hooks.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/husky-hooks.sh"
 
 INPUT=$(cat)
 first_run_for_call "$INPUT" pre-commit-branch-gate || exit 0
@@ -31,6 +33,11 @@ if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
   echo "Run the commit from inside the repo, or name it with git -C <repo>." >&2
   exit 2
 fi
+
+# A new worktree's husky hooks must exist before its first commit, or git
+# skips pre-commit and commit-msg for it.
+TOP=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)
+[ -n "$TOP" ] && restore_husky_hooks "$TOP" "$(git -C "$DIR" config --local --get core.hooksPath 2>/dev/null)"
 
 # Detached HEAD prints nothing: no branch to protect.
 BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)

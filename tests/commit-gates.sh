@@ -150,4 +150,25 @@ chmod 500 "$ONCE_TMP"
 check_once "$(once_exit toolu_c commit "$ONCE_TMP/missing")" "2" "an unwritable claim dir still runs the gate"
 chmod 700 "$ONCE_TMP"
 
+# A new worktree's husky hooks are restored before its first commit, so git
+# runs pre-commit and commit-msg for it.
+BRANCH_GATE="$PROJECT_DIR/hooks/pre-commit-branch-gate.sh"
+MAIN="$ONCE_TMP/husky-main"
+LINKED="$ONCE_TMP/husky-linked"
+git init -q "$MAIN"
+mkdir -p "$MAIN/.husky/_"
+printf '#!/bin/sh\nexit 0\n' > "$MAIN/.husky/_/pre-commit"
+chmod +x "$MAIN/.husky/_/pre-commit"
+printf '.husky/_\n' > "$MAIN/.gitignore"
+git -C "$MAIN" config core.hooksPath .husky/_
+git -C "$MAIN" add -A
+git -C "$MAIN" -c user.name=t -c user.email=t@t commit -qm init --no-verify
+git -C "$MAIN" worktree add -q -b feature/husky "$LINKED" >/dev/null 2>&1
+payload "git commit -m 'fix: x'" "$LINKED" | (cd "$ONCE_TMP" && bash "$BRANCH_GATE" >/dev/null 2>&1)
+if [ -x "$LINKED/.husky/_/pre-commit" ]; then
+  pass "the commit gate restores a new worktree's husky hooks"
+else
+  fail "the commit gate restores a new worktree's husky hooks"
+fi
+
 finish
