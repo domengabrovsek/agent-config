@@ -346,6 +346,29 @@ check "the differing-state check compares against the main checkout" \
   says "-> not removed: .claude/state/specs/spec.md differs from the main checkout"
 
 echo
+echo "== built-in worktrees under .claude/worktrees =="
+REPO="$TEST_ROOT/builtin"
+NESTED="$REPO/.claude/worktrees"
+git init -q -b main "$REPO"
+printf '.claude/state/\n.claude/worktrees/\n' > "$REPO/.gitignore"
+git -C "$REPO" add .gitignore
+git -C "$REPO" commit -q -m "initial"
+git -C "$REPO" worktree add -q -b worktree-merged "$NESTED/merged" main
+printf 'merged\n' > "$NESTED/merged/merged.txt"
+git -C "$NESTED/merged" add merged.txt
+git -C "$NESTED/merged" commit -q -m "work on merged"
+merge_no_ff "$REPO" worktree-merged
+mkdir -p "$NESTED/merged/.claude/state/plans"
+printf 'plan\n' > "$NESTED/merged/.claude/state/plans/plan.md"
+git -C "$REPO" worktree add -q -b worktree-fresh "$NESTED/fresh" main
+run_prune "$REPO" --apply
+check "a merged worktree under .claude/worktrees is removed" absent "$NESTED/merged"
+check "its branch is deleted" no_branch "$REPO" worktree-merged
+check "its state is copied into the main checkout around it" \
+  grep -qx plan "$REPO/.claude/state/plans/plan.md"
+check "a fresh worktree under .claude/worktrees survives" test -d "$NESTED/fresh"
+
+echo
 echo "== SessionEnd hook =="
 REPO="$TEST_ROOT/hook"
 WT="$REPO.wt"

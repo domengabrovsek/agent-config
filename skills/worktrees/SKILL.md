@@ -11,6 +11,10 @@ Run worktree cleanup: $ARGUMENTS
 - **`--apply`**: actually remove the SAFE worktrees and delete their local branches.
 - **`--all`**: switch to cross-repo audit. Walks `~/dev/` (or `--root <path>`) up to 4 levels deep, finds every git repo, runs the same SAFE / KEEP report per repo. Combine with `--apply` for bulk removal.
 
+## Scope
+
+The script judges every worktree `git worktree list` reports. That covers `.claude/worktrees/<slug>` from `/worktree` and `EnterWorktree`, Agent lanes with `isolation: "worktree"`, and worktrees made anywhere else. For the worktree the current session entered with `EnterWorktree`, use `/worktree-merge` instead: the script skips the tree it runs in.
+
 ## Implementation
 
 Strip the `--all` flag from `$ARGUMENTS` and dispatch:
