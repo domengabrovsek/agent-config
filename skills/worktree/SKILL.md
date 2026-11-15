@@ -27,7 +27,7 @@ Worktrees live at `<repo-root>/.claude/worktrees/<slug>`, the directory Claude C
 ## Steps
 
 1. Find the repo root: `git rev-parse --show-toplevel`. Refuse if not inside a git repo.
-2. Check that `git check-ignore -q .claude/worktrees/x` succeeds. If it fails, append `.claude/worktrees/` to `$(git rev-parse --git-common-dir)/info/exclude` now. Otherwise the main checkout lists every worktree as untracked.
+2. Check that `git -C "<repo-root>" check-ignore -q .claude/worktrees/x` succeeds. If it fails, append `.claude/worktrees/` to `$(git rev-parse --git-common-dir)/info/exclude` now. Otherwise the main checkout lists every worktree as untracked.
 3. If `<repo-root>/.claude/worktrees/<slug>` already exists, offer to enter it with `EnterWorktree` and `path` instead of creating a new one.
 4. Create and enter the worktree with `EnterWorktree` and `name: "<slug>"`. It branches from `origin/<default-branch>` on a branch named `worktree-<slug>`, and moves the session into the worktree.
 5. Rename the branch to the chosen type: `git branch -m "<branch>"`.
