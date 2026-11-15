@@ -25,19 +25,21 @@ esac
 parse_git_command "$COMMAND" "$CWD" commit || exit 0
 git_args_ask_help && exit 0
 
+DIR=$GIT_REPO_DIR
+
+# A new worktree's husky hooks must exist before its first commit, or git
+# skips pre-commit and commit-msg for it. Runs before the bypass, which
+# allows a commit to main and does not turn off the repo's own hooks.
+TOP=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)
+[ -n "$TOP" ] && restore_husky_hooks "$TOP" "$(git -C "$DIR" config --local --get core.hooksPath 2>/dev/null)"
+
 [ "$SKIP_COMMIT_BRANCH_GATE" = "1" ] && exit 0
 
-DIR=$GIT_REPO_DIR
 if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
   echo "[pre-commit-branch-gate] $DIR is not a git repo, so the commit's branch cannot be checked." >&2
   echo "Run the commit from inside the repo, or name it with git -C <repo>." >&2
   exit 2
 fi
-
-# A new worktree's husky hooks must exist before its first commit, or git
-# skips pre-commit and commit-msg for it.
-TOP=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)
-[ -n "$TOP" ] && restore_husky_hooks "$TOP" "$(git -C "$DIR" config --local --get core.hooksPath 2>/dev/null)"
 
 # Detached HEAD prints nothing: no branch to protect.
 BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)

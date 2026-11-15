@@ -164,11 +164,12 @@ git -C "$MAIN" config core.hooksPath .husky/_
 git -C "$MAIN" add -A
 git -C "$MAIN" -c user.name=t -c user.email=t@t commit -qm init --no-verify
 git -C "$MAIN" worktree add -q -b feature/husky "$LINKED" >/dev/null 2>&1
-payload "git commit -m 'fix: x'" "$LINKED" | (cd "$ONCE_TMP" && bash "$BRANCH_GATE" >/dev/null 2>&1)
+payload "git commit -m 'fix: x'" "$LINKED" \
+  | (cd "$ONCE_TMP" && SKIP_COMMIT_BRANCH_GATE=1 bash "$BRANCH_GATE" >/dev/null 2>&1)
 if [ -x "$LINKED/.husky/_/pre-commit" ]; then
-  pass "the commit gate restores a new worktree's husky hooks"
+  pass "the commit gate restores a new worktree's husky hooks, bypass or not"
 else
-  fail "the commit gate restores a new worktree's husky hooks"
+  fail "the commit gate restores a new worktree's husky hooks, bypass or not"
 fi
 
 finish
