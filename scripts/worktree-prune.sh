@@ -410,9 +410,9 @@ registry_entry_live() {
 }
 
 # compact_registry <file> <stale-list>: rewrite <file> without stale entries,
-# blanks, or repeats. It re-reads the file at write time, so a line another
-# session appended during the prune survives; tmp file plus mv keeps readers
-# from seeing a half-written file.
+# blanks, or repeats. It re-reads the file at write time, so an append that
+# finished before that read survives. A later one is lost, and its repo is
+# skipped until it registers again. Tmp file plus mv hides a half-written file.
 compact_registry() {
   local reg="$1" stale="$2" tmp line kept=""
   tmp=$(mktemp "$reg.XXXXXX" 2>/dev/null) || return 0
