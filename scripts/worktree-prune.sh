@@ -36,7 +36,7 @@ while [ $# -gt 0 ]; do
     --root)  ROOT="${2:-}"; shift ;;
     audit-all) MODE=audit-all ;;
     -h|--help)
-      sed -n '2,16p' "$0"
+      sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;

@@ -26,11 +26,13 @@ jobs:
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: domengabrovsek/github-actions/.github/actions/checkout@main
+      - name: Check out and set up Node
+        uses: domengabrovsek/github-actions/.github/actions/setup-node-npm@main
+        with:
+          install: 'false'
 
       - name: Check always-loaded rule budget
-        run: ./scripts/config-budget.sh
+        run: npm run check:budget
 
   tests:
     name: Extension Tests
@@ -50,49 +52,29 @@ jobs:
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: domengabrovsek/github-actions/.github/actions/checkout@main
+      - name: Check out and set up Node
+        uses: domengabrovsek/github-actions/.github/actions/setup-node-npm@main
+        with:
+          install: 'false'
 
       - name: Check tracked configuration
-        run: ./scripts/config-integrity.sh
+        run: npm run check:config
 
       - name: Lint shell scripts
-        run: ./scripts/shellcheck-all.sh
+        run: npm run lint:shell
 
   shell-tests:
     name: Shell Tests
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: domengabrovsek/github-actions/.github/actions/checkout@main
+      - name: Check out and set up Node
+        uses: domengabrovsek/github-actions/.github/actions/setup-node-npm@main
+        with:
+          install: 'false'
 
-      # The glob picks up a new suite without a workflow edit. The suites run
-      # in parallel, each into its own log, because each one works in its own
-      # temp dir. The logs print in glob order, one group per suite, and the
-      # step fails after listing every failed suite.
       - name: Run every shell suite
-        run: |
-          logs="$RUNNER_TEMP/shell-suites"
-          mkdir -p "$logs"
-          suites=(tests/*.sh)
-          pids=()
-          for t in "${suites[@]}"; do
-            bash "$t" > "$logs/$(basename "$t").log" 2>&1 &
-            pids+=("$!")
-          done
-          failed=""
-          for i in "${!suites[@]}"; do
-            t=${suites[$i]}
-            if wait "${pids[$i]}"; then result=passed; else result=FAILED; failed="$failed $t"; fi
-            echo "::group::$t ($result)"
-            cat "$logs/$(basename "$t").log"
-            echo "::endgroup::"
-          done
-          if [ -n "$failed" ]; then
-            echo "::error::Failed suites:$failed"
-            exit 1
-          fi
+        run: npm run test:shell
 
   # ==============================================
   # Gate
