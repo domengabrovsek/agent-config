@@ -103,6 +103,17 @@ Agents never use your gcloud login. A `SessionStart` hook sets `CLOUDSDK_CONFIG`
 
 Anything that needs your own rights, such as a PAM grant or a write, you run yourself outside the agent session.
 
+## Run from a home repo
+
+The [home repo pattern](https://aihero.dev/the-home-repo-pattern) runs one session from a single repo, the home repo. Each task goes to a sibling repo under `~/dev` and gets its own worktree and PR there.
+
+- Start the session in the home repo's main checkout with `claude`, not `claude -w`. A worktree-isolated session may only touch its own worktree, so it cannot reach a sibling repo.
+- Reach a child repo with `/worktree --repo <path> <slug>`. It runs `~/.agents/scripts/repo-worktree.sh`, which creates `<repo>/.claude/worktrees/<slug>` and lists the repo in `~/.cache/agent/worktree-repos` for cleanup. The session then works there with `git -C` and absolute paths. The sandbox lets a session write every repo under `~/dev`.
+- Subagent `isolation: "worktree"` and `EnterWorktree` create worktrees only in the launch repo. For a child repo, create the worktree first and brief the subagent to work in its path, as `/drive-fleet` does.
+- Push with `git push origin <branch>`. The new branch has no upstream, and `-u` would write `.git/config`.
+- Clean up a merged child worktree with `/worktree-merge <worktree-path>`.
+- To load a child repo's `CLAUDE.md`, add the repo with `--add-dir <path>` and set `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`. The variable applies only to directories added with `--add-dir`.
+
 ## Keep runtime state out of commits
 
 Claude Code and Pi write runtime keys into `settings.json`. The two `git config` lines in the [quick start](../README.md#quick-start) install a clean filter that strips them. `.gitattributes` applies the filter to `settings.json` and `pi/settings.json`.
