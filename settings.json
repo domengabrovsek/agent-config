@@ -3,7 +3,12 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/session-focus:~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts",
-    "NODE_USE_ENV_PROXY": "1"
+    "NODE_USE_ENV_PROXY": "1",
+    "STORYBOOK_DISABLE_TELEMETRY": "1"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
   },
   "permissions": {
     "allow": [
@@ -453,6 +458,11 @@
             "type": "command",
             "command": "[ -n \"$CLAUDE_ENV_FILE\" ] && echo 'export CLOUDSDK_CONFIG=\"$HOME/.config/gcloud-agent\"' >> \"$CLAUDE_ENV_FILE\" || true",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "[ -n \"$CLAUDE_ENV_FILE\" ] && echo '[ -f \"$HOME/.claude/hooks/lib/agent-shell.sh\" ] && . \"$HOME/.claude/hooks/lib/agent-shell.sh\"' >> \"$CLAUDE_ENV_FILE\" || true",
+            "timeout": 5
           }
         ]
       }
@@ -536,7 +546,10 @@
         "registry.terraform.io",
         "releases.hashicorp.com",
         "context7.com",
-        "*.context7.com"
+        "*.context7.com",
+        "auth.docker.io",
+        "registry-1.docker.io",
+        "production.cloudflare.docker.com"
       ],
       "allowLocalBinding": true,
       "allowAllUnixSockets": true

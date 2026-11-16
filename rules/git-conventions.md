@@ -13,6 +13,10 @@ Hooks and deny rules back these. Know them to avoid hitting the gate.
 - Rebase onto the target branch (`git fetch origin main && git rebase origin/main`) before opening a PR. Update an open PR with `gh pr update-branch`, never a force-push `(review-time: no hook checks this)`
 - Pushes run the repo's `verify:fast` when declared. Open or ready a PR only after `npm run verify` passes at HEAD `(hook)`
 
+## Sandbox limits
+
+- The sandbox makes `.git/config` read-only. Branch with `git switch --no-track -c <branch> origin/main` and push with `git push origin <branch>`, never `-u` `(review-time: the sandbox fails the command halfway, no hook rewrites it)`
+
 ## Judgment calls
 
 - Commit, push, and open the PR for feature-branch work without asking once its checks pass `(review-time: requires judging that the checks ran)`

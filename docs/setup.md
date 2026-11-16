@@ -57,13 +57,16 @@ Claude Code gets `CLAUDE.md` because it reads `AGENTS.md` only at project level.
 
 ## Claude Code environment
 
-The `env` block in `settings.json` sets three variables for every Claude Code session:
+The `env` block in `settings.json` sets four variables for every Claude Code session:
 
 | Variable | Value | Enables |
 | --- | --- | --- |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Claude Code's experimental agent teams feature, for the teammates that lane and panel mode spawn |
 | `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts` | Loads the [pr-band](../mods/pr-band/README.md), [pr-fleet](../mods/pr-fleet/README.md), and [alerts](../mods/alerts/README.md) mods from the linked `mods/` dir |
 | `NODE_USE_ENV_PROXY` | `1` | Node's built-in `fetch` through the sandbox proxy. See [the sandbox](#claude-code-sandbox) |
+| `STORYBOOK_DISABLE_TELEMETRY` | `1` | Stops Storybook telemetry calls, which the sandbox would refuse on every build |
+
+`attribution` is empty for commits and PRs, so Claude Code does not ask for the trailers and footers the commit and PR gates refuse.
 
 ## Claude Code sandbox
 
@@ -73,7 +76,7 @@ The `env` block in `settings.json` sets three variables for every Claude Code se
 | --- | --- |
 | Reads | Every `Read(...)` deny rule also blocks subprocesses, so no command reads `~/.config/gcloud`, `~/.aws`, or `~/.ssh`. `allowRead` reopens `~/.config/gh/hosts.yml`, so `gh` works |
 | Writes | The working directory, every repo under `~/dev`, plus `~/.npm`, `~/.terraform.d/plugin-cache`, the agent gcloud dir, `~/.cache/gh`, `~/.cache/pentla-shared.git`, and the build lock, activity, and refs under `~/.docker/buildx`. The rest of `~/.docker/buildx` stays read-only, because it chooses and configures the builder. On macOS only, each repo's `.husky` dir under `~/dev` and its `.claude` settings files, `hooks`, `skills`, `agents`, and `commands` stay read-only, so a command cannot plant a hook that runs outside the sandbox. A new worktree's install therefore cannot create `.husky/_`; the commit and push gates, which run outside the sandbox, copy it from the main worktree. `.claude/state` and `.claude/worktrees` stay writable. The links in `~/.claude`, `~/.agents`, and `~/.pi/agent` are read-only, and on macOS so are their targets in the checkout, wherever it lives, so there a command cannot turn the sandbox off. `.git/hooks` is read-only in every repo under your home, on macOS only. See the known gaps below |
-| Network | The listed hosts pass. A new host prompts once. `allowLocalBinding` and `allowAllUnixSockets` let tools such as tflint plugins open local sockets. `enableWeakerNetworkIsolation` lets Go tools such as `gh` verify TLS certificates |
+| Network | The listed hosts pass, including the Docker Hub auth, registry, and blob hosts for image pulls. A new host prompts once. `allowLocalBinding` and `allowAllUnixSockets` let tools such as tflint plugins open local sockets. `enableWeakerNetworkIsolation` lets Go tools such as `gh` verify TLS certificates |
 | Escapes | None. `docker` stays sandboxed, but see the socket gap below |
 | Node | `NODE_USE_ENV_PROXY=1` makes Node's built-in `fetch` use the sandbox proxy. Without it, tools such as `npx ctx7` fail with `fetch failed` |
 
