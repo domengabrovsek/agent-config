@@ -59,7 +59,7 @@ These run before the tool call and can block it. The rows follow registry order.
 | `pre-commit-coauthor-gate.sh` | `git commit`, including `git -C <dir> commit` | The command contains a `Co-authored-by` trailer | `SKIP_COAUTHOR_GATE` |
 | `pre-commit-conventional-gate.sh` | `git commit`, including `git -C <dir> commit` | The subject is not a conventional commit | `SKIP_CONVENTIONAL_GATE` |
 | `prose-gate.sh` | `git commit`, including `git -C <dir> commit`, `gh pr create`, `gh pr edit` | The message or body uses a blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
-| `pre-pr-body-gate.sh` | `gh pr` and `gh issue` create or edit | The title or body has AI attribution or a `.claude/state/` path. Commands chained before or after the `gh` call are not checked, unless the body is unreadable or the call expands a variable | `SKIP_PR_BODY_GATE` |
+| `pre-pr-body-gate.sh` | `gh pr` and `gh issue` create or edit | The title or body has AI attribution or a `.claude/state/` path. Commands chained before or after the `gh` call are not checked, unless the body is unreadable, the call expands a variable, or the command also names the body file | `SKIP_PR_BODY_GATE` |
 | `pre-pr-reply-gate.sh` | `gh api`, `gh pr comment`, `gh pr review`, `gh issue comment` | The call replies inline to a human's comment, a comment lacks the agent footer, or a `gh api` comment is one the gate cannot read: `--input`, a GraphQL comment or reply mutation, or a variable `in_reply_to`. A `--body-file "$f"` passes when the same command sets `f`, or loops it, over literal paths whose files each end with the footer | `SKIP_REPLY_FOOTER`, footer check only |
 | `pre-edit-test-lock.sh` | Write, Edit | Anyone but the QA Expert edits a test listed in `tests.lock` | None |
 
