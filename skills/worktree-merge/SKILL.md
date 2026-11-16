@@ -1,13 +1,17 @@
 ---
 name: worktree-merge
-description: "Cleans up a worktree after its branch has been merged: removes the worktree directory and deletes the local branch. Use when the user says '/worktree-merge' or asks to clean up a merged worktree."
+description: "Cleans up a worktree after its branch has been merged: removes the worktree directory and deletes the local branch, in this repo or any other. Use when the user says '/worktree-merge [<worktree-path>]' or asks to clean up a merged worktree."
 ---
 
-Clean up the current worktree: $ARGUMENTS
+Clean up a worktree: $ARGUMENTS
+
+## Target
+
+If $ARGUMENTS holds a path, the target is the worktree at that path, in any repo. Otherwise it is the worktree holding `$PWD`. Every git command below runs with `git -C`, so it works without `cd`.
 
 ## Preconditions
 
-- Current `$PWD` must be inside a worktree (not the main checkout). Verify with `git rev-parse --git-dir != --git-common-dir`.
+- The target must be a linked worktree, not a main checkout. Verify with `git -C "$WORKTREE" rev-parse --git-dir != --git-common-dir`.
 - The worktree's branch must be safely removable: merged into the default branch, or its upstream is `gone` and `git rev-list "$BRANCH" --not --remotes` prints nothing, or the user explicitly passes `--force`. A gone upstream alone does not prove the commits landed.
 - Ignored files under the worktree's `.claude/state/` are deleted with it. Copy any the main checkout lacks into the main checkout's `.claude/state/` first.
 
@@ -15,23 +19,25 @@ If the branch is not safe to remove, stop and explain what's still pending (unpu
 
 ## Steps
 
-1. Capture worktree path and branch name:
+1. Capture the worktree, its main checkout, and its branch. `TARGET` is the path argument, or `.` without one:
 
    ```bash
-   WORKTREE=$(git rev-parse --show-toplevel)
-   BRANCH=$(git rev-parse --abbrev-ref HEAD)
+   WORKTREE=$(git -C "$TARGET" rev-parse --show-toplevel)
+   MAIN=$(git -C "$WORKTREE" worktree list --porcelain | sed -n '1s/^worktree //p')
+   BRANCH=$(git -C "$WORKTREE" branch --show-current)
    ```
 
 2. If this session created the worktree with `EnterWorktree` and `name`, call `ExitWorktree` with `action: "remove"`. It returns the session to the main checkout and deletes both the worktree and its branch.
    - A squash-merged branch has commits that are not on the default branch, so the tool refuses. Retry with `discard_changes: true` only when the precondition check passed and `git status --porcelain` printed nothing.
    - Ask the user before discarding uncommitted files, even with `--force`.
    - `/worktree` renames the branch after creation, so the tool may leave it behind. If `git show-ref --verify --quiet "refs/heads/$BRANCH"` still succeeds, delete it with `git branch -d "$BRANCH"`, or `-D` once the precondition check passed.
-3. Otherwise the worktree came from an earlier session, a teammate, or `EnterWorktree` with `path`, and `ExitWorktree` will not remove it:
-   1. Call `ExitWorktree` with `action: "keep"` if this session entered it, else `cd "$(git rev-parse --git-common-dir)/.."`.
-   2. Remove the worktree: `git worktree remove "$WORKTREE"`, adding `--force` only when `--force` was passed.
-   3. Delete the local branch: `git branch -d "$BRANCH"` (or `-D` with `--force`).
+3. Otherwise the worktree came from `/worktree --repo`, an earlier session, a teammate, or `EnterWorktree` with `path`, and `ExitWorktree` will not remove it:
+   1. If this session entered it, call `ExitWorktree` with `action: "keep"`.
+   2. Remove the worktree: `git -C "$MAIN" worktree remove "$WORKTREE"`, adding `--force` only when `--force` was passed.
+   3. Delete the local branch: `git -C "$MAIN" branch -d "$BRANCH"` (or `-D` with `--force`).
    4. If the sandbox refuses to write `.git/worktrees/`, give the user both commands to run with the `!` prefix.
-4. Report what was cleaned up.
+4. Prune that repo's other merged worktrees: `~/.agents/scripts/worktree-prune.sh --apply --repo "$MAIN"`.
+5. Report what was cleaned up.
 
 ## After cleanup
 

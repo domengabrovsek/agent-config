@@ -17,7 +17,7 @@ An orchestrator. You approve the spec. Everything after that runs without asking
 1. **Research**: run `/research` when the code is unfamiliar. Skip it for code already read this session `(review-time: see section note)`
 2. **Spec**: run `/spec`. Discovery asks one question at a time. The spec's Open Questions must be empty before you approve it. Notify with `~/.agents/scripts/notify.sh "Spec ready for review"` `(review-time: see section note)`
 3. **Set up**, after approval: `(review-time: see section note)`
-   - Create the branch and worktree with `/worktree <slug>`, and set the spec's `branch:` frontmatter `(review-time: see section note)`
+   - Create the branch and worktree with `/worktree <slug>`, adding `--repo <path>` when the task targets another repo, and set the spec's `branch:` frontmatter `(review-time: see section note)`
    - Write `tasks.md` with one line per stage, and tick stages as they finish `(review-time: see section note)`
    - Print this line for the user to paste as `/goal`, which keeps the session working across turns: `The PR for <spec> is open, every automated criterion passes at HEAD, and ~/.agents/scripts/pr-ready.sh prints READY or WAITING_ON_HUMAN for it.` The run continues without it `(review-time: see section note)`
 4. **Plan**: run `/plan`. It asks only about an architectural choice the spec left open `(review-time: see section note)`

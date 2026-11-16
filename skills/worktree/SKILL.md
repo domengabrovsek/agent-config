@@ -1,13 +1,13 @@
 ---
 name: worktree
-description: "Creates an isolated git worktree for the current task and switches into it, so the task never collides with the main checkout. Use when the user says '/worktree <slug>' or wants an isolated working copy for a new task."
+description: "Creates an isolated git worktree for the current task, in this repo or a sibling repo with --repo, so the task never collides with the main checkout. Use when the user says '/worktree <slug>', '/worktree --repo <path> <slug>', or wants an isolated working copy for a new task."
 ---
 
 Create a worktree for: $ARGUMENTS
 
 ## Slug
 
-If $ARGUMENTS is non-empty, treat the first argument as the slug.
+If $ARGUMENTS holds `--repo <path>`, take it out and follow [Another repo](#another-repo) after choosing the slug and branch. If $ARGUMENTS is still non-empty, treat the first argument as the slug.
 
 If $ARGUMENTS is empty:
 
@@ -40,6 +40,19 @@ A host without `EnterWorktree` creates the same layout itself: `git worktree add
 
 `EnterWorktree` also changes `$TMPDIR`, so a file written there before the switch is gone after it. Keep PR and comment bodies in the session scratchpad.
 
+## Another repo
+
+With `--repo <path>`, the worktree goes in that repo instead of the session's repo. This is the home repo flow: the session stays in its own repo and branches work in a sibling.
+
+It needs a session that is not itself worktree-isolated. A session started with `-w` or `EnterWorktree` may only touch its own worktree, so start in the home repo's main checkout. `EnterWorktree` only works in the session's launch repo, so this flow skips it.
+
+1. Run `~/.agents/scripts/repo-worktree.sh "<path>" "<slug>" --branch "<branch>"`. Add `--base <ref>` when the user names a base. The script fetches the base, creates `<main-checkout>/.claude/worktrees/<slug>` with no upstream, and prints its path as the last line.
+2. If the script refuses a dirty repo or an existing slug, report its error and stop.
+3. Work in the printed path without `cd`. Use `git -C "<worktree>"` for git and absolute paths for files and other commands.
+4. Run steps 7 and 8 from the steps above in that path.
+5. Push with `git push origin <branch>`, never `-u`. The script writes no `.git/config`, and the sandbox keeps it read-only.
+6. Report the worktree path and branch, then continue with the task.
+
 ## After creation
 
 The worktree is its own working tree, so the session can change files without colliding with the main checkout.
@@ -47,4 +60,4 @@ The worktree is its own working tree, so the session can change files without co
 When work is done:
 
 - Open a PR from the worktree's branch as normal.
-- After merge, run `/worktree-merge` to clean up the worktree and remove the local branch.
+- After merge, run `/worktree-merge` to clean up the worktree and remove the local branch. For a `--repo` worktree, pass its path: `/worktree-merge <worktree-path>`.
