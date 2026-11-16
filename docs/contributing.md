@@ -63,21 +63,32 @@ Edit `scripts/setup-hosts.sh`, update the link tables in [setup](setup.md), and 
 
 ## Run the checks
 
-CI runs these jobs on every pull request to `main`. Each job except Lint Markdown runs locally from the repo root.
+Run `npm run verify` from the repo root before you open a pull request. It runs every CI check except Lint Markdown. The CI jobs call the same npm scripts, so local and CI results match.
 
-| CI job | Local command | Checks |
+| CI job | npm script | Checks |
 | --- | --- | --- |
 | Lint Markdown | none; CI uses the shared markdownlint action | Every `*.md` file against `.markdownlint.json` |
-| Config Budget | `./scripts/config-budget.sh` | The always-loaded word and tag budgets |
+| Config Budget | `npm run check:budget` | The always-loaded word and tag budgets |
 | Extension Tests | `npm test` | `tests/*.test.ts`: the deny gate and the Pi extensions |
-| Config Integrity | `./scripts/config-integrity.sh` and `./scripts/shellcheck-all.sh` | JSON parses, no runtime keys committed, the git filter declared, shell lint |
-| Shell Tests | `for t in tests/*.sh; do bash "$t"; done` | Each `tests/*.sh` file: host setup, drift check, shared paths, dispatcher, status line, worktree pruning, every gate, and the prose gate fixtures plus every tracked Markdown file. CI runs the files in parallel, prints each log in its own group, and lists the failed ones at the end |
+| Config Integrity | `npm run check:config` and `npm run lint:shell` | JSON parses, no runtime keys committed, the git filter declared, shell lint |
+| Shell Tests | `npm run test:shell` | Each `tests/*.sh` file: host setup, drift check, shared paths, dispatcher, status line, worktree pruning, every gate, and the prose gate fixtures plus every tracked Markdown file. `scripts/run-shell-tests.sh` runs the files in parallel, prints each log, and lists the failed ones at the end. Under GitHub Actions each log is a collapsible group |
 
-- The agent push gate runs only part of this table. `package.json` declares only a `test` script, so `pre-push-gate.sh` runs `npm test` and a critical-only `npm audit`. Run every command in the table before you push.
+- The agent push gate runs `npm run verify:fast`, which is `npm test` plus the config budget.
 - The push gate blocks a push from any Node checkout without `node_modules`, even though `npm test` here needs no install. Run `npm ci` in a new worktree first.
 - `shellcheck-all.sh` installs `shellcheck` through `apt-get` or `brew` when it is missing.
 - `npm test` needs Node.js 22.19 or later and no install step.
 - A `Gate` job passes only when every job above passed or was skipped. Branch protection requires `Gate`, so the required check stays stable when jobs change.
+
+### Script conventions
+
+Every script in `scripts/` follows these rules:
+
+- A Bash script starts with `#!/bin/bash` and stays compatible with Bash 3.2, the macOS default.
+- A pass-or-fail check sets `set -euo pipefail`.
+- A script with several meaningful exit codes sets only `set -u`, so one failed command does not end it early. `pr-ready.sh` and `worktree-prune.sh` work this way.
+- `statusline.sh` stays POSIX `#!/bin/sh`, because it runs on every status line render.
+- A comment block under the shebang says what the script does, how to call it, and what its exit codes mean.
+- `--help` prints that block with `sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"`. The block ends at the first line that is not a comment.
 
 ## Review, dependencies, and notifications
 
