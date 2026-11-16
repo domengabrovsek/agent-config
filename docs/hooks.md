@@ -145,6 +145,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `commit-msg.sh` | The commit message and prose gates | Extracts the message from a `git commit` command and spots a reused one |
 | `attribution.sh` | The commit message and PR body gates | Finds the AI attribution `rules/git-conventions.md` bans |
 | `context.sh` | The verify stamp, PR watch, and PR state hooks | Prints the JSON that adds text to the model's context |
+| `config-repo.sh` | `config-autoupdate.sh`, `symlink-check.sh` | Finds the config checkout: `AGENT_CONFIG_REPO`, then `CLAUDE_DOTFILES_REPO`, then the target of the config dir's `hooks` link |
 | `state-roots.sh` | The test lock and the evidence gate | Finds `.claude/state/` in the main checkout, then in a worktree |
 | `once.sh` | The Bash hooks registered under several `if` rules | Lets only the first run on a tool call do the work, keyed by `tool_use_id` |
 
@@ -167,6 +168,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/post-edit-hooks.sh` | The three per-edit hooks |
 | `tests/symlink-check.sh` | The drift check |
 | `tests/config-autoupdate.sh` | The config fast-forward, and each case it skips |
+| `tests/config-repo.sh` | `hooks/lib/config-repo.sh`: override order and the hooks link |
 | `tests/worktree-prune.sh` | `scripts/worktree-prune.sh`, and the `worktree-cleanup.sh` hook that runs it |
 | `tests/once.sh` | `hooks/lib/once.sh`: claim dir mode, per-user fallback, fail-open |
 | `tests/herdr-pane-context.sh` | The herdr pane tokens in a checkout, a worktree, a submodule, and a bare repo |

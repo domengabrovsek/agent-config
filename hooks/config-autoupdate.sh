@@ -12,22 +12,18 @@
 # checkout left on a branch that is gone from the remote, as after a merge,
 # first switches back to the default branch.
 #
-# The checkout resolves like symlink-check.sh: AGENT_CONFIG_REPO, else the
-# target of this config dir's hooks link.
+# The checkout resolves through config_repo_dir in hooks/lib/config-repo.sh.
 #
 # Bypass with SKIP_CONFIG_AUTOUPDATE=1 in the environment.
 
 [ "$SKIP_CONFIG_AUTOUPDATE" = "1" ] && exit 0
 
+# shellcheck source=lib/config-repo.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/config-repo.sh"
+
 LIVE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-REPO="${AGENT_CONFIG_REPO:-}"
-if [ -z "$REPO" ]; then
-  HOOKS_LINK=$(readlink "$LIVE_DIR/hooks" 2>/dev/null)
-  case "$HOOKS_LINK" in
-    /*) REPO="${HOOKS_LINK%/hooks}" ;;
-  esac
-fi
-[ -n "$REPO" ] && git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || exit 0
+REPO=$(config_repo_dir "$LIVE_DIR") || exit 0
+git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
 say() { echo "[config-autoupdate] $1"; }
 
