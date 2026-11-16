@@ -57,15 +57,13 @@ Claude Code gets `CLAUDE.md` because it reads `AGENTS.md` only at project level.
 
 ## Claude Code environment
 
-The `env` block in `settings.json` sets four variables for every Claude Code session:
+The `env` block in `settings.json` sets three variables for every Claude Code session:
 
 | Variable | Value | Enables |
 | --- | --- | --- |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Claude Code's experimental agent teams feature, for the teammates that lane and panel mode spawn |
 | `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts` | Loads the [pr-band](../mods/pr-band/README.md), [pr-fleet](../mods/pr-fleet/README.md), and [alerts](../mods/alerts/README.md) mods from the linked `mods/` dir |
 | `NODE_USE_ENV_PROXY` | `1` | Node's built-in `fetch` through the sandbox proxy. See [the sandbox](#claude-code-sandbox) |
-| `STORYBOOK_DISABLE_TELEMETRY` | `1` | Stops Storybook telemetry calls, which the sandbox would refuse on every build |
-
 `attribution` is empty for commits and PRs, so Claude Code does not ask for the trailers and footers the commit and PR gates refuse.
 
 ## Claude Code sandbox
