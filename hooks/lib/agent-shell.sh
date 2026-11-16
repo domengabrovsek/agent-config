@@ -6,6 +6,12 @@
 
 unalias rm mv cp 2>/dev/null
 
+# Agents get their own cache root, the only writable dir under ~/.cache. Your
+# own tools never read it, so a poisoned cache entry or a hook planted in a
+# cached clone cannot run outside the sandbox through them.
+export XDG_CACHE_HOME="$HOME/.cache/agent"
+[ -d "$XDG_CACHE_HOME" ] || mkdir -p "$XDG_CACHE_HOME" 2>/dev/null
+
 # _agent_nvmrc_node: puts the node named by the nearest .nvmrc first on PATH.
 # A partial version such as `26` picks the newest installed match. An alias
 # such as `lts/*` or a version that is not installed leaves PATH unchanged.

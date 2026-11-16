@@ -49,6 +49,9 @@ for sh in bash zsh; do
   check_eq "a missing version leaves PATH alone" "$(node_after "$sh" "$TEST_ROOT/missing")" v24.22.3
   got=$("$sh" -c "alias rm='rm -i' 2>/dev/null; . '$PREAMBLE'; alias rm 2>/dev/null || echo none")
   check_eq "the rm alias is removed" "$got" none
+  got=$(HOME="$TEST_ROOT/home-$sh" "$sh" -c ". '$PREAMBLE'; echo \"\$XDG_CACHE_HOME\"; [ -d \"\$XDG_CACHE_HOME\" ] && echo made")
+  check_eq "the agent cache root is set and created" "$got" "$TEST_ROOT/home-$sh/.cache/agent
+made"
 done
 
 finish

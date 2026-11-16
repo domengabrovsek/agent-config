@@ -497,8 +497,7 @@
         "~/.npm",
         "~/.terraform.d/plugin-cache",
         "~/.config/gcloud-agent",
-        "~/.cache/pentla-shared.git",
-        "~/.cache/gh",
+        "~/.cache/agent",
         "~/.docker/buildx/.lock",
         "~/.docker/buildx/activity",
         "~/.docker/buildx/refs",
@@ -527,9 +526,7 @@
         "~/dev/**/.claude/skills",
         "~/dev/**/.claude/agents",
         "~/dev/**/.claude/commands",
-        "~/dev/**/.husky",
-        "~/.cache/pentla-shared.git/hooks",
-        "~/.cache/pentla-shared.git/config"
+        "~/dev/**/.husky"
       ],
       "allowRead": [
         "~/.config/gh/hosts.yml"
