@@ -1,4 +1,14 @@
 #!/bin/sh
+# Draws the Claude Code status line. Claude Code pipes the session JSON on
+# stdin, and the script prints one line of session state, such as the branch,
+# model, and context use. It stays POSIX sh because it runs on every render.
+#
+# Usage: statusline.sh [--help] < session.json
+
+case "${1:-}" in
+  -h|--help) sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"; exit 0 ;;
+esac
+
 # ANSI color codes
 RESET='\033[0m'
 BOLD='\033[1m'
