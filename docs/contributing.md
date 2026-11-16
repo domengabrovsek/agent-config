@@ -81,7 +81,7 @@ Run `npm run verify` from the repo root before you open a pull request. It runs 
 
 ### Script conventions
 
-Every script in `scripts/` follows these rules:
+New scripts in `scripts/`, and scripts you touch, follow these rules. Some older scripts do not yet. `setup-hosts.sh` and `setup-symlinks.sh`, for example, print help through their own `usage` text.
 
 - A Bash script starts with `#!/bin/bash` and stays compatible with Bash 3.2, the macOS default.
 - A pass-or-fail check sets `set -euo pipefail`.
