@@ -5,6 +5,8 @@ description: "Runs a grilling session that challenges a plan against the existin
 
 > Source: [mattpocock/skills - engineering/grill-with-docs](https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs)
 
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
+
 <what-to-do>
 
 Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
@@ -73,7 +75,7 @@ Don't couple `CONTEXT.md` to implementation details. Only include terms that are
 
 ### No ADRs from the grill
 
-ADR creation is explicit-ask only, via `/document adr "<title>"`. The grill records decisions in the exit plan, saved on agreement to `.claude/state/plans/YYYY-MM-DD-<topic>.md`, never in an ADR `(review-time: a proposal is free-form text no hook can see)`
+ADR creation is explicit-ask only, via `/document adr "<title>"`. The grill records decisions in the exit plan, saved on agreement to `$STATE/plans/YYYY-MM-DD-<topic>.md`, never in an ADR `(review-time: a proposal is free-form text no hook can see)`
 
 ## Panel grilling (optional)
 
