@@ -33,11 +33,10 @@ If the branch is not safe to remove, stop and explain what's still pending (unpu
    - `/worktree` renames the branch after creation, so the tool may leave it behind. If `git show-ref --verify --quiet "refs/heads/$BRANCH"` still succeeds, delete it with `git branch -d "$BRANCH"`, or `-D` once the precondition check passed.
 3. Otherwise the worktree came from `/worktree --repo`, an earlier session, a teammate, or `EnterWorktree` with `path`, and `ExitWorktree` will not remove it:
    1. If this session entered it, call `ExitWorktree` with `action: "keep"`.
-   2. Remove the worktree: `git -C "$MAIN" worktree remove "$WORKTREE"`, adding `--force` only when `--force` was passed.
-   3. Delete the local branch: `git -C "$MAIN" branch -d "$BRANCH"` (or `-D` with `--force`).
-   4. If the sandbox refuses to write `.git/worktrees/`, give the user both commands to run with the `!` prefix.
-4. Prune that repo's other merged worktrees: `~/.agents/scripts/worktree-prune.sh --apply --repo "$MAIN"`.
-5. Report what was cleaned up.
+   2. Run `~/.agents/scripts/worktree-prune.sh --apply --repo "$MAIN"`. It removes the worktree and deletes its branch when the branch is merged, squash-merged, or upstream-gone with nothing unpushed. That covers `--repo` branches, which have no upstream. It also prunes the repo's other merged worktrees.
+   3. If `git -C "$MAIN" worktree list` still shows `$WORKTREE`, report the verdict the script printed for it and stop.
+   4. If the sandbox refuses to write `.git/worktrees/`, give the user the prune command to run with the `!` prefix.
+4. Report what was cleaned up.
 
 ## After cleanup
 
