@@ -33,11 +33,12 @@
  * hooks/lib/deny-rules.ts dynamically at runtime.
  */
 
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import type { GateConfig } from '../../hooks/lib/deny-rules.ts';
+import { checkoutPath } from './lib/checkout.ts';
 
 type DenyRulesModule = typeof import('../../hooks/lib/deny-rules.ts');
 
@@ -146,16 +147,14 @@ const CONSUMER_DIR = 'pi-permission-system';
 
 export default async function (pi: ExtensionAPI) {
   const { getAgentDir } = await import('@earendil-works/pi-coding-agent');
-  /* The extension dir links into the checkout, so the checkout root is two
-   * levels above this module's real path. Pi loads the module by its symlinked
-   * path and does not resolve it, so a static import of hooks/lib would miss. */
-  const checkoutRoot = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '../..');
+  /* Pi loads the module by its symlinked path and does not resolve it, so a
+   * static import of hooks/lib would miss the checkout. */
   const { loadGateConfig }: DenyRulesModule = await import(
-    pathToFileURL(join(checkoutRoot, 'hooks/lib/deny-rules.ts')).href
+    pathToFileURL(checkoutPath(import.meta.url, 'hooks/lib/deny-rules.ts')).href
   );
 
   pi.on('session_start', (_event, ctx) => {
-    const sourcePath = join(checkoutRoot, 'settings.json');
+    const sourcePath = checkoutPath(import.meta.url, 'settings.json');
     const config = loadGateConfig(sourcePath);
 
     const failLoud = (message: string): void => {

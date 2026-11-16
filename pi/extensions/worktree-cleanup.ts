@@ -14,15 +14,14 @@
  * --apply) and the worktrees skill. Disable per-session with
  * HARNESS_DISABLE_WORKTREE_CLEANUP=1, or the legacy CLAUDE_ spelling.
  *
- * The module imports only node builtins at runtime, so `node --test` loads
- * it without resolving pi packages.
+ * The module imports only node builtins and local modules at runtime, so
+ * `node --test` loads it without resolving pi packages.
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { checkoutPath } from './lib/checkout.ts';
 
 /* ---------------------------------------------------------------------------
  * Pure decision predicate
@@ -52,8 +51,7 @@ export default function (pi: ExtensionAPI) {
   pi.on('session_shutdown', (event, ctx) => {
     if (!shouldCleanup(event.reason, process.env)) return;
 
-    /* The extension dir links into the checkout, so scripts/ is two levels up. */
-    const scriptPath = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '../../scripts/worktree-prune.sh');
+    const scriptPath = checkoutPath(import.meta.url, 'scripts/worktree-prune.sh');
     if (!existsSync(scriptPath)) return; // hook parity: [ -x ... ] || exit 0
 
     try {
