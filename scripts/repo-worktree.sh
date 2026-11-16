@@ -8,16 +8,24 @@
 # maps to its main checkout. Untracked files do not count as dirty.
 #
 # The main checkout path is appended once to ~/.cache/agent/worktree-repos,
-# one absolute path per line, so the cleanup hook can find the repo later.
+# one absolute path per line. The SessionEnd cleanup hook reads that file and
+# prunes merged worktrees in each listed repo.
+#
+# The sandbox denies writes to .husky and to .claude settings, hooks, skills,
+# agents, and commands under ~/dev. A base that tracks any of them cannot be
+# checked out there, so the script refuses it, names the paths, and prints the
+# command to run outside the sandbox with --allow-protected.
 #
 # Usage:
-#   repo-worktree.sh <repo-path> <slug> [--base <ref>] [--branch <name>]
+#   repo-worktree.sh <repo-path> <slug> [--base <ref>] [--branch <name>] [--allow-protected]
 #
-#   --base <ref>     branch on origin, or a local ref (default: origin's default branch)
-#   --branch <name>  new branch name (default: feat/<slug>)
+#   --base <ref>       branch on origin, or a local ref (default: origin's default branch)
+#   --branch <name>    new branch name (default: feat/<slug>)
+#   --allow-protected  skip the protected-path check, for a run outside the sandbox
 #
 # Prints the worktree path as the last stdout line.
-# Exit codes: 0 created, 1 refused or git failed, 2 usage error.
+# Exit codes: 0 created, 1 refused or git failed, 2 usage error,
+# 3 the base tracks sandbox-protected paths.
 
 set -euo pipefail
 
@@ -32,8 +40,10 @@ die() {
   exit 1
 }
 
+ORIG_ARGS=("$@")
 REPO_ARG=""
 SLUG=""
+ALLOW_PROTECTED=0
 BASE=""
 BRANCH=""
 
@@ -42,6 +52,7 @@ while [ $# -gt 0 ]; do
     -h|--help) sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"; exit 0 ;;
     --base) [ $# -ge 2 ] || usage_error "--base needs a ref"; BASE="$2"; shift ;;
     --branch) [ $# -ge 2 ] || usage_error "--branch needs a name"; BRANCH="$2"; shift ;;
+    --allow-protected) ALLOW_PROTECTED=1 ;;
     -*) usage_error "unknown option: $1" ;;
     *)
       if [ -z "$REPO_ARG" ]; then REPO_ARG="$1"
@@ -97,6 +108,24 @@ else
   START="$BASE"
 fi
 git -C "$MAIN" rev-parse --verify --quiet "$START^{commit}" >/dev/null || die "base is not a commit: $START"
+
+# Mirrors the ~/dev write denies in settings.json.
+PROTECTED_RE='(^|/)\.husky(/|$)|(^|/)\.claude/(settings\.json|settings\.local\.json)$|(^|/)\.claude/(hooks|skills|agents|commands)/'
+if [ "$ALLOW_PROTECTED" -eq 0 ]; then
+  PROTECTED=$(git -C "$MAIN" ls-tree -r --name-only "$START" | grep -E "$PROTECTED_RE" || true)
+  if [ -n "$PROTECTED" ]; then
+    {
+      echo "repo-worktree: $START tracks paths the sandbox keeps read-only:"
+      printf '%s\n' "$PROTECTED" | sed -n '1,10s/^/  /p'
+      [ "$(printf '%s\n' "$PROTECTED" | wc -l)" -le 10 ] || echo "  ..."
+      echo "Run it yourself outside the sandbox, with the ! prefix in a session:"
+      printf '  ! %q' "$0"
+      printf ' %q' "${ORIG_ARGS[@]}"
+      printf ' --allow-protected\n'
+    } >&2
+    exit 3
+  fi
+fi
 
 if ! git -C "$MAIN" check-ignore -q .claude/worktrees/x; then
   EXCLUDE="$(git -C "$MAIN" rev-parse --path-format=absolute --git-common-dir)/info/exclude"

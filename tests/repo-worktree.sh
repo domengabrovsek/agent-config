@@ -89,6 +89,21 @@ for b in feat/first fix/second feat/third; do
 done
 check ".git/config unchanged" [ "$(cat "$CLONE/.git/config")" = "$CONFIG_BEFORE" ]
 
+# A base that tracks a sandbox-protected path is refused before any checkout.
+HUSKY="$TEST_ROOT/husky"
+mkdir -p "$HUSKY/.husky" "$HUSKY/.claude/skills/x" "$HUSKY/src/.husky-notes"
+printf 'npm test\n' > "$HUSKY/.husky/pre-commit"
+printf 'x\n' > "$HUSKY/.claude/skills/x/SKILL.md"
+printf 'x\n' > "$HUSKY/src/.husky-notes/readme"
+make_repo "$HUSKY"
+expect_exit --says ".husky/pre-commit" "refuses a base tracking .husky" 3 "$SCRIPT" "$HUSKY" guarded --base main
+check "the refusal names .claude/skills too" says ".claude/skills/x/SKILL.md"
+check "the refusal skips look-alike paths" omits "src/.husky-notes"
+check "the refusal prints the ! command" says "--allow-protected"
+check "the refusal creates nothing" [ ! -e "$HUSKY/.claude/worktrees/guarded" ]
+expect_exit "--allow-protected creates it" 0 "$SCRIPT" "$HUSKY" guarded --base main --allow-protected
+check "the protected file is checked out" [ -f "$HUSKY/.claude/worktrees/guarded/.husky/pre-commit" ]
+
 expect_exit --says "Usage:" "--help prints the header" 0 "$SCRIPT" --help
 
 finish
