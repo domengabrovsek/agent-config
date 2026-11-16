@@ -12,6 +12,10 @@
 # autoMode environment inventory (hostnames, domains, bucket and secret paths).
 set -euo pipefail
 
+case "${1:-}" in
+  -h|--help) sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"; exit 0 ;;
+esac
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 

@@ -15,15 +15,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 
+import { classifyRule, type DenyRule, loadGateConfig } from '../hooks/lib/deny-rules.ts';
 import {
   buildPolicyDocument,
-  classifyRule,
   derivePermissionPolicy,
-  loadGateConfig,
   serializePolicyDocument,
   translateMcpRule,
   translatePathPattern,
-  type DenyRule,
 } from '../pi/extensions/permission-gate.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');

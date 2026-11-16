@@ -12,15 +12,15 @@
  * cp and the like; it is friction, not a sandbox, because a command can build
  * a path at run time.
  *
- * Rule loading and classification come from the Pi permission gate, so both
- * hosts read the list the same way.
+ * Rule loading and classification come from deny-rules.ts, which the Pi
+ * permission gate shares, so both hosts read the list the same way.
  */
 
 import { readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type DenyRule, loadGateConfig } from '../../pi/extensions/permission-gate.ts';
+import { type DenyRule, loadGateConfig } from './deny-rules.ts';
 
 export interface HookPayload {
   tool_name?: string;

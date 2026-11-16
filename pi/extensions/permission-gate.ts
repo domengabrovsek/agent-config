@@ -29,53 +29,25 @@
  *
  * Module top imports only node builtins so `node --test` can exercise the
  * pure helpers without resolving pi packages; the factory resolves
- * @earendil-works/pi-coding-agent dynamically at runtime.
+ * @earendil-works/pi-coding-agent and the shared rule loader in
+ * hooks/lib/deny-rules.ts dynamically at runtime.
  */
 
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import type { GateConfig } from '../../hooks/lib/deny-rules.ts';
+import { checkoutPath } from './lib/checkout.ts';
+
+type DenyRulesModule = typeof import('../../hooks/lib/deny-rules.ts');
 
 /* ---------------------------------------------------------------------------
  * Pure rule engine
  * --------------------------------------------------------------------------- */
 
-export type RuleFamily = 'path-read' | 'path-write' | 'bash' | 'mcp';
-
-export interface DenyRule {
-  family: RuleFamily;
-  /** Pattern inside the Claude rule: a path glob, a command pattern, or an MCP rule id. */
-  pattern: string;
-  /** Full source rule as written in the deny list, e.g. a Read rule for .env. */
-  source: string;
-}
-
-export type GateConfig =
-  | { status: 'ok'; rules: DenyRule[]; skipped: string[]; allowCount: number }
-  | { status: 'missing'; reason: string }
-  | { status: 'empty'; reason: string }
-  | { status: 'error'; reason: string };
-
-const RULE_RE = /^(Read|Edit|Write|Bash)\((.*)\)$/s;
+/* Same shape as the classifier's MCP pattern in deny-rules.ts, split into server and tool. */
 const MCP_RE = /^mcp__(.+)__([^_]+(?:_[^_]+)*)$/;
-
-/** Classify one Claude permission rule; undefined when pi cannot enforce it. */
-export function classifyRule(source: string): { family: RuleFamily; pattern: string } | undefined {
-  const trimmed = source.trim();
-  const match = RULE_RE.exec(trimmed);
-  if (match !== null) {
-    const verb = match[1];
-    const pattern = match[2];
-    if (verb === 'Bash') return { family: 'bash', pattern };
-    if (verb === 'Read') return { family: 'path-read', pattern };
-    // Edit and Write both bind writes: file-tool rules enforce a superset.
-    if (verb === 'Edit' || verb === 'Write') return { family: 'path-write', pattern };
-    return undefined;
-  }
-  if (MCP_RE.test(trimmed)) return { family: 'mcp', pattern: trimmed };
-  return undefined;
-}
 
 /**
  * Translate a Claude path glob to a gotgenes wildcard pattern. Their `*`
@@ -166,52 +138,6 @@ export function serializePolicyDocument(document: ReturnType<typeof buildPolicyD
   return `${JSON.stringify(document, null, 2)}\n`;
 }
 
-/** Load and classify the permissions block; never throws. */
-export function loadGateConfig(settingsPath: string): GateConfig {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(settingsPath, 'utf8'));
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { status: 'missing', reason: `permission source not found: ${settingsPath}` };
-    }
-    const message = err instanceof Error ? err.message : String(err);
-    return { status: 'error', reason: `permission source unreadable: ${message}` };
-  }
-  if (typeof parsed !== 'object' || parsed === null) {
-    return { status: 'empty', reason: 'permission source is not an object' };
-  }
-  const permissions = (parsed as { permissions?: unknown }).permissions;
-  if (typeof permissions !== 'object' || permissions === null) {
-    return { status: 'empty', reason: 'no permissions block' };
-  }
-  const deny = (permissions as { deny?: unknown }).deny;
-  if (!Array.isArray(deny) || deny.length === 0) {
-    return { status: 'empty', reason: 'deny list absent or empty' };
-  }
-  const allow = (permissions as { allow?: unknown }).allow;
-  const allowCount = Array.isArray(allow) ? allow.length : 0;
-
-  const rules: DenyRule[] = [];
-  const skipped: string[] = [];
-  for (const source of deny) {
-    if (typeof source !== 'string') {
-      skipped.push(String(source));
-      continue;
-    }
-    const classified = classifyRule(source);
-    if (classified === undefined) {
-      skipped.push(source);
-      continue;
-    }
-    rules.push({ ...classified, source });
-  }
-  if (rules.length === 0) {
-    return { status: 'empty', reason: 'deny list translates to zero pi rules' };
-  }
-  return { status: 'ok', rules, skipped, allowCount };
-}
-
 /* ---------------------------------------------------------------------------
  * Extension wiring
  * --------------------------------------------------------------------------- */
@@ -221,11 +147,14 @@ const CONSUMER_DIR = 'pi-permission-system';
 
 export default async function (pi: ExtensionAPI) {
   const { getAgentDir } = await import('@earendil-works/pi-coding-agent');
+  /* Pi loads the module by its symlinked path and does not resolve it, so a
+   * static import of hooks/lib would miss the checkout. */
+  const { loadGateConfig }: DenyRulesModule = await import(
+    pathToFileURL(checkoutPath(import.meta.url, 'hooks/lib/deny-rules.ts')).href
+  );
 
   pi.on('session_start', (_event, ctx) => {
-    /* The extension dir links into the checkout, so the tracked root
-     * settings.json is two levels above this module's real path. */
-    const sourcePath = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '../../settings.json');
+    const sourcePath = checkoutPath(import.meta.url, 'settings.json');
     const config = loadGateConfig(sourcePath);
 
     const failLoud = (message: string): void => {

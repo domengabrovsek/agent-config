@@ -18,16 +18,16 @@
  * Persona identity: pi-subagents tags a child session's system prompt with
  * an active_agent element naming the agent, which becomes agent_type.
  *
- * Module top imports only node builtins so `node --test` can exercise the
- * helpers without resolving pi packages.
+ * Module top imports only node builtins and local modules so `node --test` can
+ * exercise the helpers without resolving pi packages.
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isAbsolute, join, resolve } from 'node:path';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
+import { checkoutPath } from './lib/checkout.ts';
 
 export type HookEvent = 'PreToolUse' | 'PostToolUse';
 export type ClaudeToolName = 'Bash' | 'Edit' | 'Write';
@@ -150,18 +150,6 @@ function extractAdditionalContext(stdout: string): { context: string } | undefin
   }
 }
 
-/** Resolve dispatch.sh from this module's real path: extension dirs are symlinks into the checkout. */
-export function resolveDispatcherPath(moduleUrl: string): string {
-  const modulePath = fileURLToPath(moduleUrl);
-  let moduleDir: string;
-  try {
-    moduleDir = dirname(realpathSync(modulePath));
-  } catch {
-    moduleDir = dirname(modulePath);
-  }
-  return join(moduleDir, '../../hooks/lib/dispatch.sh');
-}
-
 /* Above the largest per-hook timeout in settings.json (pre-push-gate, 300s), so the
  * dispatcher's own per-hook bound fires first and a slow push gate is not cut
  * off into a fail-open by this outer bound. */
@@ -256,7 +244,7 @@ export function claimBridge(scope: Record<symbol, unknown> = globalThis as Recor
 
 export default function (pi: ExtensionAPI) {
   if (!claimBridge()) return;
-  const dispatcherPath = resolveDispatcherPath(import.meta.url);
+  const dispatcherPath = checkoutPath(import.meta.url, 'hooks/lib/dispatch.sh');
   const pendingNotes = new Map<string, string[]>();
   let missingReported = false;
 

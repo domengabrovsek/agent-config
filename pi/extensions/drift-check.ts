@@ -9,15 +9,14 @@
  * symlink-check.sh. It is deliberately loud once per session, not a widget:
  * drift never degrades the already-running session (see CONTEXT.md "Drift").
  *
- * The module imports only node builtins at runtime, so `node --test` loads
- * it without resolving pi packages.
+ * The module imports only node builtins and local modules at runtime, so
+ * `node --test` loads it without resolving pi packages.
  */
 
 import { execFile } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { checkoutPath } from './lib/checkout.ts';
 
 /* ---------------------------------------------------------------------------
  * Pure check-result summarizer
@@ -104,8 +103,7 @@ function driftMessage(summary: CheckSummary): string {
 
 export default function (pi: ExtensionAPI) {
   pi.on('session_start', async (_event, ctx) => {
-    /* The extension dir links into the checkout, so scripts/ is two levels up. */
-    const scriptPath = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '../../scripts/setup-hosts.sh');
+    const scriptPath = checkoutPath(import.meta.url, 'scripts/setup-hosts.sh');
     const warn = (message: string): void => {
       if (ctx.hasUI) ctx.ui.notify(message, 'warning');
       else console.error(message);

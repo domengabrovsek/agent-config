@@ -11,12 +11,17 @@
 # Usage:
 #   pr-ready.sh [<pr>]           one check; <pr> is a number, URL, or branch
 #   pr-ready.sh --watch [<pr>]   poll, print only on change, exit when settled
+#   pr-ready.sh --help           print this header
 #
 # Exit codes: 0 ready, 1 not ready, 2 error, 3 PR merged or closed,
 # 4 waiting on a human.
 # PR_READY_INTERVAL sets the watch poll in seconds (default 30).
 
 set -u
+
+case "${1:-}" in
+  -h|--help) sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"; exit 0 ;;
+esac
 
 WATCH=0
 if [ "${1:-}" = "--watch" ]; then
