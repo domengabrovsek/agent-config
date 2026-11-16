@@ -264,7 +264,50 @@ delete_branch() {
   git -C "$repo" branch -D "$branch" >/dev/null 2>&1
 }
 
+# take_lock <dir>: mkdir is atomic, so one --apply pass at a time holds <dir>.
+# Two passes on one repo can both copy a worktree's state, and the one whose
+# removal fails then deletes the copy the other just kept. A lock whose owner
+# is gone, or that never got a pid within 10 minutes, came from a killed pass.
+take_lock() {
+  local dir="$1" pid
+  if ! mkdir "$dir" 2>/dev/null; then
+    pid=$(cat "$dir/pid" 2>/dev/null)
+    if [ -n "$pid" ]; then
+      kill -0 "$pid" 2>/dev/null && return 1
+    elif [ -z "$(find "$dir" -maxdepth 0 -mmin +10 2>/dev/null)" ]; then
+      return 1
+    fi
+    rm -rf "$dir"
+    mkdir "$dir" 2>/dev/null || return 1
+  fi
+  HELD_LOCK="$dir"
+  echo "$$" > "$dir/pid"
+}
+
+release_lock() {
+  [ -n "$HELD_LOCK" ] && rm -rf "$HELD_LOCK"
+  HELD_LOCK=""
+}
+
+HELD_LOCK=""
+trap release_lock EXIT
+trap 'exit 1' HUP INT TERM
+
 prune_repo() {
+  local repo="$1" common
+  if [ "$APPLY" != "1" ]; then
+    prune_repo_unlocked "$repo"; return 0
+  fi
+  common=$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 0
+  if ! take_lock "$common/worktree-prune.lock"; then
+    printf '%s== %s ==%s\n  %sSKIP%s   another prune pass holds this repo\n\n' "$C_DIM" "$repo" "$C_RESET" "$C_YELLOW" "$C_RESET"
+    return 0
+  fi
+  prune_repo_unlocked "$repo"
+  release_lock
+}
+
+prune_repo_unlocked() {
   local repo="$1"
   local current main_path="" common
   current=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)
@@ -408,7 +451,10 @@ prune_registry() {
       printf '  %sSTALE%s  not a repo root, --apply drops it from the registry\n\n' "$C_YELLOW" "$C_RESET"
     fi
   done < "$reg"
-  [ "$APPLY" = "1" ] && [ "$dirty" = "1" ] && compact_registry "$reg" "$stale"
+  if [ "$APPLY" = "1" ] && [ "$dirty" = "1" ] && take_lock "$reg.lock"; then
+    compact_registry "$reg" "$stale"
+    release_lock
+  fi
   return 0
 }
 

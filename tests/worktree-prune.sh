@@ -441,6 +441,27 @@ run_registry audit-all 2>/dev/null
 check "--registry with audit-all is a usage error" [ "$RC" -eq 2 ]
 
 echo
+echo "== --apply lock =="
+REPO="$TEST_ROOT/locked-repo"
+build_small "$REPO"
+LOCK="$REPO/.git/worktree-prune.lock"
+mkdir "$LOCK"
+printf '%s\n' "$$" > "$LOCK/pid"
+run_prune "$REPO" --apply
+check "a live pass's lock makes another --apply skip the repo" test -d "$REPO.wt/merged"
+check "the skip is reported" says "another prune pass holds this repo"
+check "a skipped pass leaves the other pass's lock" test -f "$LOCK/pid"
+DEAD_PID=$(bash -c 'echo $$')
+printf '%s\n' "$DEAD_PID" > "$LOCK/pid"
+run_prune "$REPO" --apply
+check "a lock whose owner is gone is taken over" absent "$REPO.wt/merged"
+check "the pass releases its lock" absent "$LOCK"
+mkdir "$LOCK"
+run_prune "$REPO"
+check "a dry run ignores the lock" says "branch=unpushed  reason=unmerged-or-active"
+rmdir "$LOCK"
+
+echo
 echo "== SessionEnd hook =="
 REPO="$TEST_ROOT/hook"
 WT="$REPO.wt"
