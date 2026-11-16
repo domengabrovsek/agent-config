@@ -17,13 +17,17 @@
 # first_run_for_call <payload> <key>
 # Succeeds for the first run of <key> on this tool call, and whenever the
 # payload has no usable tool_use_id or the claim cannot be written. Fails for
-# every later run.
+# every later run. Sets ONCE_CLAIM to the claim dir when one exists, so the
+# first run can leave an answer there for the later ones, and to empty
+# otherwise.
 #
 # A claim written by another user would skip a gate, so the claim dir must be
 # a real dir owned by the current user. When a shared TMPDIR such as /tmp
 # already holds one owned by someone else, the claims move to a per-user dir.
+# shellcheck disable=SC2034  # lib/pr-state.sh reads ONCE_CLAIM
 first_run_for_call() {
   local id event dir claim
+  ONCE_CLAIM=""
   # A literal key inside a JSON string value is escaped as \"tool_use_id\",
   # which this pattern never matches.
   [[ $1 =~ \"tool_use_id\":\ *\"([A-Za-z0-9_-]+)\" ]] || return 0
@@ -40,9 +44,10 @@ first_run_for_call() {
   fi
   claim="$dir/$id.$event.$2"
   if mkdir "$claim" 2>/dev/null; then
+    ONCE_CLAIM=$claim
     find "$dir" -mindepth 1 -maxdepth 1 -type d -mmin +1440 -delete 2>/dev/null
     return 0
   fi
-  [ -d "$claim" ] && return 1
+  [ -d "$claim" ] && { ONCE_CLAIM=$claim; return 1; }
   return 0
 }

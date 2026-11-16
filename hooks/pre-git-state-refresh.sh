@@ -18,6 +18,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/pr-state.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/pr-state.sh"
 # shellcheck source=lib/hook.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
@@ -79,9 +81,9 @@ if ! git -C "$DIR" rev-parse --verify -q "$BRANCH@{push}" >/dev/null 2>&1 \
   emit "[pr-state] branch=$BRANCH state=NONE (branch never pushed)"
 fi
 
-# gh errors degrade silently to unavailable. gh has no -C and reads the branch
-# from its cwd, so it runs from the resolved repo too.
-PR_JSON=$(cd "$DIR" && gh pr view --json state,mergedAt,headRefName,url 2>/dev/null)
+# gh errors degrade silently to unavailable. pre-push-gate.sh shares this
+# lookup on a push.
+PR_JSON=$(pr_state "$INPUT" "$DIR")
 
 if [ -z "$PR_JSON" ]; then
   emit "[pr-state] branch=$BRANCH state=NONE (no PR for this branch, or gh unavailable)"

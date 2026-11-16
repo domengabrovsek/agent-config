@@ -163,11 +163,13 @@ check "a Bun repo without bun skips the audit" says "audit skipped: bun is not i
 echo ""
 echo "== merged branch =="
 
-# A stub gh answers `gh pr view` with STUB_PR_STATE, the way -q prints it.
+# A stub gh answers `gh pr view` with the JSON for STUB_PR_STATE, which reads
+# "<state> <url>", and logs each call to GH_LOG when it is set.
 stub "$TEST_ROOT/ghbin" gh <<'STUB'
 #!/bin/sh
+[ -n "$GH_LOG" ] && echo "$*" >> "$GH_LOG"
 [ -n "$STUB_PR_STATE" ] || exit 1
-echo "$STUB_PR_STATE"
+printf '{"state":"%s","url":"%s"}\n' "${STUB_PR_STATE%% *}" "${STUB_PR_STATE#* }"
 STUB
 
 MERGEDREPO="$TEST_ROOT/mergedrepo"
@@ -212,6 +214,36 @@ check "SKIP_PUSH_GATE=1 in the host environment bypasses the gate" exited 0
 
 gate_as "$MERGED" "git -C \"$MERGEDREPO\" -c core.x=y push origin feature/x"
 check "a quoted git -C push on a merged branch blocks" exited 2 says "already merged"
+
+echo ""
+echo "== one PR lookup per push =="
+
+# The push gate and pre-git-state-refresh.sh run on the same push, so the
+# second one reuses the first one's answer instead of calling gh again.
+SHARED="$TEST_ROOT/shared"
+make_project "$SHARED"
+git -C "$SHARED" checkout -q -b feature/x
+git init -q --bare "$TEST_ROOT/shared-origin.git"
+git -C "$SHARED" remote add origin "$TEST_ROOT/shared-origin.git"
+git -C "$SHARED" commit -q --allow-empty -m "chore: init"
+git -C "$SHARED" push -q origin feature/x
+export GH_LOG="$TEST_ROOT/gh.log"
+: > "$GH_LOG"
+ONCE_TMP="$TEST_ROOT/once-tmp"
+mkdir -p "$ONCE_TMP"
+shared_run() {
+  jq -nc --arg c "git push origin feature/x" --arg d "$SHARED" \
+    '{hook_event_name: "PreToolUse", tool_use_id: "toolu_shared", tool_input: {command: $c}, cwd: $d}' \
+    | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" SKIP_PUSH_GATE="" TMPDIR="$ONCE_TMP" STUB_PR_STATE="$MERGED" \
+      PATH="$TEST_ROOT/ghbin:$PATH" bash "$PROJECT_DIR/hooks/$1" 2>&1)
+  STATUS=$?
+}
+OUT=$(shared_run pre-push-gate.sh)
+check "the push gate blocks the merged branch" says "already merged"
+OUT=$(shared_run pre-git-state-refresh.sh)
+check "the state refresh reads the same answer" says "state=MERGED" says "pull/7"
+check "the push asked gh once" [ "$(wc -l < "$GH_LOG" | tr -d ' ')" = 1 ]
+unset GH_LOG
 
 # A failing check runs first, so the merged block must still show.
 printf '{"scripts":{"build":"exit 1"}}\n' > "$MERGEDREPO/package.json"
