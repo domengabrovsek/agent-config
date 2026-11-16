@@ -63,13 +63,14 @@ Edit `scripts/setup-hosts.sh`, update the link tables in [setup](setup.md), and 
 
 ## Run the checks
 
-Run `npm run verify` from the repo root before you open a pull request. It runs every CI check except Lint Markdown. The CI jobs call the same npm scripts, so local and CI results match.
+Run `npm ci`, then `npm run verify` from the repo root before you open a pull request. It runs every CI check except Lint Markdown. The CI jobs call the same npm scripts, so local and CI results match.
 
 | CI job | npm script | Checks |
 | --- | --- | --- |
 | Lint Markdown | none; CI uses the shared markdownlint action | Every `*.md` file against `.markdownlint.json` |
 | Config Budget | `npm run check:budget` | The always-loaded word and tag budgets |
 | Extension Tests | `npm test` | `tests/*.test.ts`: the deny gate and the Pi extensions |
+| Type Check | `npm run typecheck` | `tsc --noEmit` over `pi/extensions/`, `hooks/lib/*.ts`, and `tests/*.test.ts`, as `tsconfig.json` sets. The Pi peer packages in the lockfile supply their types, so run `npm ci` first |
 | Config Integrity | `npm run check:config` and `npm run lint:shell` | JSON parses, no runtime keys committed, the git filter declared, shell lint |
 | Shell Tests | `npm run test:shell` | Each `tests/*.sh` file: host setup, drift check, shared paths, dispatcher, status line, worktree pruning, every gate, and the prose gate fixtures plus every tracked Markdown file. `scripts/run-shell-tests.sh` runs the files in parallel, prints each log, and lists the failed ones at the end. Under GitHub Actions each log is a collapsible group |
 
