@@ -88,9 +88,10 @@ pr_command_segment() {
   printf '%s' "$1" | python3 -c '
 import shlex, sys
 cmd = sys.stdin.read()
-ops = set(";&|()")
+ops = set(";&|()\n")
 try:
     lex = shlex.shlex(cmd, posix=True, punctuation_chars="".join(ops))
+    lex.whitespace = " \t\r"
     lex.whitespace_split = True
     tokens = list(lex)
 except ValueError:

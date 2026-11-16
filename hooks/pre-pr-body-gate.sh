@@ -36,9 +36,17 @@ esac
 
 # The rules cover titles as well as bodies, and a --body-file body never
 # appears in the command, so both halves go into one haystack. Only the gh call
-# counts: a state path in a command chained to it never reaches the PR.
+# counts: a state path in a command chained to it never reaches the PR. A
+# body the gate cannot read, or a call that expands a variable, may be built
+# by those other commands, so then the whole command counts.
 BODY=$(extract_pr_body "$COMMAND")
-HAYSTACK=$(printf '%s\n%s' "$(pr_command_segment "$COMMAND")" "$BODY")
+SCOPE=$(pr_command_segment "$COMMAND")
+if { [ -z "$BODY" ] && printf '%s\n' "$SCOPE" \
+    | grep -qE '(^|[[:space:]])(-b|--body|-F|--body-file)([= ]|$)'; } \
+  || printf '%s' "$SCOPE" | sed 's/\$(cat <<//g' | grep -q '[$`]'; then
+  SCOPE=$COMMAND
+fi
+HAYSTACK=$(printf '%s\n%s' "$SCOPE" "$BODY")
 
 FAILED=0
 
