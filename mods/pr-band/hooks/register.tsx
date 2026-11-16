@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ThemeKey } from 'claude-code'
 
-import type { Ci, Overall, Pr } from '../types'
+import type { CiSummary, Overall, Pr } from '../types'
 
 type Rollup = {
   name?: string | null
@@ -28,13 +28,13 @@ const FAILED = new Set(['FAILURE', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 
 const SKIPPED = new Set(['SKIPPED', 'NEUTRAL', 'STALE'])
 const WAITING = new Set(['WAITING', 'ACTION_REQUIRED'])
 
-function summarise(rollup: Rollup[]): Ci {
+function summarise(rollup: Rollup[]): CiSummary {
   const latest = new Map<string, Rollup>()
   for (const check of rollup) {
     latest.set(check.name ?? check.context ?? '?', check)
   }
 
-  const ci: Ci = { overall: 'none', passed: 0, failed: [], running: [], waiting: [], skipped: 0 }
+  const ci: CiSummary = { overall: 'none', passed: 0, failed: [], running: [], waiting: [], skipped: 0 }
   for (const [name, check] of latest) {
     const result = check.conclusion ?? check.state ?? ''
     if (WAITING.has(check.status ?? '')) ci.waiting.push(name)
