@@ -13,6 +13,7 @@ If $ARGUMENTS holds a path, the target is the worktree at that path, in any repo
 
 - The target must be a linked worktree, not a main checkout. Verify with `git -C "$WORKTREE" rev-parse --git-dir != --git-common-dir`.
 - The worktree's branch must be safely removable: merged into the default branch, or its upstream is `gone` and `git rev-list "$BRANCH" --not --remotes` prints nothing, or the user explicitly passes `--force`. A gone upstream alone does not prove the commits landed.
+- For a step 3 worktree, skip this branch check and let `worktree-prune.sh` decide. Its verdict also accepts a squash merge, which a `--repo` branch with no upstream needs.
 - Ignored files under the worktree's `.claude/state/` are deleted with it. Copy any the main checkout lacks into the main checkout's `.claude/state/` first.
 
 If the branch is not safe to remove, stop and explain what's still pending (unpushed commits, open PR, etc.). Never auto-delete unmerged work.
