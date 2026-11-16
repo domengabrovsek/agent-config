@@ -35,9 +35,10 @@ esac
 [ "$SKIP_PR_BODY_GATE" = "1" ] && exit 0
 
 # The rules cover titles as well as bodies, and a --body-file body never
-# appears in the command, so both halves go into one haystack.
+# appears in the command, so both halves go into one haystack. Only the gh call
+# counts: a state path in a command chained to it never reaches the PR.
 BODY=$(extract_pr_body "$COMMAND")
-HAYSTACK=$(printf '%s\n%s' "$COMMAND" "$BODY")
+HAYSTACK=$(printf '%s\n%s' "$(pr_command_segment "$COMMAND")" "$BODY")
 
 FAILED=0
 

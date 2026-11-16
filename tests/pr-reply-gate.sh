@@ -84,6 +84,19 @@ assert_gate "a --body-file with the footer passes" \
 printf 'Done.\n' > "$TEST_DIR/bare.md"
 assert_gate "a --body-file without the footer is blocked" \
   "$GH_PR_COMMENT 7 --body-file bare.md" 2
+assert_gate "a --body-file variable set in the command is read" \
+  "f=reply.md; $GH_ISSUE_COMMENT 7 --body-file \"\$f\"" 0
+assert_gate "a --body-file variable set to a bare body is blocked" \
+  "f=reply.md; f=bare.md; $GH_ISSUE_COMMENT 7 --body-file \"\$f\"" 2
+cp "$TEST_DIR/reply.md" "$TEST_DIR/reply2.md"
+assert_gate "a loop over bodies with the footer passes" \
+  "for f in reply.md reply2.md; do $GH_ISSUE_COMMENT 7 --body-file \"\$f\"; done" 0
+assert_gate "a loop with one bare body is blocked" \
+  "for f in reply.md bare.md; do $GH_ISSUE_COMMENT 7 --body-file \"\$f\"; done" 2
+assert_gate "a glob loop with one bare body is blocked" \
+  "for f in *.md; do $GH_ISSUE_COMMENT 7 --body-file \"\${f}\"; done" 2
+assert_gate "a --body-file variable the gate cannot resolve is blocked" \
+  "$GH_ISSUE_COMMENT 7 --body-file \"\$f\"" 2
 if payload "$GH_PR_COMMENT 7 --body \"Done.\"" "$TEST_DIR" | SKIP_REPLY_FOOTER=1 bash "$GATE" >/dev/null 2>&1; then
   pass "SKIP_REPLY_FOOTER lets a comment through"
 else

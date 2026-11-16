@@ -35,27 +35,92 @@ def heredoc(cmd, start):
     return "\n".join(out)
 '
 
-# pr_body_file <command>
-# Prints the --body-file / -F path, or nothing when the command uses no such
-# flag. Every gh pr and gh issue subcommand spells --body-file as -F.
-pr_body_file() {
+# pr_body_files <command>
+# Prints the --body-file / -F path, one per line, or nothing when the command
+# uses no such flag. Every gh pr and gh issue subcommand spells --body-file as
+# -F. A "$f" path resolves through `f=<path>` or `for f in <paths>; do` earlier
+# in the same command, globs included, so a loop posting several bodies prints
+# each file. A path the gate cannot resolve prints as written and matches no file.
+pr_body_files() {
   printf '%s' "$1" | python3 -c '
-import sys, re
+import glob, os, re, shlex, sys
 cmd = sys.stdin.read()
 m = re.search(r"(?:^|\s)(?:--body-file|-F)[=\s]+[\x27\"]?([^\x27\"\s]+)", cmd)
-print(m.group(1) if m else "")
+if not m:
+    sys.exit(0)
+path = m.group(1)
+
+def literal(word):
+    word = os.path.expanduser(os.path.expandvars(word))
+    if re.search(r"[$`]", word):
+        return None
+    return sorted(glob.glob(word)) if glob.has_magic(word) else [word]
+
+v = re.fullmatch(r"\$\{?(\w+)\}?", path)
+words = [path]
+if v:
+    before = cmd[:m.start()]
+    name = re.escape(v.group(1))
+    sources = list(re.finditer(r"\bfor\s+%s\s+in\s+([^;\n]*?)\s*[;\n]\s*do\b" % name, before))
+    sources += re.finditer(r"(?:^|[\s;&|(])%s=(\x22[^\x22]*\x22|\x27[^\x27]*\x27|[^\s;&|]+)" % name, before)
+    last = max(sources, key=lambda s: s.start(), default=None)
+    if last:
+        try:
+            words = shlex.split(last.group(1))
+        except ValueError:
+            pass
+paths = []
+for word in words:
+    found = literal(word)
+    if found is None:
+        print(path)
+        sys.exit(0)
+    paths += found
+print("\n".join(paths))
+' 2>/dev/null
+}
+
+# pr_command_segment <command>
+# Prints only the gh pr or gh issue calls in the command, without the commands
+# chained before or after them, so text in a neighbouring command cannot block
+# a PR. Prints the whole command when the shell quoting cannot be parsed.
+pr_command_segment() {
+  printf '%s' "$1" | python3 -c '
+import shlex, sys
+cmd = sys.stdin.read()
+ops = set(";&|()")
+try:
+    lex = shlex.shlex(cmd, posix=True, punctuation_chars="".join(ops))
+    lex.whitespace_split = True
+    tokens = list(lex)
+except ValueError:
+    print(cmd)
+    sys.exit(0)
+segments, current = [], []
+for tok in tokens + [";"]:
+    if tok and set(tok) <= ops:
+        if any(current[i:i + 3] in (["gh", k, s] for k in ("pr", "issue") for s in ("create", "edit"))
+               for i in range(len(current))):
+            segments.append(" ".join(current))
+        current = []
+    else:
+        current.append(tok)
+print("\n".join(segments) if segments else cmd)
 ' 2>/dev/null
 }
 
 # extract_pr_body <command>
 # Prints the body text the command would send.
 extract_pr_body() {
-  local command="$1" body_file
+  local command="$1" body_files f all=1
 
-  body_file=$(pr_body_file "$command")
-  if [ -n "$body_file" ] && [ -f "$body_file" ]; then
-    cat "$body_file"
-    return 0
+  body_files=$(pr_body_files "$command")
+  if [ -n "$body_files" ]; then
+    while IFS= read -r f; do [ -f "$f" ] || all=0; done <<< "$body_files"
+    if [ "$all" -eq 1 ]; then
+      while IFS= read -r f; do cat -- "$f"; echo; done <<< "$body_files"
+      return 0
+    fi
   fi
 
   printf '%s' "$command" | python3 -c "$_PR_BODY_HEREDOC"'

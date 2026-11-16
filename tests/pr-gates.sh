@@ -91,6 +91,14 @@ STATE_FILE="$TEST_DIR/state-body.md"
 printf '## What does this PR do?\n\n- Follows .claude/state/plans/x.md\n' > "$STATE_FILE"
 assert_gate "a state path in a --body-file blocks" "$BODY" \
   "$GH_CREATE --body-file $STATE_FILE" 2
+assert_gate "a state path in a command chained before the PR passes" "$BODY" \
+  "sed -i '' 's/x/y/' .claude/state/plans/x.md && $GH_CREATE --title \"fix: a\" --body \"Adds one check.\"" 0
+assert_gate "a state path in a command chained after the PR passes" "$BODY" \
+  "$GH_EDIT --body \"Adds one check.\" 2>&1 | tail -1; cat .claude/state/plans/x.md" 0
+assert_gate "a state path in a quoted body with a semicolon still blocks" "$BODY" \
+  "$GH_CREATE --body \"Done; see .claude/state/plans/x.md\" && echo ok" 2
+assert_gate "an attribution title after a chained command still blocks" "$BODY" \
+  "cd /tmp && $GH_CREATE --title \"fix: a (Generated with Claude)\" --body \"Adds one check.\"" 2
 
 echo
 echo "== plumbing =="

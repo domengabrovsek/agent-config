@@ -136,8 +136,39 @@ fi
 
 [ "$SKIP_REPLY_FOOTER" = "1" ] && exit 0
 
+# footer_ok <body>: succeeds when the body ends with the agent footer on its own
+# line. A "$(cat <<EOF ... EOF)" body ends with the heredoc close, so unwrap it
+# first. The footer needs a blank line above it, or GitHub renders it inline at
+# the end of the last sentence.
+footer_ok() {
+  printf '%s' "$1" | python3 -c '
+import re, sys
+body = sys.stdin.read().strip()
+h = re.match(r"\$\(cat <<-?[\x27\"]?(\w+)[\x27\"]?\n(.*)\n\s*\1\s*\)$", body, re.S)
+if h:
+    body = h.group(2).strip()
+sys.exit(0 if re.search(r"\n[ \t]*\n<sub>Posted by [^<]+ on behalf of @[A-Za-z0-9-]+</sub>$", body) else 1)
+'
+}
+
+refuse_footer() {
+  echo "[pre-pr-reply-gate] This comment posts under the user's account without the agent footer on its own line." >&2
+  echo "End the body with a blank line, then: <sub>Posted by <agent> on behalf of @<login></sub>" >&2
+  echo "Write the body inline or in a file. A --body-file \"\$f\" works when f is set, or looped over, with literal paths in the same command." >&2
+  echo "(Bypass: SKIP_REPLY_FOOTER=1)" >&2
+  exit 2
+}
+
 # Relative body files resolve against the repo the command runs in.
 if [ "$KIND" = cli ]; then
+  # A loop posts one comment per file, so each file needs its own footer.
+  FILES=$(cd "$DIR" 2>/dev/null && pr_body_files "$COMMAND")
+  if [ "$(printf '%s\n' "$FILES" | grep -c .)" -gt 1 ]; then
+    while IFS= read -r f; do
+      footer_ok "$(cd "$DIR" 2>/dev/null && cat -- "$f")" || refuse_footer
+    done <<< "$FILES"
+    exit 0
+  fi
   BODY=$(cd "$DIR" 2>/dev/null && extract_pr_body "$COMMAND")
   # `gh pr review --approve` with no body flag posts no comment text. A body
   # flag the parser could not read still has to pass the check below.
@@ -149,22 +180,5 @@ else
   BODY=$(cd "$DIR" 2>/dev/null && extract_api_body "$COMMAND")
 fi
 
-# A "$(cat <<EOF ... EOF)" body ends with the heredoc close, so unwrap it
-# before checking what the body ends with. The footer needs a blank line
-# above it, or GitHub renders it inline at the end of the last sentence.
-if ! printf '%s' "$BODY" | python3 -c '
-import re, sys
-body = sys.stdin.read().strip()
-h = re.match(r"\$\(cat <<-?[\x27\"]?(\w+)[\x27\"]?\n(.*)\n\s*\1\s*\)$", body, re.S)
-if h:
-    body = h.group(2).strip()
-sys.exit(0 if re.search(r"\n[ \t]*\n<sub>Posted by [^<]+ on behalf of @[A-Za-z0-9-]+</sub>$", body) else 1)
-'; then
-  echo "[pre-pr-reply-gate] This comment posts under the user's account without the agent footer on its own line." >&2
-  echo "End the body with a blank line, then: <sub>Posted by <agent> on behalf of @<login></sub>" >&2
-  echo "Write the body inline or in a file; a body built from a variable cannot be checked." >&2
-  echo "(Bypass: SKIP_REPLY_FOOTER=1)" >&2
-  exit 2
-fi
-
+footer_ok "$BODY" || refuse_footer
 exit 0
