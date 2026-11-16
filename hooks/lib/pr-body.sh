@@ -39,8 +39,9 @@ def heredoc(cmd, start):
 # Prints the --body-file / -F path, one per line, or nothing when the command
 # uses no such flag. Every gh pr and gh issue subcommand spells --body-file as
 # -F. A "$f" path resolves through `f=<path>` or `for f in <paths>; do` earlier
-# in the same command, globs included, so a loop posting several bodies prints
-# each file. A path the gate cannot resolve prints as written and matches no file.
+# in the same command, so a loop posting several bodies prints each file. A
+# path the gate cannot resolve prints nothing: a glob, or a file the command
+# also names elsewhere, since it may write that file after the hook reads it.
 pr_body_files() {
   printf '%s' "$1" | python3 -c '
 import glob, os, re, shlex, sys
@@ -49,12 +50,15 @@ m = re.search(r"(?:^|\s)(?:--body-file|-F)[=\s]+[\x27\"]?([^\x27\"\s]+)", cmd)
 if not m:
     sys.exit(0)
 path = m.group(1)
+rest = cmd[:m.start(1)] + cmd[m.end(1):]
 
 def literal(word):
-    word = os.path.expanduser(os.path.expandvars(word))
-    if re.search(r"[$`]", word):
+    if word in rest:
         return None
-    return sorted(glob.glob(word)) if glob.has_magic(word) else [word]
+    word = os.path.expanduser(os.path.expandvars(word))
+    if re.search(r"[$`]", word) or glob.has_magic(word):
+        return None
+    return [word]
 
 v = re.fullmatch(r"\$\{?(\w+)\}?", path)
 words = [path]
@@ -69,11 +73,12 @@ if v:
             words = shlex.split(last.group(1))
         except ValueError:
             pass
+        else:
+            rest = cmd[:last.start(1)] + cmd[last.end(1):]
 paths = []
 for word in words:
     found = literal(word)
     if found is None:
-        print(path)
         sys.exit(0)
     paths += found
 print("\n".join(paths))

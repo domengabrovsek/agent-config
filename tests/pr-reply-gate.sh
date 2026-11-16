@@ -93,8 +93,12 @@ assert_gate "a loop over bodies with the footer passes" \
   "for f in reply.md reply2.md; do $GH_ISSUE_COMMENT 7 --body-file \"\$f\"; done" 0
 assert_gate "a loop with one bare body is blocked" \
   "for f in reply.md bare.md; do $GH_ISSUE_COMMENT 7 --body-file \"\$f\"; done" 2
-assert_gate "a glob loop with one bare body is blocked" \
-  "for f in *.md; do $GH_ISSUE_COMMENT 7 --body-file \"\${f}\"; done" 2
+assert_gate "a glob loop is blocked, because the hook expands it before the command runs" \
+  "for f in reply*.md; do $GH_ISSUE_COMMENT 7 --body-file \"\${f}\"; done" 2
+assert_gate "a loop over a body file the same command writes is blocked" \
+  "printf 'Done.' > reply2.md && for f in reply.md reply2.md; do $GH_ISSUE_COMMENT 7 --body-file \"\$f\"; done" 2
+assert_gate "a body file the same command writes is blocked" \
+  "printf 'Done.' > reply.md && $GH_ISSUE_COMMENT 7 --body-file reply.md" 2
 assert_gate "a --body-file variable the gate cannot resolve is blocked" \
   "$GH_ISSUE_COMMENT 7 --body-file \"\$f\"" 2
 if payload "$GH_PR_COMMENT 7 --body \"Done.\"" "$TEST_DIR" | SKIP_REPLY_FOOTER=1 bash "$GATE" >/dev/null 2>&1; then
