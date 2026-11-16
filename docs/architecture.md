@@ -47,7 +47,7 @@ Each script runs on its own. Hooks, skills, and CI call them, and you can run an
 | `run-shell-tests.sh` | Runs every `tests/*.sh` suite in parallel and lists the failed ones | `npm run test:shell`, CI |
 | `pr-ready.sh` | Reports whether a PR is ready to merge; `--watch` polls until it settles | `post-pr-open-watch.sh`, `/mr`, `/deliver` |
 | `notify.sh` | Shows a macOS notification unless a terminal or IDE is in front | `/ci`, `/deliver` |
-| `worktree-prune.sh` | Removes worktrees whose branch merged or lost its upstream | `worktree-cleanup.sh`, Pi `worktree-cleanup`, `/worktrees`, `/worktree-merge`, `/summarize` |
+| `worktree-prune.sh` | Removes worktrees whose branch merged or lost its upstream | `worktree-cleanup.sh`, `/worktrees`, `/worktree-merge`, `/summarize` |
 | `statusline.sh` | Draws the Claude Code status line | `statusLine` in `settings.json` |
 
 ## How each host finds the config
