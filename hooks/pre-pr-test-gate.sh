@@ -41,11 +41,11 @@ hook_bypass SKIP_PR_TEST_GATE && exit 0
 # call into words, so a flag spelled inside a quoted body or title stays
 # part of that value.
 parse_git_command "$COMMAND" "$CWD"
+git_args_ask_help && exit 0
 DIR=$GIT_REPO_DIR
 DRAFT=""
 for WORD in ${GIT_ARGS[@]+"${GIT_ARGS[@]}"}; do
   case "$WORD" in
-    --help|-h) exit 0 ;;
     --undo) [ "$ACTION" = ready ] && exit 0 ;;
     --draft|--draft=true|-d) DRAFT=1 ;;
   esac

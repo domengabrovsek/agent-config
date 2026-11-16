@@ -18,7 +18,8 @@
 # one it is CLAUDE_PROJECT_DIR, then the hook's own cwd.
 
 # The words come back NUL-separated: a quoted commit message may hold newlines.
-# It prints the matched subcommand, the repo dir, then that call's arguments.
+# It prints the matched subcommand, the repo dir, 1 when every matching call
+# asks for --help or -h and 0 otherwise, then the last call's arguments.
 _GIT_PARSE_PY='
 import os, re, shlex, sys
 
@@ -71,6 +72,12 @@ GIT_VALUE_OPTS = {"-c", "--namespace", "--exec-path", "--config-env", "--super-p
 
 cur, prev, stack = base, base, []
 match = None
+helps = []
+
+def matched(found):
+    global match
+    match = found
+    helps.append(any(a in ("--help", "-h") for a in found[2]))
 
 def run(cmd_words):
     global cur, prev, match
@@ -98,12 +105,12 @@ def run(cmd_words):
         prev, cur = cur, target
         return
     if prog == "gh" and wanted is None:
-        match = ("gh", cur, w[1:])
+        matched(("gh", cur, w[1:]))
         return
     if prog == "gh":
         for sub in gh_wanted:
             if w[1:1 + len(sub)] == sub:
-                match = ("gh " + " ".join(sub), cur, w[1 + len(sub):])
+                matched(("gh " + " ".join(sub), cur, w[1 + len(sub):]))
         return
     if prog != "git":
         return
@@ -142,7 +149,7 @@ def run(cmd_words):
         repo = os.path.dirname(gitdir) if os.path.basename(gitdir) == ".git" else gitdir
     else:
         repo = d
-    match = (sub, repo, w[i + 1:])
+    matched((sub, repo, w[i + 1:]))
 
 pending = []
 for tok in words:
@@ -161,7 +168,8 @@ run(pending)
 sub, repo, args = match if match else ("", cur, [])
 if sub == "gh":
     sub = ""
-sys.stdout.write("".join(f + "\0" for f in [sub, repo] + args))
+all_help = "1" if helps and all(helps) else "0"
+sys.stdout.write("".join(f + "\0" for f in [sub, repo, all_help] + args))
 '
 
 # parse_git_command <command> <cwd> [subcommand[|subcommand...]]
@@ -177,10 +185,12 @@ parse_git_command() {
   GIT_SUB=""
   GIT_REPO_DIR=""
   GIT_ARGS=()
+  GIT_ALL_HELP=0
   while IFS= read -r -d '' field; do
     case $n in
       0) GIT_SUB=$field ;;
       1) GIT_REPO_DIR=$field ;;
+      2) GIT_ALL_HELP=$field ;;
       *) GIT_ARGS+=("$field") ;;
     esac
     n=$((n + 1))
@@ -188,7 +198,7 @@ parse_git_command() {
 
   # Unbalanced quotes or no python3: a substring match keeps the gates on
   # rather than letting the call through ungated.
-  if [ "$n" -lt 2 ]; then
+  if [ "$n" -lt 3 ]; then
     GIT_REPO_DIR="${2:-${CLAUDE_PROJECT_DIR:-$PWD}}"
     local sub IFS='|'
     for sub in ${3:-}; do
@@ -224,11 +234,12 @@ gh_runs() {
   esac
 }
 
-# git_args_ask_help: succeeds when the matched call asks for --help or -h,
-# which only prints usage and so needs no gate. Each argument counts as one
-# word, so a quoted message that mentions --help is not a help call.
+# git_args_ask_help: succeeds when every matched call asks for --help or -h,
+# which only prints usage and so needs no gate. A real call chained before a
+# help call keeps the gate on. Each argument counts as one word, so a quoted
+# message that mentions --help is not a help call.
 git_args_ask_help() {
-  git_args_have --help -h
+  [ "$GIT_ALL_HELP" = 1 ]
 }
 
 # git_args_have <flag>...: succeeds when the matched call has one of the flags

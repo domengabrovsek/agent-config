@@ -120,6 +120,8 @@ gh_runs "git -C $REPO push && cd $OTHER && $GH_CREATE --help" "$REPO" "pr create
 check "the gh call's directory and arguments come back" \
   [ "$GIT_REPO_DIR|${GIT_ARGS[*]}" = "$OTHER|--help" ]
 check "a gh --help call asks for help" git_args_ask_help
+gh_runs "$GH_CREATE --fill && $GH_CREATE --help" "$REPO" "pr create"
+check "a real call chained before a help call is not a help call" not git_args_ask_help
 gh_runs "$GH_CREATE --body \"see --help\"" "$REPO" "pr create"
 check "a --help inside a quoted body is not a help call" not git_args_ask_help
 check "unbalanced quotes still match by substring" gh_runs "$GH_CREATE --body \"open" "$REPO" "pr create"

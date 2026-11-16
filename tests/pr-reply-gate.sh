@@ -103,6 +103,8 @@ assert_gate "help is not gated" \
   "$GH_PR_COMMENT --help" 0
 assert_gate "a --help inside the body is still gated" \
   "$GH_PR_COMMENT 7 --body \"Run it with --help.\"" 2
+assert_gate "a comment chained before a help call is still gated" \
+  "$GH_PR_COMMENT 7 --body \"Done.\" && $GH_PR_COMMENT --help" 2
 assert_gate "a footer outside the body does not count" \
   "echo \"$FOOTER\" && $GH_PR_COMMENT 7 --body \"Done.\"" 2
 assert_gate "a footer on the same line as the text is blocked" \

@@ -39,6 +39,8 @@ assert_gate "a merge subject is skipped" "$CONVENTIONAL" \
   "$GIT_COMMIT -m \"Merge branch main\"" 0
 
 assert_gate "--help is skipped" "$CONVENTIONAL" "$GIT_COMMIT --help" 0
+assert_gate "a real commit chained before a help call is still checked" "$CONVENTIONAL" \
+  "$GIT_COMMIT -m \"just some words\" && $GIT_COMMIT --help" 2
 assert_gate "a message that mentions -h is still checked" "$CONVENTIONAL" \
   "$GIT_COMMIT -m \"pass -h to see usage\"" 2
 
