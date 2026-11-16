@@ -24,9 +24,10 @@ setup() {
   git -C "$TEST_ROOT/seed" push -q "$TEST_ROOT/remote.git" main
 }
 
+# run [repo]: runs the hook against the clone, or <repo>, into OUT and STATUS.
 run() {
-  OUT=$(AGENT_CONFIG_REPO="$TEST_ROOT/clone" bash "$HOOK" 2>&1)
-  STATUS=$?
+  OUT=$(AGENT_CONFIG_REPO="${1:-$TEST_ROOT/clone}" bash "$HOOK" 2>&1)
+  export STATUS=$?
 }
 
 up_to_date() { [ "$(git -C "$TEST_ROOT/clone" rev-parse HEAD)" = "$(git -C "$TEST_ROOT/remote.git" rev-parse main)" ]; }
@@ -46,6 +47,30 @@ check "a checkout on another branch stays put" not up_to_date
 check "the branch case says why" exited 0 says "is on fix/x"
 
 setup
+git -C "$TEST_ROOT/clone" switch -q -c fix/merged
+git -C "$TEST_ROOT/clone" push -q origin fix/merged
+git -C "$TEST_ROOT/remote.git" branch -q -D fix/merged
+run
+check "a clean checkout on a branch gone from origin returns to main" up_to_date
+check "the return says why" says "is gone from origin"
+check "the gone branch itself is kept" git -C "$TEST_ROOT/clone" show-ref --verify --quiet refs/heads/fix/merged
+
+setup
+git -C "$TEST_ROOT/clone" switch -q -c fix/open
+git -C "$TEST_ROOT/clone" push -q origin fix/open
+run
+check "a branch still on origin stays put" not up_to_date
+
+setup
+git -C "$TEST_ROOT/clone" switch -q -c fix/dirty
+git -C "$TEST_ROOT/clone" push -q origin fix/dirty
+git -C "$TEST_ROOT/remote.git" branch -q -D fix/dirty
+echo local > "$TEST_ROOT/clone/README"
+git -C "$TEST_ROOT/clone" add README
+run
+check "a gone branch with local changes stays put" [ "$(git -C "$TEST_ROOT/clone" branch --show-current)" = fix/dirty ]
+
+setup
 echo local > "$TEST_ROOT/clone/README"
 git -C "$TEST_ROOT/clone" add README
 run
@@ -61,8 +86,7 @@ setup
 OUT=$(AGENT_CONFIG_REPO="$TEST_ROOT/clone" SKIP_CONFIG_AUTOUPDATE=1 bash "$HOOK" 2>&1)
 check "SKIP_CONFIG_AUTOUPDATE turns it off" not up_to_date
 
-OUT=$(AGENT_CONFIG_REPO="$TEST_ROOT/missing" bash "$HOOK" 2>&1)
-STATUS=$?
+run "$TEST_ROOT/missing"
 check "a missing checkout exits quietly" exited 0 [ -z "$OUT" ]
 
 finish
