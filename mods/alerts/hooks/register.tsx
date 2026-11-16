@@ -117,7 +117,7 @@ export const register: Register = on => {
         </Text>
         <Box gap={1}>
           {current ? <Text dimColor>↻ {clockTime(current.checkedAt)}</Text> : null}
-          <Button key="refresh" hotkey="r" label="refresh" onPress={() => refresh($)} />
+          <Button key="refresh" hotkey="r" label="refresh" onPress={() => refresh($).catch(() => undefined)} />
         </Box>
       </Box>
     )

@@ -47,6 +47,20 @@ jobs:
       - name: Run pi extension tests
         run: npm test
 
+  typecheck:
+    name: Type Check
+    runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
+    timeout-minutes: 10
+    steps:
+      - name: Check out and set up Node
+        uses: domengabrovsek/github-actions/.github/actions/setup-node-npm@main
+        with:
+          install: 'false'
+
+      # npm ci also installs the Pi peer packages from the lockfile, so tsc checks against their real types.
+      - name: Type-check TypeScript
+        run: npm ci && npm run typecheck
+
   config:
     name: Config Integrity
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
@@ -88,6 +102,7 @@ jobs:
       - lint
       - budget
       - tests
+      - typecheck
       - shell-tests
       - config
     runs-on: "${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}"
@@ -99,6 +114,7 @@ jobs:
             "${{ needs.lint.result }}"
             "${{ needs.budget.result }}"
             "${{ needs.tests.result }}"
+            "${{ needs.typecheck.result }}"
             "${{ needs.shell-tests.result }}"
             "${{ needs.config.result }}"
           )
