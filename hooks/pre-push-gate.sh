@@ -17,8 +17,6 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
-# shellcheck source=lib/pr-state.sh
-. "$(dirname "${BASH_SOURCE[0]}")/lib/pr-state.sh"
 # shellcheck source=lib/husky-hooks.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/husky-hooks.sh"
 # shellcheck source=lib/hook.sh
@@ -115,10 +113,9 @@ block_merged_branch() {
 # The lookup is a network call, so it runs on fd 3 alongside the checks. The
 # EXIT trap reads its answer, so a merged branch blocks on every outcome,
 # including a failed check whose own message would otherwise hide it.
-# pre-git-state-refresh.sh shares the lookup, so the push asks gh once.
 BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
 if [ -n "$BRANCH" ] && command -v gh >/dev/null 2>&1 && pushes_current_branch "$BRANCH"; then
-  exec 3< <(pr_state "$INPUT" "$DIR" | jq -r '.state + " " + .url' 2>/dev/null)
+  exec 3< <(cd "$DIR" && gh pr view --json state,url -q '.state + " " + .url' 2>/dev/null)
   trap block_merged_branch EXIT
 fi
 
