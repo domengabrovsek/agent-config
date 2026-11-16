@@ -99,7 +99,7 @@ The prose gate also prints advisories that never block: words to reconsider, sen
 | `SessionStart`, after compaction | Inline `echo` | Reminds the model of the workflow, `/verify-done` before a PR, and the current year |
 | `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1`. herdr manages this file and overwrites it on reinstall |
 | `SessionStart`, `CwdChanged`, `Stop` | `herdr-pane-context.sh` | Reports `$repo`, `$branch`, and `$wt` pane tokens to the herdr sidebar when `HERDR_ENV=1`. On `SessionStart` it also reports `$model`, because only that event carries the model. It also sets one of `$c0` to `$c13`, a color marker that the herdr config styles. Each new repo in a space takes the lowest unused color, saved in `~/.local/state/herdr/repo-colors`. `Stop` catches a branch switch inside a session. On a fresh `SessionStart` (source `startup`) it also sorts the agent panel by repo through `agent.view.set`. Codex runs only the `SessionStart` entry, through `dispatch.sh` |
-| `SessionEnd` | `worktree-cleanup.sh` | Runs the hook checkout's `scripts/worktree-prune.sh --apply --min-idle 30`, which keeps locked worktrees; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off. Pi's `worktree-cleanup` extension also reads `HARNESS_DISABLE_WORKTREE_CLEANUP=1` |
+| `SessionEnd` | `worktree-cleanup.sh` | Runs the hook checkout's `scripts/worktree-prune.sh --apply --min-idle 30` on the current repo, then detached on each repo in `~/.cache/agent/worktree-repos`. It keeps locked worktrees; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off. Pi's `worktree-cleanup` extension also reads `HARNESS_DISABLE_WORKTREE_CLEANUP=1` |
 | `Notification` | Inline `osascript` | Shows a macOS notification on a permission or idle prompt |
 
 ## Bypass variables
@@ -169,7 +169,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/symlink-check.sh` | The drift check |
 | `tests/config-autoupdate.sh` | The config fast-forward, and each case it skips |
 | `tests/config-repo.sh` | `hooks/lib/config-repo.sh`: override order and the hooks link |
-| `tests/worktree-prune.sh` | `scripts/worktree-prune.sh`, and the `worktree-cleanup.sh` hook that runs it |
+| `tests/worktree-prune.sh` | `scripts/worktree-prune.sh` with its `--registry` mode, and the `worktree-cleanup.sh` hook that runs both passes |
 | `tests/once.sh` | `hooks/lib/once.sh`: claim dir mode, per-user fallback, fail-open |
 | `tests/herdr-pane-context.sh` | The herdr pane tokens in a checkout, a worktree, a submodule, and a bare repo |
 | `tests/prose-gate.sh` | Prose gate fixtures, plus every tracked Markdown file |

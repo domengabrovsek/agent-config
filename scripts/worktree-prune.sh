@@ -10,8 +10,12 @@
 # Usage:
 #   worktree-prune.sh [--apply] [--force-locked] [--min-idle <min>] [--repo <path>]
 #   worktree-prune.sh audit-all [--apply] [--force-locked] [--min-idle <min>] [--root <path>]
+#   worktree-prune.sh --registry [<file>] [--apply] [--force-locked] [--min-idle <min>]
 #
 # Without --apply this is dry-run: prints verdicts and exits without changes.
+# --registry prunes each repo listed in <file>, one absolute path per line,
+# default ~/.cache/agent/worktree-repos. With --apply it also drops entries
+# that are gone or no longer a repo root, rewriting the file atomically.
 # --min-idle keeps worktrees whose index or HEAD changed in the last <min>
 # minutes. Exit codes: 0 always (audit/prune are advisory, never block).
 
@@ -23,6 +27,14 @@ MIN_IDLE=0
 MODE=prune
 REPO=""
 ROOT="${HOME}/dev"
+REGISTRY="${HOME}/.cache/agent/worktree-repos"
+
+set_mode() {
+  if [ "$MODE" != prune ] && [ "$MODE" != "$1" ]; then
+    echo "audit-all and --registry cannot be combined" >&2; exit 2
+  fi
+  MODE="$1"
+}
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -34,7 +46,11 @@ while [ $# -gt 0 ]; do
       ;;
     --repo)  REPO="${2:-}"; shift ;;
     --root)  ROOT="${2:-}"; shift ;;
-    audit-all) MODE=audit-all ;;
+    audit-all) set_mode audit-all ;;
+    --registry)
+      set_mode registry
+      case "${2:-}" in ''|-*|audit-all) ;; *) REGISTRY="$2"; shift ;; esac
+      ;;
     -h|--help)
       sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"
       exit 0
@@ -50,6 +66,10 @@ if [ -t 1 ]; then
 else
   C_GREEN=""; C_YELLOW=""; C_DIM=""; C_RESET=""
 fi
+
+# The worktree this run starts in, whichever repo is being pruned: a registry
+# or audit-all pass must not remove the tree its own session stands in.
+START_TOP=$(git rev-parse --show-toplevel 2>/dev/null)
 
 # Determine the repo's default branch (origin/HEAD if set, else main, master, or trunk)
 default_branch() {
@@ -269,7 +289,7 @@ prune_repo() {
     [ -z "$path" ] && continue
     total=$((total+1))
     # Skip the main checkout and the worktree this run started in
-    if [ "$path" = "$main_path" ] || [ "$path" = "$current" ]; then
+    if [ "$path" = "$main_path" ] || [ "$path" = "$current" ] || [ "$path" = "$START_TOP" ]; then
       kept=$((kept+1))
       continue
     fi
@@ -329,7 +349,73 @@ prune_repo() {
   fi
 }
 
+# in_list <list> <line>: <line> appears whole in the newline-ended <list>.
+in_list() {
+  case $'\n'"$1" in *$'\n'"$2"$'\n'*) return 0 ;; esac
+  return 1
+}
+
+# A live entry is an absolute path that is its own repo's top level. A plain
+# rev-parse would also accept a deleted repo's leftover directory inside some
+# other repo, and then prune that one.
+registry_entry_live() {
+  local entry="$1" top real
+  case "$entry" in /*) ;; *) return 1 ;; esac
+  [ -d "$entry" ] || return 1
+  top=$(git -C "$entry" rev-parse --show-toplevel 2>/dev/null) || return 1
+  real=$(cd "$entry" 2>/dev/null && pwd -P) || return 1
+  [ "$top" = "$real" ]
+}
+
+# compact_registry <file> <stale-list>: rewrite <file> without stale entries,
+# blanks, or repeats. It re-reads the file at write time, so a line another
+# session appended during the prune survives; tmp file plus mv keeps readers
+# from seeing a half-written file.
+compact_registry() {
+  local reg="$1" stale="$2" tmp line kept=""
+  tmp=$(mktemp "$reg.XXXXXX" 2>/dev/null) || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ -z "$line" ] && continue
+    in_list "$stale" "$line" && continue
+    in_list "$kept" "$line" && continue
+    kept="$kept$line"$'\n'
+    printf '%s\n' "$line"
+  done < "$reg" > "$tmp"
+  mv -f "$tmp" "$reg" 2>/dev/null || rm -f "$tmp"
+}
+
+prune_registry() {
+  local reg="$1" entry seen="" stale="" dirty=0
+  if [ ! -s "$reg" ]; then
+    printf '%sregistry empty or missing: %s%s\n' "$C_DIM" "$reg" "$C_RESET"
+    return 0
+  fi
+  while IFS= read -r entry || [ -n "$entry" ]; do
+    if [ -z "$entry" ] || in_list "$seen" "$entry"; then
+      dirty=1; continue
+    fi
+    seen="$seen$entry"$'\n'
+    if registry_entry_live "$entry"; then
+      prune_repo "$entry"
+      continue
+    fi
+    dirty=1
+    stale="$stale$entry"$'\n'
+    printf '%s== %s ==%s\n' "$C_DIM" "$entry" "$C_RESET"
+    if [ "$APPLY" = "1" ]; then
+      printf '  %sSTALE%s  not a repo root, dropped from the registry\n\n' "$C_YELLOW" "$C_RESET"
+    else
+      printf '  %sSTALE%s  not a repo root, --apply drops it from the registry\n\n' "$C_YELLOW" "$C_RESET"
+    fi
+  done < "$reg"
+  [ "$APPLY" = "1" ] && [ "$dirty" = "1" ] && compact_registry "$reg" "$stale"
+  return 0
+}
+
 case "$MODE" in
+  registry)
+    prune_registry "$REGISTRY"
+    ;;
   prune)
     R="${REPO:-$PWD}"
     git -C "$R" rev-parse --show-toplevel >/dev/null 2>&1 || { echo "not in a git repo: $R" >&2; exit 0; }
