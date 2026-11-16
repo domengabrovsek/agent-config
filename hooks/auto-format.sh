@@ -7,8 +7,10 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/find-up.sh"
 # shellcheck source=lib/package-json.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-FILE=$(jq -r '.tool_input.file_path // empty' 2>/dev/null)
+hook_read
 
 # Skip if no file path or file doesn't exist
 [ -z "$FILE" ] && exit 0

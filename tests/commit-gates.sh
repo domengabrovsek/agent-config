@@ -1,6 +1,6 @@
 #!/bin/bash
-# Tests for the PreToolUse commit gates: conventional format, co-author
-# trailer, and the commit mode of the prose gate.
+# Tests for the PreToolUse commit gates: the message gate's conventional
+# format and co-author trailer checks, and the commit mode of the prose gate.
 #
 # The gates read the message from the command string, so only a heredoc or
 # -m value belonging to the commit call counts. A heredoc earlier in the
@@ -11,23 +11,18 @@ set -u
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 # shellcheck source=lib/harness.sh
 . "$PROJECT_DIR/tests/lib/harness.sh"
-CONVENTIONAL="$PROJECT_DIR/hooks/pre-commit-conventional-gate.sh"
-COAUTHOR="$PROJECT_DIR/hooks/pre-commit-coauthor-gate.sh"
+GATE="$PROJECT_DIR/hooks/pre-commit-msg-gate.sh"
+CONVENTIONAL="$GATE"
+COAUTHOR="$GATE"
 PROSE="$PROJECT_DIR/hooks/prose-gate.sh"
 # Assembled so this file never carries the literal phrase the hooks trigger on.
 GIT_COMMIT="git ""commit"
 GIT_C="git"" -C"
 
 # assert_gate <name> <hook-invocation> <command> <expected-exit>
-assert_gate() {
-  local name="$1" hook="$2" command="$3" want="$4" got
-  payload "$command" | bash $hook >/dev/null 2>&1
-  got=$?
-  if [ "$got" -eq "$want" ]; then pass "$name"; else
-    echo "    want exit $want, got $got" >&2
-    fail "$name"
-  fi
-}
+assert_gate() { expect_exit "$1" "$4" run_gate "$2" "$3"; }
+# shellcheck disable=SC2086  # the invocation carries the hook's mode argument
+run_gate() { payload "$2" | bash $1; }
 
 echo "== conventional format =="
 assert_gate "a conventional subject passes" "$CONVENTIONAL" \
@@ -44,6 +39,10 @@ assert_gate "a merge subject is skipped" "$CONVENTIONAL" \
   "$GIT_COMMIT -m \"Merge branch main\"" 0
 
 assert_gate "--help is skipped" "$CONVENTIONAL" "$GIT_COMMIT --help" 0
+assert_gate "a real commit chained before a help call is still checked" "$CONVENTIONAL" \
+  "$GIT_COMMIT -m \"just some words\" && $GIT_COMMIT --help" 2
+assert_gate "a message that mentions -h is still checked" "$CONVENTIONAL" \
+  "$GIT_COMMIT -m \"pass -h to see usage\"" 2
 
 echo
 echo "== global options between git and commit =="
@@ -86,6 +85,19 @@ assert_gate "a co-author trailer behind git -C blocks" "$COAUTHOR" \
 co-authored-by: A <a@example.com>\"" 2
 assert_gate "a commit without a trailer passes" "$COAUTHOR" "$GIT_COMMIT -m \"fix: x\"" 0
 assert_gate "a non-commit command is skipped" "$COAUTHOR" "echo \"Co-Authored-By: A\"" 0
+assert_gate "a commit checks only the trailer, not the PR footer rules" "$COAUTHOR" \
+  "$GIT_COMMIT -m \"fix: x
+
+Generated with Claude Code\"" 0
+TRAILER="$GIT_COMMIT -m \"just some words
+
+Co-Authored-By: A <a@example.com>\""
+check "the trailer bypass leaves the subject check on" \
+  [ "$(payload "$TRAILER" | SKIP_COAUTHOR_GATE=1 bash "$GATE" >/dev/null 2>&1; echo $?)" = 2 ]
+check "the subject bypass leaves the trailer check on" \
+  [ "$(payload "$TRAILER" | SKIP_CONVENTIONAL_GATE=1 bash "$GATE" >/dev/null 2>&1; echo $?)" = 2 ]
+check "both bypasses let the commit through" \
+  [ "$(payload "$TRAILER" | SKIP_COAUTHOR_GATE=1 SKIP_CONVENTIONAL_GATE=1 bash "$GATE" >/dev/null 2>&1; echo $?)" = 0 ]
 
 echo
 echo "== the message comes from this command, not an unrelated heredoc =="

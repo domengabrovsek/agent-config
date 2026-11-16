@@ -15,13 +15,14 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/find-up.sh"
 # shellcheck source=lib/package-json.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
-FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+hook_read
 
 [ -z "$FILE" ] && exit 0
 [ -f "$FILE" ] || exit 0
-[ "$SKIP_POST_EDIT_TYPECHECK" = "1" ] && exit 0
+hook_bypass SKIP_POST_EDIT_TYPECHECK && exit 0
 
 case "$FILE" in
   */node_modules/*|*/dist/*|*/build/*) exit 0 ;;
@@ -45,10 +46,8 @@ BIOME=$(find_up . node_modules/.bin/biome) || exit 0
 OUT=$("$BIOME" check --write --no-errors-on-unmatched \
   --files-ignore-unknown=true "$FILE" 2>&1)
 if [ $? -ne 0 ]; then
-  echo "[post-edit-typecheck] biome check failed for $FILE" >&2
-  echo "$OUT" | head -60 >&2
-  echo "(Bypass: SKIP_POST_EDIT_TYPECHECK=1)" >&2
-  exit 2
+  hook_block post-edit-typecheck SKIP_POST_EDIT_TYPECHECK \
+    "biome check failed for $FILE" "$(printf '%s\n' "$OUT" | head -60)"
 fi
 
 exit 0

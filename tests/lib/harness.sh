@@ -49,6 +49,24 @@ check() {
 
 not() { ! "$@"; }
 
+# expect_exit [--says <text>] <name> <want> <command...>: passes when the
+# command exits <want>, and with --says, when its output holds <text>. Sets
+# OUT and STATUS, so later predicates can read them.
+expect_exit() {
+  local want_out=""
+  if [ "$1" = --says ]; then want_out="$2"; shift 2; fi
+  local name="$1" want="$2"
+  shift 2
+  OUT=$("$@" 2>&1)
+  STATUS=$?
+  if [ "$STATUS" -eq "$want" ] && { [ -z "$want_out" ] || says "$want_out"; }; then
+    pass "$name"
+  else
+    echo "    want exit $want${want_out:+ saying \"$want_out\"}, got $STATUS: $OUT" >&2
+    fail "$name"
+  fi
+}
+
 # Predicates on the OUT and STATUS a suite's runner sets. Each runs any
 # arguments left after its own, so `exited 2 says "x"` checks both.
 exited() { [ "${STATUS:-}" -eq "$1" ] || return 1; shift; [ $# -eq 0 ] || "$@"; }

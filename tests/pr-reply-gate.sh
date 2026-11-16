@@ -24,15 +24,8 @@ STUB
 export PATH="$TEST_DIR/bin:$PATH"
 
 # assert_gate <name> <command> <expected-exit>
-assert_gate() {
-  local name="$1" command="$2" want="$3" got
-  payload "$command" "$TEST_DIR" | bash "$GATE" >/dev/null 2>&1
-  got=$?
-  if [ "$got" -eq "$want" ]; then pass "$name"; else
-    echo "    want exit $want, got $got" >&2
-    fail "$name"
-  fi
-}
+assert_gate() { expect_exit "$1" "$3" run_gate "$2"; }
+run_gate() { payload "$1" "$TEST_DIR" | bash "$GATE"; }
 
 GH_API="gh ""api"
 GH_PR_COMMENT="gh ""pr comment"
@@ -108,6 +101,10 @@ else
 fi
 assert_gate "help is not gated" \
   "$GH_PR_COMMENT --help" 0
+assert_gate "a --help inside the body is still gated" \
+  "$GH_PR_COMMENT 7 --body \"Run it with --help.\"" 2
+assert_gate "a comment chained before a help call is still gated" \
+  "$GH_PR_COMMENT 7 --body \"Done.\" && $GH_PR_COMMENT --help" 2
 assert_gate "a footer outside the body does not count" \
   "echo \"$FOOTER\" && $GH_PR_COMMENT 7 --body \"Done.\"" 2
 assert_gate "a footer on the same line as the text is blocked" \

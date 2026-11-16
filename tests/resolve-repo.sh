@@ -110,6 +110,24 @@ parse_git_command "git -C $OTHER push -u origin HEAD" "$REPO" push
 check "the matched call's arguments come back" [ "${GIT_ARGS[*]}" = "-u origin HEAD" ]
 
 echo
+echo "== gh_runs =="
+GH_CREATE="gh ""pr create"
+check "a gh pr create call matches" gh_runs "$GH_CREATE --title x" "$REPO" "pr create|pr edit"
+check "a gh call behind cd matches" gh_runs "cd $OTHER && $GH_CREATE --fill" "$REPO" "pr create"
+check "a quoted mention is not a gh call" not gh_runs "echo \"$GH_CREATE --help\"" "$REPO" "pr create"
+check "another gh subcommand does not match" not gh_runs "gh ""pr view 7" "$REPO" "pr create|pr edit"
+gh_runs "git -C $REPO push && cd $OTHER && $GH_CREATE --help" "$REPO" "pr create"
+check "the gh call's directory and arguments come back" \
+  [ "$GIT_REPO_DIR|${GIT_ARGS[*]}" = "$OTHER|--help" ]
+check "a gh --help call asks for help" git_args_ask_help
+gh_runs "$GH_CREATE --fill && $GH_CREATE --help" "$REPO" "pr create"
+check "a real call chained before a help call is not a help call" not git_args_ask_help
+gh_runs "$GH_CREATE --body \"see --help\"" "$REPO" "pr create"
+check "a --help inside a quoted body is not a help call" not git_args_ask_help
+check "unbalanced quotes still match by substring" gh_runs "$GH_CREATE --body \"open" "$REPO" "pr create"
+check "the substring match never reads as a help call" not git_args_ask_help
+
+echo
 echo "== hooks resolve the repo from the payload, not their own cwd =="
 
 : > "$REPO/file"

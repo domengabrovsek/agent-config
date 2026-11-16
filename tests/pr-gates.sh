@@ -21,15 +21,9 @@ GH_EDIT="gh ""pr edit 12"
 harness_init pr-gates TEST_DIR
 
 # assert_gate <name> <hook-invocation> <command> <expected-exit>
-assert_gate() {
-  local name="$1" hook="$2" command="$3" want="$4" got
-  payload "$command" | bash $hook >/dev/null 2>&1
-  got=$?
-  if [ "$got" -eq "$want" ]; then pass "$name"; else
-    echo "    want exit $want, got $got" >&2
-    fail "$name"
-  fi
-}
+assert_gate() { expect_exit "$1" "$4" run_gate "$2" "$3"; }
+# shellcheck disable=SC2086  # the invocation carries the hook's mode argument
+run_gate() { payload "$2" | bash $1; }
 
 echo "== prose gate, pr mode =="
 assert_gate "a plain create body passes" "$PROSE" \
@@ -128,6 +122,15 @@ echo "== plumbing =="
 assert_gate "an unrelated command is skipped" "$BODY" "npm test" 0
 assert_gate "the create help flag is skipped" "$BODY" "$GH_CREATE --help" 0
 assert_gate "the edit help flag is skipped" "$BODY" "gh ""pr edit --help" 0
+assert_gate "a --help inside the body is still checked" "$BODY" \
+  "$GH_CREATE --title \"fix: a\" --body \"Run it with --help. Generated with Claude Code\"" 2
+assert_gate "a quoted help call in an echo does not skip the gate" "$BODY" \
+  "echo \"$GH_CREATE --help\"; $GH_CREATE --body \"Generated with Claude Code\"" 2
+assert_gate "the prose gate skips a help call" "$PROSE" "$GH_CREATE --help" 0
+assert_gate "a real call chained before a help call is still checked" "$BODY" \
+  "$GH_CREATE --body \"Generated with Claude Code\" && gh ""pr edit 12 --help" 2
+assert_gate "the prose gate checks a call chained before a help call" "$PROSE" \
+  "$GH_CREATE --body \"A pivotal change.\" && gh ""pr edit 12 --help" 2
 assert_gate "an unrelated command is skipped by the prose gate" "$PROSE" "npm test" 0
 
 finish

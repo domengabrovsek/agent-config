@@ -18,12 +18,15 @@
 # one it is CLAUDE_PROJECT_DIR, then the hook's own cwd.
 
 # The words come back NUL-separated: a quoted commit message may hold newlines.
-# It prints the matched subcommand, the repo dir, then that call's arguments.
+# It prints the matched subcommand, the repo dir, 1 when every matching call
+# asks for --help or -h and 0 otherwise, then the last call's arguments.
 _GIT_PARSE_PY='
 import os, re, shlex, sys
 
 base, want = sys.argv[1], sys.argv[2]
 wanted = set(want.split("|")) if want else None
+# A wanted entry such as "gh pr create" names a gh call by its leading words.
+gh_wanted = [w.split()[1:] for w in (wanted or ()) if w.startswith("gh ")]
 cmd = sys.stdin.read()
 base = base or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
 home = os.environ.get("HOME", "")
@@ -69,6 +72,12 @@ GIT_VALUE_OPTS = {"-c", "--namespace", "--exec-path", "--config-env", "--super-p
 
 cur, prev, stack = base, base, []
 match = None
+helps = []
+
+def matched(found):
+    global match
+    match = found
+    helps.append(any(a in ("--help", "-h") for a in found[2]))
 
 def run(cmd_words):
     global cur, prev, match
@@ -96,7 +105,12 @@ def run(cmd_words):
         prev, cur = cur, target
         return
     if prog == "gh" and wanted is None:
-        match = ("gh", cur, w[1:])
+        matched(("gh", cur, w[1:]))
+        return
+    if prog == "gh":
+        for sub in gh_wanted:
+            if w[1:1 + len(sub)] == sub:
+                matched(("gh " + " ".join(sub), cur, w[1 + len(sub):]))
         return
     if prog != "git":
         return
@@ -135,7 +149,7 @@ def run(cmd_words):
         repo = os.path.dirname(gitdir) if os.path.basename(gitdir) == ".git" else gitdir
     else:
         repo = d
-    match = (sub, repo, w[i + 1:])
+    matched((sub, repo, w[i + 1:]))
 
 pending = []
 for tok in words:
@@ -154,24 +168,29 @@ run(pending)
 sub, repo, args = match if match else ("", cur, [])
 if sub == "gh":
     sub = ""
-sys.stdout.write("".join(f + "\0" for f in [sub, repo] + args))
+all_help = "1" if helps and all(helps) else "0"
+sys.stdout.write("".join(f + "\0" for f in [sub, repo, all_help] + args))
 '
 
 # parse_git_command <command> <cwd> [subcommand[|subcommand...]]
 # Sets GIT_SUB to the matched subcommand, or empty when the command runs no
 # such git call; GIT_REPO_DIR to the repo of the last matching call; and
 # GIT_ARGS to that call's arguments. With no subcommand, the last git or gh
-# call matches, and a gh call leaves GIT_SUB empty with its words in GIT_ARGS. Without a match,
-# GIT_REPO_DIR is the directory the chain ends in. Succeeds when GIT_SUB is set.
+# call matches, and a gh call leaves GIT_SUB empty with its words in GIT_ARGS.
+# A subcommand starting with "gh ", such as "gh pr create", matches that gh
+# call instead. Without a match, GIT_REPO_DIR is the directory the chain ends
+# in. Succeeds when GIT_SUB is set.
 parse_git_command() {
   local field n=0
   GIT_SUB=""
   GIT_REPO_DIR=""
   GIT_ARGS=()
+  GIT_ALL_HELP=0
   while IFS= read -r -d '' field; do
     case $n in
       0) GIT_SUB=$field ;;
       1) GIT_REPO_DIR=$field ;;
+      2) GIT_ALL_HELP=$field ;;
       *) GIT_ARGS+=("$field") ;;
     esac
     n=$((n + 1))
@@ -179,12 +198,13 @@ parse_git_command() {
 
   # Unbalanced quotes or no python3: a substring match keeps the gates on
   # rather than letting the call through ungated.
-  if [ "$n" -lt 2 ]; then
+  if [ "$n" -lt 3 ]; then
     GIT_REPO_DIR="${2:-${CLAUDE_PROJECT_DIR:-$PWD}}"
     local sub IFS='|'
     for sub in ${3:-}; do
-      case "$1" in
-        *"git $sub"*|*"git -C "*" $sub"*) GIT_SUB=$sub; break ;;
+      case "$sub" in
+        "gh "*) case "$1" in *"$sub"*) GIT_SUB=$sub; break ;; esac ;;
+        *) case "$1" in *"git $sub"*|*"git -C "*" $sub"*) GIT_SUB=$sub; break ;; esac ;;
       esac
     done
   fi
@@ -201,12 +221,36 @@ git_runs() {
   esac
 }
 
-# git_args_ask_help: succeeds when the matched call asks for --help or -h,
-# which only prints usage and so needs no gate.
-git_args_ask_help() {
-  case " ${GIT_ARGS[*]} " in
-    *" --help "*|*" -h "*) return 0 ;;
+# gh_runs <command> <cwd> <subcommand[|subcommand...]>
+# Succeeds when the command runs one of the gh subcommands, such as
+# "pr create|pr edit", and sets GIT_SUB, GIT_REPO_DIR and GIT_ARGS for the
+# last such call, as parse_git_command does. When the shell quoting cannot be
+# parsed, a substring match stands in and leaves GIT_ARGS empty, so a gate
+# stays on rather than reading a --help it cannot see.
+gh_runs() {
+  case "$1" in
+    *gh*) parse_git_command "$1" "$2" "gh ${3//|/|gh }" ;;
+    *) return 1 ;;
   esac
+}
+
+# git_args_ask_help: succeeds when every matched call asks for --help or -h,
+# which only prints usage and so needs no gate. A real call chained before a
+# help call keeps the gate on. Each argument counts as one word, so a quoted
+# message that mentions --help is not a help call.
+git_args_ask_help() {
+  [ "$GIT_ALL_HELP" = 1 ]
+}
+
+# git_args_have <flag>...: succeeds when the matched call has one of the flags
+# as a whole argument.
+git_args_have() {
+  local arg flag
+  for arg in ${GIT_ARGS[@]+"${GIT_ARGS[@]}"}; do
+    for flag in "$@"; do
+      [ "$arg" = "$flag" ] && return 0
+    done
+  done
   return 1
 }
 

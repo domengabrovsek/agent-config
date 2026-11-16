@@ -1,7 +1,7 @@
 #!/bin/bash
 # Shared commit message handling for the `git commit` hooks and the PR title.
 #
-# The conventional-commit gate checks the subject and the prose gate lints the
+# The commit message gate checks the subject and the prose gate lints the
 # whole message, so both read it through this one parse. The PR test gate
 # checks titles against the same types, which the CI title check
 # (amannn/action-semantic-pull-request) accepts by default.

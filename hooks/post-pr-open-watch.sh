@@ -7,31 +7,30 @@
 
 [ "${SKIP_PR_WATCH:-}" = "1" ] && exit 0
 
+# shellcheck source=lib/resolve-repo.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/context.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" post-pr-open-watch || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-case "$COMMAND" in
-  *"gh pr create"*|*"gh pr ready"*) ;;
-  *) exit 0 ;;
-esac
-case "$COMMAND" in
-  *" --help"*|*" -h"*|*"--dry-run"*|*"--undo"*) exit 0 ;;
-esac
+# The flags below come from the parsed create or ready call, so a flag
+# spelled inside a quoted title or body never counts.
+gh_runs "$COMMAND" "$CWD" "pr create|pr ready" || exit 0
+git_args_ask_help && exit 0
+git_args_have --dry-run --undo && exit 0
 # A draft stays with the user until they run gh pr ready, which arms the watch.
-case "$COMMAND" in
-  *"gh pr create"*" --draft"*|*"gh pr create"*" -d "*|*"gh pr create"*" -d") exit 0 ;;
-esac
+[ "$GIT_SUB" = "gh pr create" ] && git_args_have --draft --draft=true -d && exit 0
 
 OUTPUT=$(echo "$INPUT" | jq -r '.tool_response | if type == "object" then "\(.stdout // "")\n\(.stderr // "")" else tostring end')
 
-case "$COMMAND" in
-  *"gh pr create"*)
+case "$GIT_SUB" in
+  "gh pr create")
     # gh pr create prints the URL on success; no URL means it failed.
     URL=$(echo "$OUTPUT" | grep -oE 'https://github\.com/[^/ ]+/[^/ ]+/pull/[0-9]+' | head -1)
     [ -z "$URL" ] && exit 0
@@ -42,13 +41,9 @@ case "$COMMAND" in
     # The PR is the first non-flag argument; -R/--repo takes a value.
     URL=""
     REPO=""
-    set -f
-    # shellcheck disable=SC2086
-    set -- ${COMMAND#*gh pr ready}
-    set +f
+    set -- ${GIT_ARGS[@]+"${GIT_ARGS[@]}"}
     while [ $# -gt 0 ]; do
       case "$1" in
-        '&&'|'||'|';'|'|') break ;;
         -R|--repo) REPO="${2:-}"; shift 2 ;;
         --repo=*) REPO="${1#--repo=}"; shift ;;
         -*) shift ;;

@@ -43,20 +43,16 @@ ledger() {
 }
 
 # assert_gate <name> <cwd> <expected-exit>
-assert_gate() {
-  local name="$1" cwd="$2" want="$3" got
-  payload "$GH_CREATE" "$cwd" | bash "$GATE" >/dev/null 2>&1
-  got=$?
-  if [ "$got" -eq "$want" ]; then pass "$name"; else
-    echo "    want exit $want, got $got" >&2
-    fail "$name"
-  fi
-}
+assert_gate() { expect_exit "$1" "$3" run_gate "$2"; }
+run_gate() { payload "${2:-$GH_CREATE}" "$1" | bash "$GATE"; }
 
 PASS1="| AC-1 | PASS | test src/date.test.ts::parses | 1 passed | ${HEAD_SHA:0:7} |"
 PASS2="| AC-2 | PASS | cmd npm test -- empty | 3 passed | $HEAD_SHA |"
 
 assert_gate "a missing ledger blocks" "$REPO" 2
+expect_exit "a help call skips the gate" 0 run_gate "$REPO" "gh ""pr create --help"
+expect_exit "a create chained before a help call is still gated" 2 \
+  run_gate "$REPO" "$GH_CREATE && gh ""pr create --help"
 
 ledger "$PASS1"
 assert_gate "a criterion with no row blocks" "$REPO" 2

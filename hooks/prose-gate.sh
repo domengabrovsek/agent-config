@@ -31,6 +31,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/commit-msg.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
 # These carry the lists themselves, so checking them flags their own text.
 lists_itself() {
@@ -46,14 +48,14 @@ MODE="${1:-file}"
 # Read it before the bypass check so the writer never hits a closed pipe.
 INPUT=""
 if [ "$MODE" != "corpus" ]; then
-  INPUT=$(cat)
+  hook_read
 fi
 
 case "$MODE" in
   commit|pr) first_run_for_call "$INPUT" "prose-gate-$MODE" || exit 0 ;;
 esac
 
-[ "$SKIP_PROSE_GATE" = "1" ] && exit 0
+hook_bypass SKIP_PROSE_GATE && exit 0
 
 # ---------------------------------------------------------------------------
 # Extract the text to check, per mode.
@@ -63,7 +65,6 @@ TEXT=""
 
 case "$MODE" in
   file)
-    FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
     [ -z "$FILE" ] && exit 0
     [ ! -f "$FILE" ] && exit 0
 
@@ -84,7 +85,6 @@ case "$MODE" in
     ;;
 
   commit)
-    COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
     git_runs "$COMMAND" commit || exit 0
     git_args_ask_help && exit 0
     commit_reuses_message "$COMMAND" && exit 0
@@ -94,13 +94,11 @@ case "$MODE" in
     ;;
 
   pr)
-    COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
     case "$COMMAND" in
-      *"gh pr create --help"*|*"gh pr create -h"*) exit 0 ;;
-      *"gh pr edit --help"*|*"gh pr edit -h"*) exit 0 ;;
       *"gh pr create"*|*"gh pr edit"*) ;;
       *) exit 0 ;;
     esac
+    gh_runs "$COMMAND" "$CWD" "pr create|pr edit" && git_args_ask_help && exit 0
 
     LABEL="PR body"
     TEXT=$(extract_pr_body "$COMMAND")

@@ -18,23 +18,18 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" pre-git-state-refresh || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-[ "$SKIP_PR_STATE_REFRESH" = "1" ] && exit 0
-
-# --help / -h variants are harmless; skip.
-case "$COMMAND" in
-  *" --help"*|*" -h"*) exit 0 ;;
-esac
+hook_bypass SKIP_PR_STATE_REFRESH && exit 0
 
 # Match trigger commands only. Anything else exits silently. The hook's own
 # cwd is not the tool call's, so the repo comes from the payload.
 # CLAUDE_PROJECT_DIR alone is wrong whenever the harness runs hooks from
 # another directory.
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 case "$COMMAND" in
   *"gh pr edit"*|*"gh pr comment"*|*"gh pr merge"*) KIND=gh ;;
   *"gh pr close"*|*"gh pr ready"*|*"gh pr review"*) KIND=gh ;;
@@ -45,8 +40,10 @@ if [ "$KIND" = git ]; then
   parse_git_command "$COMMAND" "$CWD" "push|commit" || exit 0
   KIND=$GIT_SUB
 else
-  parse_git_command "$COMMAND" "$CWD"
+  gh_runs "$COMMAND" "$CWD" "pr edit|pr comment|pr merge|pr close|pr ready|pr review"
 fi
+# A --help or -h call only prints usage.
+git_args_ask_help && exit 0
 DIR=$GIT_REPO_DIR
 
 emit() {

@@ -28,33 +28,28 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" pre-pr-reply-gate || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 case "$COMMAND" in
-  *"gh pr comment --help"*|*"gh pr comment -h"*) exit 0 ;;
-  *"gh issue comment --help"*|*"gh issue comment -h"*) exit 0 ;;
-  *"gh pr review --help"*|*"gh pr review -h"*) exit 0 ;;
   *"gh pr comment"*|*"gh issue comment"*|*"gh pr review"*) KIND=cli ;;
   *"gh api"*) KIND=api ;;
   *) exit 0 ;;
 esac
+if [ "$KIND" = cli ] && gh_runs "$COMMAND" "$CWD" "pr comment|issue comment|pr review" \
+  && git_args_ask_help; then
+  exit 0
+fi
 
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 # The body is free text, so a `git -C <dir>` inside it must not pick the repo.
 REPO_CMD=${COMMAND%%body=*}
 for flag in --body -b -F; do REPO_CMD=${REPO_CMD%%[[:space:]]"$flag"[[:space:]=]*}; done
 DIR=$(resolve_repo_dir "$REPO_CMD" "$CWD")
 
-# block <line>...: prints each line with the gate prefix on the first and exits 2.
-block() {
-  echo "[pre-pr-reply-gate] $1" >&2
-  shift
-  for line in "$@"; do echo "$line" >&2; done
-  exit 2
-}
+block() { hook_block pre-pr-reply-gate "" "$@"; }
 
 if [ "$KIND" = api ]; then
   # Flags sit before the first body= field; the body itself is free text.
@@ -134,7 +129,7 @@ if [ "$KIND" = api ]; then
   done
 fi
 
-[ "$SKIP_REPLY_FOOTER" = "1" ] && exit 0
+hook_bypass SKIP_REPLY_FOOTER && exit 0
 
 # footer_ok <body>: succeeds when the body ends with the agent footer on its own
 # line. A "$(cat <<EOF ... EOF)" body ends with the heredoc close, so unwrap it
@@ -152,11 +147,10 @@ sys.exit(0 if re.search(r"\n[ \t]*\n<sub>Posted by [^<]+ on behalf of @[A-Za-z0-
 }
 
 refuse_footer() {
-  echo "[pre-pr-reply-gate] This comment posts under the user's account without the agent footer on its own line." >&2
-  echo "End the body with a blank line, then: <sub>Posted by <agent> on behalf of @<login></sub>" >&2
-  echo "Write the body inline or in a file. A --body-file \"\$f\" works when f is set, or looped over, with literal paths in the same command." >&2
-  echo "(Bypass: SKIP_REPLY_FOOTER=1)" >&2
-  exit 2
+  hook_block pre-pr-reply-gate SKIP_REPLY_FOOTER \
+    "This comment posts under the user's account without the agent footer on its own line." \
+    "End the body with a blank line, then: <sub>Posted by <agent> on behalf of @<login></sub>" \
+    "Write the body inline or in a file. A --body-file \"\$f\" works when f is set, or looped over, with literal paths in the same command."
 }
 
 # Relative body files resolve against the repo the command runs in.

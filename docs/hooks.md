@@ -33,6 +33,10 @@ Exit codes decide the outcome:
 - Any other code lets the call run. Claude Code shows a non-blocking error, and `dispatch.sh` ignores the code, so a broken hook fails open on every host.
 - A hook that runs past its `timeout` lets the call run on every host. Claude Code cancels it after 10 minutes when unset, as the [hooks reference](https://code.claude.com/docs/en/hooks) describes, unless the entry sets `onFailure: "block"`. No entry here does. `dispatch.sh` kills it after 60 seconds when unset.
 
+### Naming
+
+A tool hook is named `<event>-<concern>.sh`. The event part says when it runs and on what: `pre-commit`, `pre-push`, `pre-pr`, `pre-edit`, `pre-git`, `post-edit`, `post-pr`, `post-verify`. The concern part says what it checks, and ends in `-gate` when the hook can block, as in `pre-commit-msg-gate.sh`. One hook covers one concern on one event, so two checks of the same text share a hook rather than a prefix. Session hooks and hooks that serve several events, such as `prose-gate.sh`, `deny-gate.sh`, and `symlink-check.sh`, keep a concern-only name. Hooks stay flat in `hooks/`, and shared code goes in `hooks/lib/`.
+
 ## Host coverage
 
 | Host | Tool hooks | Session hooks | Deny list |
@@ -56,14 +60,13 @@ These run before the tool call and can block it. The rows follow registry order.
 | `pre-pr-evidence-gate.sh` | `gh pr create`, when a spec names the branch | A non-manual acceptance criterion lacks a PASS row at HEAD | `SKIP_EVIDENCE_GATE` |
 | `pre-push-gate.sh` | `git push`, including `git -C <dir> push` | The branch's PR already merged, a repo check fails, the package manager or `node_modules` is missing, or `core.hooksPath` names a missing dir. See below | `SKIP_PUSH_GATE` |
 | `pre-commit-branch-gate.sh` | `git commit`, including `git -C <dir> commit` | The branch is `main` or `master` | `SKIP_COMMIT_BRANCH_GATE` |
-| `pre-commit-coauthor-gate.sh` | `git commit`, including `git -C <dir> commit` | The command contains a `Co-authored-by` trailer | `SKIP_COAUTHOR_GATE` |
-| `pre-commit-conventional-gate.sh` | `git commit`, including `git -C <dir> commit` | The subject is not a conventional commit | `SKIP_CONVENTIONAL_GATE` |
+| `pre-commit-msg-gate.sh` | `git commit`, including `git -C <dir> commit` | The command contains a `Co-authored-by` trailer, or the subject is not a conventional commit | `SKIP_COAUTHOR_GATE` for the trailer, `SKIP_CONVENTIONAL_GATE` for the subject |
 | `prose-gate.sh` | `git commit`, including `git -C <dir> commit`, `gh pr create`, `gh pr edit` | The message or body uses a blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `pre-pr-body-gate.sh` | `gh pr` and `gh issue` create or edit | The title or body has AI attribution or a `.claude/state/` path. Commands chained before or after the `gh` call are not checked, unless the body is unreadable, the call expands a variable, or the command also names the body file | `SKIP_PR_BODY_GATE` |
 | `pre-pr-reply-gate.sh` | `gh api`, `gh pr comment`, `gh pr review`, `gh issue comment` | The call replies inline to a human's comment, a comment lacks the agent footer, or a `gh api` comment is one the gate cannot read: `--input`, a GraphQL comment or reply mutation, or a variable `in_reply_to`. A `--body-file "$f"` passes when the same command sets `f`, or loops it, over literal paths whose files each end with the footer. A glob, or a body file the command also names elsewhere, blocks | `SKIP_REPLY_FOOTER`, footer check only |
 | `pre-edit-test-lock.sh` | Write, Edit | Anyone but the QA Expert edits a test listed in `tests.lock` | None |
 
-The conventional and co-author gates read the message from the command. A message passed with `-F` or written in an editor skips them.
+The commit message gate reads the message from the command. A message passed with `-F` or written in an editor skips the subject check.
 
 Two gates defer to the repo they run in:
 
@@ -133,11 +136,14 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | --- | --- | --- |
 | `dispatch.sh` | Codex `hooks.json`, Pi `hook-bridge` | Runs the registry on hosts without native hooks. See [host coverage](#host-coverage) |
 | `deny-gate.ts` | `deny-gate.sh` | Matches a tool call against the deny list in `settings.json` |
-| `resolve-repo.sh` | The git and `gh pr` gates, `post-verify-stamp.sh` | Finds the repo a command targets, because a hook runs in its own cwd |
+| `deny-rules.ts` | `deny-gate.ts`, the Pi permission gate | Loads and classifies the `settings.json` deny list, shared with the Pi permission gate |
+| `hook.sh` | Most tool hooks. Not `deny-gate.sh`, which hands the payload to `deny-gate.ts`, or `pre-outbound-email-scrub.sh`, which runs an `@` prefilter before any parse | Reads the payload's command, cwd, and file path with one `jq` call, checks a `SKIP_*` bypass, and prints a block with the hook's prefix and bypass hint |
+| `resolve-repo.sh` | The git and `gh pr` gates, `post-verify-stamp.sh` | Finds the repo a command targets, because a hook runs in its own cwd. `git_runs` and `gh_runs` match a git or `gh` subcommand by its parsed words, so a `--help` inside a quoted message is not a help call |
 | `pr-body.sh` | The prose, body, test, and reply gates | Extracts the PR body from a `gh pr` command, and the `body=` field of a `gh api` call |
 | `find-up.sh` | `auto-format.sh`, `post-edit-typecheck.sh`, `post-verify-stamp.sh` | Finds the nearest config, `package.json`, or tool binary above a path, for monorepo workspaces |
 | `package-json.sh` | The per-edit hooks, the push, PR test, and verify stamp hooks | Finds the nearest `package.json` and checks for a declared script |
-| `commit-msg.sh` | The conventional-commit and prose gates | Extracts the message from a `git commit` command and spots a reused one |
+| `commit-msg.sh` | The commit message and prose gates | Extracts the message from a `git commit` command and spots a reused one |
+| `attribution.sh` | The commit message and PR body gates | Finds the AI attribution `rules/git-conventions.md` bans |
 | `context.sh` | The verify stamp, PR watch, and PR state hooks | Prints the JSON that adds text to the model's context |
 | `state-roots.sh` | The test lock and the evidence gate | Finds `.claude/state/` in the main checkout, then in a worktree |
 | `once.sh` | The Bash hooks registered under several `if` rules | Lets only the first run on a tool call do the work, keyed by `tool_use_id` |
@@ -146,11 +152,11 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 
 | Test | Covers |
 | --- | --- |
-| `tests/deny-gate.test.ts` | `hooks/lib/deny-gate.ts` and its wrapper |
+| `tests/deny-gate.test.ts` | `hooks/lib/deny-gate.ts` and its wrapper, and `hooks/lib/deny-rules.ts` |
 | `tests/dispatch.sh` | `hooks/lib/dispatch.sh`: matching, tool aliases, exit codes, timeouts |
-| `tests/hook-bridge.test.ts`, `tests/permission-gate.test.ts` | The Pi bridge, and the policy derived from the real deny list |
-| `tests/drift-check.test.ts`, `tests/worktree-cleanup.test.ts`, `tests/statusline.test.ts` | The Pi extensions that replace session hooks, and the Pi status line usage parser |
-| `tests/commit-gates.sh` | The conventional-commit gate, the co-author gate, and the prose gate on commits |
+| `tests/hook-bridge.test.ts`, `tests/permission-gate.test.ts` | The Pi bridge, and the policy derived from the real deny list through `hooks/lib/deny-rules.ts` |
+| `tests/drift-check.test.ts`, `tests/worktree-cleanup.test.ts`, `tests/checkout.test.ts`, `tests/statusline.test.ts`, `tests/statusline-format.test.ts` | The Pi extensions that replace session hooks, and the Pi status line |
+| `tests/commit-gates.sh` | The commit message gate and the prose gate on commits |
 | `tests/pr-gates.sh`, `tests/pre-pr-test-gate.sh`, `tests/pr-reply-gate.sh` | The PR body, prose, test, and reply gates |
 | `tests/post-verify-stamp.sh` | The `verify-passed` stamp, and the commands that leave none |
 | `tests/agent-shell.sh` | The `CLAUDE_ENV_FILE` preamble: node from `.nvmrc`, and the removed aliases, in bash and zsh |

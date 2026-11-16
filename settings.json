@@ -240,25 +240,13 @@
           },
           {
             "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-coauthor-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-msg-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git commit *)",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-coauthor-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
-            "if": "Bash(git -C *)",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-conventional-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
-            "if": "Bash(git commit *)",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-conventional-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-commit-msg-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
             "if": "Bash(git -C *)",
             "timeout": 10
           },

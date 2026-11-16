@@ -19,6 +19,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 # shellcheck source=lib/husky-hooks.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/husky-hooks.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
 # detect_package_manager <dir>
 # The packageManager field, then the lockfile, walking up to the git top level
@@ -51,10 +53,8 @@ install_cmd() {
   esac
 }
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" pre-push-gate || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
 case "$COMMAND" in
   *git*) ;;
@@ -65,15 +65,14 @@ git_args_ask_help && exit 0
 
 # Hooks inherit the host's environment, not the tool command's, so only a
 # human starting the host can set this.
-if [ "$SKIP_PUSH_GATE" = "1" ]; then
+if hook_bypass SKIP_PUSH_GATE; then
   echo "[pre-push-gate] SKIP_PUSH_GATE=1 - bypassing pre-push gate." >&2
   exit 0
 fi
 
 DIR=$GIT_REPO_DIR
 if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
-  echo "[pre-push-gate] $DIR is not a git repo, so the push cannot be checked. Run the push from inside the repo, or name it with git -C <repo>." >&2
-  exit 2
+  hook_block pre-push-gate "" "$DIR is not a git repo, so the push cannot be checked. Run the push from inside the repo, or name it with git -C <repo>."
 fi
 
 # A push to a branch whose PR already merged recreates the deleted remote
@@ -107,8 +106,7 @@ block_merged_branch() {
   local pr_state=""
   IFS= read -r pr_state <&3
   if [ "${pr_state%% *}" = "MERGED" ]; then
-    echo "[pre-push-gate] $BRANCH already merged in ${pr_state#* }. Start a new branch from the default branch for new work." >&2
-    exit 2
+    hook_block pre-push-gate "" "$BRANCH already merged in ${pr_state#* }. Start a new branch from the default branch for new work."
   fi
 }
 
@@ -155,8 +153,7 @@ if [ -n "$HOOKS_PATH" ]; then
   [ -n "$TOP" ] && restore_husky_hooks "$TOP" "$HOOKS_PATH"
   if [ -n "$TOP" ] && [ ! -d "$HOOKS_DIR" ]; then
     INSTALL=$(install_cmd "$(detect_package_manager "$TOP")")
-    echo "[pre-push-gate] core.hooksPath is $HOOKS_PATH, but $HOOKS_DIR does not exist, so the repo's own hooks would not run. Run '$INSTALL' in $TOP, then push again." >&2
-    exit 2
+    hook_block pre-push-gate "" "core.hooksPath is $HOOKS_PATH, but $HOOKS_DIR does not exist, so the repo's own hooks would not run. Run '$INSTALL' in $TOP, then push again."
   fi
 fi
 
@@ -203,24 +200,20 @@ run_step() {
   OUT=$(bash -c "$cmd" 2>&1)
   STATUS=$?
   if [ $STATUS -ne 0 ]; then
-    echo "[pre-push-gate] $label FAILED. Fix before pushing:" >&2
-    echo "$OUT" | tail -40 >&2
-    exit 2
+    hook_block pre-push-gate "" "$label FAILED. Fix before pushing:" "$(printf '%s\n' "$OUT" | tail -40)"
   fi
 }
 
 if [ "$PROJECT_TYPE" = "node" ]; then
   PM=$(detect_package_manager "$PROJECT_ROOT")
   if ! command -v "$PM" >/dev/null 2>&1; then
-    echo "[pre-push-gate] $PROJECT_ROOT uses $PM, which is not on PATH. Install it or enable corepack." >&2
-    exit 2
+    hook_block pre-push-gate "" "$PROJECT_ROOT uses $PM, which is not on PATH. Install it or enable corepack."
   fi
   # A fresh worktree has no node_modules; the checks below would fail with
   # noise unrelated to the branch. Fail with the actionable step instead. A
   # manifest with no dependencies installs nothing, so it needs none.
   if [ ! -d "$PROJECT_ROOT/node_modules" ] && declares_dependencies; then
-    echo "[pre-push-gate] $PROJECT_ROOT has no node_modules - run '$(install_cmd "$PM")' there first." >&2
-    exit 2
+    hook_block pre-push-gate "" "$PROJECT_ROOT has no node_modules - run '$(install_cmd "$PM")' there first."
   fi
   # pnpm hands flags after the script name to the script, so --silent goes
   # before `run`. Yarn Berry has no --silent.
