@@ -32,9 +32,10 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 # shellcheck source=lib/context.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+hook_read
 
 case "$COMMAND" in
   *"npm run verify"*) ;;
@@ -73,7 +74,6 @@ CORE=$(printf '%s\n' "$CORE" | sed -E \
   -e 's/[[:space:]]+$//')
 [ "$CORE" = "npm run verify" ] || no_stamp "anything besides \`npm run verify\` and a trailing redirect can hide or fake the exit code"
 
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
 # The PostToolUse cwd may already be the cd target, so a relative cd path resolves twice.
 [ -d "$DIR" ] || [ -z "$CWD" ] || DIR="$CWD"

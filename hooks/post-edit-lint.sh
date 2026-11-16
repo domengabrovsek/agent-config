@@ -8,15 +8,17 @@
 #
 # Bypass: SKIP_POST_EDIT_LINT=1.
 
-INPUT=$(cat)
-FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
+
+hook_read
 
 # No file path or file vanished - bail.
 [ -z "$FILE" ] && exit 0
 [ ! -f "$FILE" ] && exit 0
 
 # Escape hatch.
-[ "$SKIP_POST_EDIT_LINT" = "1" ] && exit 0
+hook_bypass SKIP_POST_EDIT_LINT && exit 0
 
 # Skip noisy / generated / vendored files.
 case "$FILE" in

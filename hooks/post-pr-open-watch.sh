@@ -11,10 +11,11 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" post-pr-open-watch || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 case "$COMMAND" in
   *"gh pr create"*|*"gh pr ready"*) ;;

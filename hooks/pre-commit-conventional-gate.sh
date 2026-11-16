@@ -11,14 +11,15 @@
 
 # shellcheck source=lib/commit-msg.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/commit-msg.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+hook_read
 
 git_runs "$COMMAND" commit || exit 0
 git_args_ask_help && exit 0
 
-[ "$SKIP_CONVENTIONAL_GATE" = "1" ] && exit 0
+hook_bypass SKIP_CONVENTIONAL_GATE && exit 0
 commit_reuses_message "$COMMAND" && exit 0
 
 # The subject is the first non-blank line of the message.
@@ -34,13 +35,12 @@ case "$SUBJECT" in
 esac
 
 if ! is_conventional "$SUBJECT"; then
-  echo "[pre-commit-conventional-gate] Commit subject does not match the conventional-commits format." >&2
-  echo "Subject: $SUBJECT" >&2
-  echo "Expected: <type>(<scope>)?!?: <description>" >&2
-  echo "Allowed types: $CONVENTIONAL_TYPES" >&2
-  echo "Per rules/git-conventions.md." >&2
-  echo "(Bypass: SKIP_CONVENTIONAL_GATE=1)" >&2
-  exit 2
+  hook_block pre-commit-conventional-gate SKIP_CONVENTIONAL_GATE \
+    "Commit subject does not match the conventional-commits format." \
+    "Subject: $SUBJECT" \
+    "Expected: <type>(<scope>)?!?: <description>" \
+    "Allowed types: $CONVENTIONAL_TYPES" \
+    "Per rules/git-conventions.md."
 fi
 
 exit 0

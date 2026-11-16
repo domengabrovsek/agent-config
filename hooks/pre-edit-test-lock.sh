@@ -15,9 +15,10 @@
 
 # shellcheck source=lib/state-roots.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/state-roots.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
-FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+hook_read
 AGENT=$(echo "$INPUT" | jq -r '.agent_type // empty')
 [ -z "$FILE" ] && exit 0
 [ "$AGENT" = "QA Expert" ] && exit 0
@@ -35,9 +36,8 @@ LOCK=$(run_file "$BRANCH" tests.lock) || exit 0
 REL=$(cd "$(dirname "$FILE")" 2>/dev/null && git ls-files --full-name -- "$(basename "$FILE")")
 [ -z "$REL" ] && exit 0
 if grep -qxF "$REL" "$LOCK"; then
-  echo "[pre-edit-test-lock] $REL is a locked test for $BRANCH." >&2
-  echo "Make the code pass the test as written. If the test itself is wrong, report it so the QA Expert fixes it." >&2
-  exit 2
+  hook_block pre-edit-test-lock "" "$REL is a locked test for $BRANCH." \
+    "Make the code pass the test as written. If the test itself is wrong, report it so the QA Expert fixes it."
 fi
 
 exit 0

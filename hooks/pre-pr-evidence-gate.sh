@@ -19,9 +19,10 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/state-roots.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/state-roots.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+hook_read
 
 case "$COMMAND" in
   *"gh pr create --help"*|*"gh pr create -h"*) exit 0 ;;
@@ -29,9 +30,8 @@ case "$COMMAND" in
   *) exit 0 ;;
 esac
 
-[ "$SKIP_EVIDENCE_GATE" = "1" ] && exit 0
+hook_bypass SKIP_EVIDENCE_GATE && exit 0
 
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD")
 TOP=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null) || exit 0
 BRANCH=$(git -C "$TOP" branch --show-current 2>/dev/null)
@@ -48,12 +48,8 @@ done
 [ -z "$SPEC" ] && exit 0
 LEDGER=$(run_file "$BRANCH" evidence.md)
 
-FAILED=0
-report() {
-  [ "$FAILED" -eq 0 ] && echo "[pre-pr-evidence-gate] Refusing to open the PR for $BRANCH." >&2
-  FAILED=1
-  echo "  $1" >&2
-}
+PROBLEMS=()
+report() { PROBLEMS+=("  $1"); }
 
 # Criteria checked by a test or command; manual ones are skipped. A criterion is
 # a checkbox under any list marker. Its id may be wrapped in bold markers, with the
@@ -91,10 +87,9 @@ else
   done
 fi
 
-if [ "$FAILED" -eq 1 ]; then
-  echo "Re-run the Spec Verifier at HEAD, fix what fails, then retry." >&2
-  echo "(Bypass: SKIP_EVIDENCE_GATE=1)" >&2
-  exit 2
+if [ "${#PROBLEMS[@]}" -gt 0 ]; then
+  hook_block pre-pr-evidence-gate SKIP_EVIDENCE_GATE "Refusing to open the PR for $BRANCH." \
+    "${PROBLEMS[@]}" "Re-run the Spec Verifier at HEAD, fix what fails, then retry."
 fi
 
 exit 0

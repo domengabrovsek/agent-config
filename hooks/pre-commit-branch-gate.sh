@@ -12,11 +12,11 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
 # shellcheck source=lib/husky-hooks.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/husky-hooks.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" pre-commit-branch-gate || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
 case "$COMMAND" in
   *git*) ;;
@@ -33,12 +33,12 @@ DIR=$GIT_REPO_DIR
 TOP=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)
 [ -n "$TOP" ] && restore_husky_hooks "$TOP" "$(git -C "$DIR" config --local --get core.hooksPath 2>/dev/null)"
 
-[ "$SKIP_COMMIT_BRANCH_GATE" = "1" ] && exit 0
+hook_bypass SKIP_COMMIT_BRANCH_GATE && exit 0
 
 if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
-  echo "[pre-commit-branch-gate] $DIR is not a git repo, so the commit's branch cannot be checked." >&2
-  echo "Run the commit from inside the repo, or name it with git -C <repo>." >&2
-  exit 2
+  hook_block pre-commit-branch-gate "" \
+    "$DIR is not a git repo, so the commit's branch cannot be checked." \
+    "Run the commit from inside the repo, or name it with git -C <repo>."
 fi
 
 # Detached HEAD prints nothing: no branch to protect.
@@ -46,11 +46,10 @@ BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
 
 case "$BRANCH" in
   main|master)
-    echo "[pre-commit-branch-gate] Refusing to commit directly to '$BRANCH'." >&2
-    echo "Create a feature branch first, e.g.:" >&2
-    echo "  git checkout -b <type>/<short-description>" >&2
-    echo "(Bypass: SKIP_COMMIT_BRANCH_GATE=1)" >&2
-    exit 2
+    hook_block pre-commit-branch-gate SKIP_COMMIT_BRANCH_GATE \
+      "Refusing to commit directly to '$BRANCH'." \
+      "Create a feature branch first, e.g.:" \
+      "  git checkout -b <type>/<short-description>"
     ;;
 esac
 

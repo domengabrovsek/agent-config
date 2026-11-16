@@ -18,10 +18,11 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" pre-pr-body-gate || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 case "$COMMAND" in
   *"gh pr create --help"*|*"gh pr create -h"*) exit 0 ;;
@@ -32,7 +33,7 @@ case "$COMMAND" in
   *) exit 0 ;;
 esac
 
-[ "$SKIP_PR_BODY_GATE" = "1" ] && exit 0
+hook_bypass SKIP_PR_BODY_GATE && exit 0
 
 # The rules cover titles as well as bodies, and a --body-file body never
 # appears in the command, so both halves go into one haystack. Only the gh call
@@ -58,13 +59,8 @@ while IFS= read -r f; do
 done <<< "$(pr_body_files "$COMMAND")"
 HAYSTACK=$(printf '%s\n%s' "$SCOPE" "$BODY")
 
-FAILED=0
-
-report() {
-  [ "$FAILED" -eq 0 ] && echo "[pre-pr-body-gate] Refusing to write this PR or issue." >&2
-  FAILED=1
-  echo "  $1" >&2
-}
+PROBLEMS=()
+report() { PROBLEMS+=("  $1"); }
 
 if printf '%s' "$HAYSTACK" | grep -qiE '\bco-authored-by:'; then
   report "Co-Authored-By trailer. rules/git-conventions.md bans AI attribution."
@@ -82,10 +78,9 @@ if printf '%s' "$HAYSTACK" | grep -q '\.claude/state/'; then
   report "A .claude/state/ path. Those artifacts are untracked, so a reviewer cannot open them."
 fi
 
-if [ "$FAILED" -eq 1 ]; then
-  echo "Rewrite the text and re-run." >&2
-  echo "(Bypass: SKIP_PR_BODY_GATE=1)" >&2
-  exit 2
+if [ "${#PROBLEMS[@]}" -gt 0 ]; then
+  hook_block pre-pr-body-gate SKIP_PR_BODY_GATE "Refusing to write this PR or issue." \
+    "${PROBLEMS[@]}" "Rewrite the text and re-run."
 fi
 
 exit 0

@@ -18,12 +18,13 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" pre-git-state-refresh || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-[ "$SKIP_PR_STATE_REFRESH" = "1" ] && exit 0
+hook_bypass SKIP_PR_STATE_REFRESH && exit 0
 
 # --help / -h variants are harmless; skip.
 case "$COMMAND" in
@@ -34,7 +35,6 @@ esac
 # cwd is not the tool call's, so the repo comes from the payload.
 # CLAUDE_PROJECT_DIR alone is wrong whenever the harness runs hooks from
 # another directory.
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 case "$COMMAND" in
   *"gh pr edit"*|*"gh pr comment"*|*"gh pr merge"*) KIND=gh ;;
   *"gh pr close"*|*"gh pr ready"*|*"gh pr review"*) KIND=gh ;;

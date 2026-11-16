@@ -22,10 +22,11 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/package-json.sh"
 # shellcheck source=lib/once.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/once.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
+hook_read
 first_run_for_call "$INPUT" pre-pr-test-gate || exit 0
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 case "$COMMAND" in
   *"gh pr create"*) ACTION=create ;;
@@ -33,13 +34,12 @@ case "$COMMAND" in
   *) exit 0 ;;
 esac
 
-[ "$SKIP_PR_TEST_GATE" = "1" ] && exit 0
+hook_bypass SKIP_PR_TEST_GATE && exit 0
 
 # A `cd <repo> &&` prefix moves the command away from the payload cwd, which
 # is where a hub or sibling session started. The parse also splits the gh
 # call into words, so a flag spelled inside a quoted body or title stays
 # part of that value.
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 parse_git_command "$COMMAND" "$CWD"
 DIR=$GIT_REPO_DIR
 DRAFT=""
@@ -54,10 +54,10 @@ done
 if [ "$ACTION" = create ]; then
   TITLE=$(extract_pr_title "$COMMAND")
   if [ -n "$TITLE" ] && ! is_conventional "$TITLE"; then
-    echo "[pre-pr-test-gate] The PR title is not a conventional commit, so the CI title check would fail." >&2
-    echo "Title: $TITLE" >&2
-    echo "Expected: <type>(<scope>)?!?: <subject>, type one of $CONVENTIONAL_TYPES" >&2
-    exit 2
+    hook_block pre-pr-test-gate "" \
+      "The PR title is not a conventional commit, so the CI title check would fail." \
+      "Title: $TITLE" \
+      "Expected: <type>(<scope>)?!?: <subject>, type one of $CONVENTIONAL_TYPES"
   fi
 fi
 
@@ -74,10 +74,10 @@ if has_script verify; then
     echo "[pre-pr-test-gate] npm run verify passed at HEAD $HEAD_SHA." >&2
     exit 0
   fi
-  echo "[pre-pr-test-gate] $PROJECT_ROOT has no verify pass for HEAD ${HEAD_SHA:-?} with a clean tree." >&2
-  echo "Run \`npm run verify\` there on its own in the foreground (600000ms timeout), then retry." >&2
-  echo "A background or piped run writes no stamp." >&2
-  exit 2
+  hook_block pre-pr-test-gate "" \
+    "$PROJECT_ROOT has no verify pass for HEAD ${HEAD_SHA:-?} with a clean tree." \
+    "Run \`npm run verify\` there on its own in the foreground (600000ms timeout), then retry." \
+    "A background or piped run writes no stamp."
 fi
 
 # The fallback keeps its create-only scope: `npm test` can outrun a ready hook.
@@ -88,9 +88,8 @@ TEST_OUTPUT=$(CI=true npm test 2>&1)
 TEST_EXIT=$?
 
 if [ $TEST_EXIT -ne 0 ]; then
-  echo "[pre-pr-test-gate] Tests failed - fix before creating PR:" >&2
-  echo "$TEST_OUTPUT" | tail -20 >&2
-  exit 2
+  hook_block pre-pr-test-gate "" "Tests failed - fix before creating PR:" \
+    "$(printf '%s\n' "$TEST_OUTPUT" | tail -20)"
 fi
 
 echo "[pre-pr-test-gate] All tests passed." >&2

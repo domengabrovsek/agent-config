@@ -8,23 +8,23 @@
 
 # shellcheck source=lib/resolve-repo.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+# shellcheck source=lib/hook.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+hook_read
 
 git_runs "$COMMAND" commit || exit 0
 git_args_ask_help && exit 0
 
-[ "$SKIP_COAUTHOR_GATE" = "1" ] && exit 0
+hook_bypass SKIP_COAUTHOR_GATE && exit 0
 
 # The whole command is searched, so a trailer in -m, a heredoc, or a -F path
 # all count.
 if echo "$COMMAND" | grep -qiE '\bco-authored-by:'; then
-  echo "[pre-commit-coauthor-gate] Refusing to commit with Co-Authored-By trailer." >&2
-  echo "Per rules/git-conventions.md, never add Co-Authored-By or any AI attribution to commits." >&2
-  echo "Remove the trailer from the commit message and re-run." >&2
-  echo "(Bypass: SKIP_COAUTHOR_GATE=1)" >&2
-  exit 2
+  hook_block pre-commit-coauthor-gate SKIP_COAUTHOR_GATE \
+    "Refusing to commit with Co-Authored-By trailer." \
+    "Per rules/git-conventions.md, never add Co-Authored-By or any AI attribution to commits." \
+    "Remove the trailer from the commit message and re-run."
 fi
 
 exit 0
