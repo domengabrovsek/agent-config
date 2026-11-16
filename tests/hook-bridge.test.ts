@@ -333,6 +333,23 @@ describe('session events through the dispatcher', () => {
     assert.deepEqual(logged(), [{ hook_event_name: 'SessionEnd', reason: 'prompt_input_exit', cwd: dir, session_id: 's1' }]);
   });
 
+  it('finishes a slow SessionEnd hook before the handler returns', async () => {
+    const slowRegistry = join(dir, 'slow.json');
+    const marker = join(dir, 'pruned');
+    writeFileSync(
+      slowRegistry,
+      JSON.stringify({ hooks: { SessionEnd: [{ hooks: [{ type: 'command', command: `cat >/dev/null; sleep 0.5; touch '${marker}'` }] }] } }),
+    );
+    process.env.HOOK_REGISTRY = slowRegistry;
+    try {
+      const handlers = loadBridge();
+      await handlers.get('session_shutdown')?.({ type: 'session_shutdown', reason: 'quit' }, ctx);
+      assert.equal(existsSync(marker), true);
+    } finally {
+      process.env.HOOK_REGISTRY = registry;
+    }
+  });
+
   it('fires no SessionEnd on a reload, and the reloaded runtime registers again', async () => {
     rmSync(log, { force: true });
     const handlers = loadBridge();

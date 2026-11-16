@@ -343,18 +343,22 @@ export default function (pi: ExtensionAPI) {
     else console.error(message);
   };
 
-  const send = async (ctx: ExtensionContext, payload: HookPayload | undefined): Promise<DispatchOutcome | undefined> => {
+  const send = async (
+    ctx: ExtensionContext,
+    payload: HookPayload | undefined,
+    report: (message: string) => void = (message) => warn(ctx, message),
+  ): Promise<DispatchOutcome | undefined> => {
     if (payload === undefined) return undefined;
     if (!existsSync(dispatcherPath)) {
       if (!missingReported) {
         missingReported = true;
-        warn(ctx, `Hook bridge inactive: ${dispatcherPath} not found. Pi runs without Claude hooks.`);
+        report(`Hook bridge inactive: ${dispatcherPath} not found. Pi runs without Claude hooks.`);
       }
       return undefined;
     }
     const event = payload.hook_event_name;
     const outcome = interpretDispatch(event, await runDispatcher(dispatcherPath, event, payload, { cwd: ctx.cwd }));
-    if (outcome.kind === 'pass' && outcome.notice !== undefined) warn(ctx, outcome.notice);
+    if (outcome.kind === 'pass' && outcome.notice !== undefined) report(outcome.notice);
     return outcome;
   };
 
@@ -369,20 +373,21 @@ export default function (pi: ExtensionAPI) {
   /* Session hooks cannot block pi: a blocking exit becomes a warning. Pi has
    * no session-start slot in the model's context, so printed context goes to
    * the user instead. */
-  const reportSession = (ctx: ExtensionContext, outcome: DispatchOutcome | undefined): void => {
-    if (outcome?.kind === 'block') warn(ctx, outcome.reason);
-    else if (outcome?.context !== undefined && ctx.hasUI) ctx.ui.notify(outcome.context, 'info');
-  };
-
   pi.on('session_start', async (event, ctx) => {
     const payload = buildSessionStartPayload({ reason: event.reason, cwd: ctx.cwd, sessionId: sessionIdOf(ctx), agentType: agentTypeOf(ctx) });
-    reportSession(ctx, await send(ctx, payload));
+    const outcome = await send(ctx, payload);
+    if (outcome?.kind === 'block') warn(ctx, outcome.reason);
+    else if (outcome?.context !== undefined && ctx.hasUI) ctx.ui.notify(outcome.context, 'info');
   });
 
+  /* Pi awaits this handler before it exits, so the dispatch, and a worktree
+   * prune inside it, finishes first. The TUI has already stopped on quit, so
+   * failures go to stderr and printed context is dropped. */
   pi.on('session_shutdown', async (event, ctx) => {
     releaseBridge();
     const payload = buildSessionEndPayload({ reason: event.reason, cwd: ctx.cwd, sessionId: sessionIdOf(ctx), agentType: agentTypeOf(ctx) });
-    reportSession(ctx, await send(ctx, payload));
+    const outcome = await send(ctx, payload, (message) => console.error(message));
+    if (outcome?.kind === 'block') console.error(outcome.reason);
   });
 
   pi.on('tool_call', async (event, ctx) => {

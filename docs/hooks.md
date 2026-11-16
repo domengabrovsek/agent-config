@@ -47,7 +47,7 @@ A tool hook is named `<event>-<concern>.sh`. The event part says when it runs an
 
 `dispatch.sh` makes one registry serve three hosts. It reads `settings.json` from the checkout on every call, so a registry edit reaches Codex and Pi at once. It maps each host's tool names to Claude Code's, so Codex shell tools become `Bash` and each file in an `apply_patch` becomes an `Edit`. It runs the matching hooks in registry order, stops at the first exit 2, and merges the context the others print. Each hook runs from the dispatcher's own `hooks/`, never from the project's. A command that several matching rules name runs once per call.
 
-The dispatcher sets `AGENT_HOOK_HOST` to `codex` or `pi`, and Claude Code leaves it unset. A registry command that tests `[ -z "$AGENT_HOOK_HOST" ]` runs on Claude Code only. Pi maps a session start to the `startup`, `resume` (also a fork), or `clear` (a new session) source. Session hook output on Pi appears as a notice, not as model context.
+The dispatcher sets `AGENT_HOOK_HOST` to `codex` or `pi`, and Claude Code leaves it unset. A registry command that tests `[ -z "$AGENT_HOOK_HOST" ]` runs on Claude Code only. Pi maps a session start to the `startup`, `resume` (also a fork), or `clear` (a new session) source. On Pi, `SessionStart` output appears as a notice, not as model context. Pi awaits `SessionEnd` before it exits, and reports its failures on stderr.
 
 ## PreToolUse hooks
 
