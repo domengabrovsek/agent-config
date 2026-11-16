@@ -266,17 +266,16 @@ delete_branch() {
 
 # take_lock <dir>: mkdir is atomic, so one --apply pass at a time holds <dir>.
 # Two passes on one repo can both copy a worktree's state, and the one whose
-# removal fails then deletes the copy the other just kept. A lock whose owner
-# is gone, or that never got a pid within 10 minutes, came from a killed pass.
+# removal fails then deletes the copy the other just kept. A sandboxed pass
+# cannot see other processes, so kill -0 alone would call a live owner dead.
+# A pass takes seconds per repo and the hook's cwd pass is capped at 30s.
+LOCK_STALE_MIN=10
 take_lock() {
   local dir="$1" pid
   if ! mkdir "$dir" 2>/dev/null; then
+    [ -n "$(find "$dir" -maxdepth 0 -mmin +"$LOCK_STALE_MIN" 2>/dev/null)" ] || return 1
     pid=$(cat "$dir/pid" 2>/dev/null)
-    if [ -n "$pid" ]; then
-      kill -0 "$pid" 2>/dev/null && return 1
-    elif [ -z "$(find "$dir" -maxdepth 0 -mmin +10 2>/dev/null)" ]; then
-      return 1
-    fi
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && return 1
     rm -rf "$dir"
     mkdir "$dir" 2>/dev/null || return 1
   fi

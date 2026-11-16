@@ -454,7 +454,10 @@ check "a skipped pass leaves the other pass's lock" test -f "$LOCK/pid"
 DEAD_PID=$(bash -c 'echo $$')
 printf '%s\n' "$DEAD_PID" > "$LOCK/pid"
 run_prune "$REPO" --apply
-check "a lock whose owner is gone is taken over" absent "$REPO.wt/merged"
+check "a fresh lock whose owner looks gone is still skipped" test -d "$REPO.wt/merged"
+touch -t 202001010000 "$LOCK"
+run_prune "$REPO" --apply
+check "an old lock whose owner is gone is taken over" absent "$REPO.wt/merged"
 check "the pass releases its lock" absent "$LOCK"
 mkdir "$LOCK"
 run_prune "$REPO"
