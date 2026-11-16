@@ -96,6 +96,10 @@ _Avoid_: "read-only agent", "reviewer agent", "mechanically read-only" - Bash ma
 A full-tool persona that can mutate files and therefore serve as a lane-mode teammate.
 _Avoid_: "builder agent", "implementer agent".
 
+**Home repo**:
+The repo a session starts in, from its main checkout, that sends each task to a sibling repo under `~/dev` with its own worktree and PR there.
+_Avoid_: "hub repo", "launch repo" (that is any session's start repo, home or not).
+
 ### Skill model
 
 **Model-invoked skill**:

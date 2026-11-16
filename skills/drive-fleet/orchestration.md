@@ -30,7 +30,7 @@ Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope
 - **CI polling is backgrounded.** Pollers run as Monitors (per `/ci`), not in the manager turn. React on agent-completion and pipeline-terminal events.
 - **Surface genuine conflicts.** If `main` diverges mid-session and invalidates the plan, stop and re-plan the affected MRs with the user. Do not plow ahead.
 - **Hold the post-action.** Trigger `post_completion_action` only when the full condition holds across the whole fleet.
-- **Cross-repo worktrees are manual.** When lanes span sibling repos under a non-git parent (e.g. `~/code/<project>/` holding several repos), there is no repo at the parent - manage each repo's worktrees individually (see `/worktree`).
+- **Cross-repo lanes use `/worktree --repo`.** Agent `isolation: "worktree"` only covers the session's launch repo. For a lane in a sibling repo, the manager creates the worktree as `/worktree --repo` does: `~/.agents/scripts/repo-worktree.sh <repo-path> <slug>`. Exit 3 means the base tracks sandbox-protected paths: escalate the printed `!` command to the user. It then spawns the lane agent without `isolation` and briefs it to install dependencies and work only in the printed path, with `git -C` and absolute paths. The manager session must not be worktree-isolated itself. After merge, clean up with `/worktree-merge <worktree-path>`.
 
 ## Per-repo block (fill in before running)
 
@@ -40,4 +40,4 @@ Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope
 | verification cmd | `npm run verify:fast` per slice and `npm run verify` once per branch, when package.json declares them. Otherwise the repo's CI checks |
 | CI tool | glab / gh (auto-detected by `/ci`) |
 | `post_completion_action` | trigger the `notify_reviewers` job / none |
-| worktree root | per repo; the parent dir is NOT a git repo for multi-repo work |
+| worktree root | `<repo>/.claude/worktrees/` per repo; sibling repos get theirs from `/worktree --repo` |
