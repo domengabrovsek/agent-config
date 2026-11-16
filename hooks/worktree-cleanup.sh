@@ -3,14 +3,15 @@
 # the current repo, then in every repo listed in ~/.cache/agent/worktree-repos,
 # where sessions register sibling repos they made worktrees in. Conservative:
 # only removes worktrees whose branch is merged into default, squash-merged,
-# or upstream-gone with nothing unpushed.
-# Locked worktrees and any touched in the last 30 minutes stay, because other
-# live sessions may be using them. Always exits 0; never blocks.
-# Disable per-session with CLAUDE_DISABLE_WORKTREE_CLEANUP=1.
+# or upstream-gone with nothing unpushed. Locked worktrees and any touched in
+# the last 30 minutes stay, because other live sessions may be using them.
+# Always exits 0; never blocks.
+# Disable per-session with HARNESS_DISABLE_WORKTREE_CLEANUP=1, or the legacy
+# CLAUDE_DISABLE_WORKTREE_CLEANUP=1.
 
 set -u
 
-if [ "${CLAUDE_DISABLE_WORKTREE_CLEANUP:-0}" = "1" ]; then
+if [ "${HARNESS_DISABLE_WORKTREE_CLEANUP:-0}" = "1" ] || [ "${CLAUDE_DISABLE_WORKTREE_CLEANUP:-0}" = "1" ]; then
   exit 0
 fi
 

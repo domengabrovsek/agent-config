@@ -471,6 +471,7 @@ stub "$PROJECT/scripts" worktree-prune.sh <<'STUB'
 #!/bin/bash
 : > "$(dirname "$0")/ran"
 STUB
+unset HARNESS_DISABLE_WORKTREE_CLEANUP CLAUDE_DISABLE_WORKTREE_CLEANUP
 HOOK_REPO="$REPO"
 run_hook() {
   (cd "$HOOK_REPO" && HOME="$FAKE_HOME" CLAUDE_PROJECT_DIR="$PROJECT" bash "$PROJECT_DIR/hooks/worktree-cleanup.sh")
@@ -498,6 +499,11 @@ check "the hook keeps a registry repo's worktree touched in the last 30 minutes"
 backdate "$REPO" merged
 backdate "$SIBLING" merged
 backdate "$SIBLING" unpushed
+HARNESS_DISABLE_WORKTREE_CLEANUP=1 run_hook
+check "HARNESS_DISABLE_WORKTREE_CLEANUP=1 turns the hook off" test -d "$WT/merged"
+CLAUDE_DISABLE_WORKTREE_CLEANUP=1 run_hook
+check "the legacy CLAUDE_DISABLE_WORKTREE_CLEANUP=1 turns the hook off" test -d "$WT/merged"
+check "a disabled hook skips the registry pass too" test -d "$SIBLING.wt/merged"
 printf '%s\n' "$TEST_ROOT/gone" >> "$REGISTRY"
 run_hook
 check "the hook's second registry pass finishes" registry_settled

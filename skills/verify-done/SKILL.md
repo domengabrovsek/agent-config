@@ -5,6 +5,8 @@ description: "Runs the comprehensive quality gate before declaring work done: th
 
 Comprehensive quality gate before declaring work done.
 
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
+
 **When package.json declares a `verify` script**, the repo owns the gate. Skip steps 1 and 2:
 
 - Run `npm run verify` once in the foreground with a 600000ms timeout. It takes minutes. Run it alone: no pipe, `;` or `||`.
@@ -18,7 +20,7 @@ Comprehensive quality gate before declaring work done.
 2. **Run each CI step in order**: execute the discovered commands (lint, typecheck, test, build, etc.) in the same order as CI. Stop at the first failure.
 3. **Git status**: show uncommitted changes and untracked files.
 4. **Diff review**: summarize what changed in this session (files, lines added/removed).
-5. **Spec check**: if a spec in `.claude/state/specs/` has `branch: <current branch>`, spawn the `Spec Verifier` and include its verdict. Any automated criterion not PASS at HEAD fails the gate.
+5. **Spec check**: if a spec in `$STATE/specs/` has `branch: <current branch>`, spawn the `Spec Verifier` and include its verdict. Any automated criterion not PASS at HEAD fails the gate.
 
 If all CI steps pass and git status is clean: output "READY - all quality gates passed."
 If any step fails: list failures and stop. Do NOT declare work done.

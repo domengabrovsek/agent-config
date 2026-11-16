@@ -1,12 +1,29 @@
 #!/usr/bin/env bash
 # Monitor a GitHub PR for new reviewer comments.
-# Usage: gh-comments-monitor.sh [pr-number]  (defaults to the current branch's PR)
+# Usage: gh-comments-monitor.sh [--repo <path>] [pr-number]
+#   --repo   a checkout or worktree of the PR's repo (default: the cwd)
+#   pr-number defaults to that checkout's branch PR
 # Emits one line per new comment:
 #   comment|<inline|review|conversation>|<id>|<author>|<bot|human>|<url>
 # Exits when the PR is merged or closed.
 set -uo pipefail
 
-pr="${1:-$(gh pr view --json number --jq '.number' 2>/dev/null)}"
+repo="" pr=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"; exit 0 ;;
+    --repo)
+      [ $# -ge 2 ] || { echo "error|no-repo|"; exit 1; }
+      repo="$2"; shift 2 ;;
+    *) pr="$1"; shift ;;
+  esac
+done
+if [ -n "$repo" ] && ! cd "$repo" 2>/dev/null; then
+  echo "error|no-repo|$repo"
+  exit 1
+fi
+
+pr="${pr:-$(gh pr view --json number --jq '.number' 2>/dev/null)}"
 branch=$(git branch --show-current)
 if [ -z "$pr" ]; then
   echo "no-pr|$branch"
@@ -17,7 +34,9 @@ interval="${PR_COMMENTS_INTERVAL:-60}"
 me=$(gh api user --jq '.login' 2>/dev/null) || me=""
 
 # Seen IDs persist across Monitor re-arms, so a restart never re-emits a comment.
-state_dir="$(git rev-parse --show-toplevel)/.claude/state/runs/${branch//\//-}"
+# They live under the main checkout, as rules/state-persistence.md requires.
+main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+state_dir="$main/.claude/state/runs/${branch//\//-}"
 seen="$state_dir/comments-seen"
 mkdir -p "$state_dir"
 touch "$seen"

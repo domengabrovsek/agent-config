@@ -6,22 +6,30 @@
  */
 
 import assert from 'node:assert/strict';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { after, describe, it } from 'node:test';
+import { dirname, join } from 'node:path';
+import { after, before, describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 
-import {
+import registerBridge, {
   appendText,
   buildHookPayload,
+  buildSessionEndPayload,
+  buildSessionStartPayload,
   claimBridge,
   interpretDispatch,
   parseActiveAgent,
+  releaseBridge,
   resolvePiPath,
   runDispatcher,
   toClaudeToolName,
   type HookPayload,
 } from '../pi/extensions/hook-bridge.ts';
+
+const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('toClaudeToolName', () => {
   it('maps bash, edit, and write', () => {
@@ -203,4 +211,180 @@ describe('claimBridge', () => {
     assert.equal(claimBridge(scope), true);
     assert.equal(claimBridge(scope), false);
   });
+});
+
+describe('releaseBridge', () => {
+  it('lets the next session runtime register again', () => {
+    const scope: Record<symbol, unknown> = {};
+    assert.equal(claimBridge(scope), true);
+    releaseBridge(scope);
+    assert.equal(claimBridge(scope), true);
+  });
+});
+
+describe('buildSessionStartPayload', () => {
+  it('maps pi start reasons onto Claude sources', () => {
+    const sources = (['startup', 'resume', 'fork', 'new'] as const).map(
+      (reason) => buildSessionStartPayload({ reason, cwd: '/r' })?.source,
+    );
+    assert.deepEqual(sources, ['startup', 'resume', 'resume', 'clear']);
+    assert.deepEqual(buildSessionStartPayload({ reason: 'startup', cwd: '/r', sessionId: 's1' }), {
+      hook_event_name: 'SessionStart',
+      source: 'startup',
+      cwd: '/r',
+      session_id: 's1',
+    });
+  });
+
+  it('skips a reload and a subagent child', () => {
+    assert.equal(buildSessionStartPayload({ reason: 'reload', cwd: '/r' }), undefined);
+    assert.equal(buildSessionStartPayload({ reason: 'startup', cwd: '/r', agentType: 'QA Expert' }), undefined);
+  });
+});
+
+describe('buildSessionEndPayload', () => {
+  it('maps pi shutdown reasons onto Claude reasons', () => {
+    const reasons = (['quit', 'new', 'resume', 'fork'] as const).map(
+      (reason) => buildSessionEndPayload({ reason, cwd: '/r' })?.reason,
+    );
+    assert.deepEqual(reasons, ['prompt_input_exit', 'clear', 'resume', 'other']);
+  });
+
+  it('skips a reload and a subagent child', () => {
+    assert.equal(buildSessionEndPayload({ reason: 'reload', cwd: '/r' }), undefined);
+    assert.equal(buildSessionEndPayload({ reason: 'quit', cwd: '/r', agentType: 'QA Expert' }), undefined);
+  });
+});
+
+type Handler = (event: object, ctx: object) => unknown;
+
+/* Registers the bridge against a fake pi that records its handlers. */
+function registerFake(): Map<string, Handler> {
+  const handlers = new Map<string, Handler>();
+  const pi: Pick<ExtensionAPI, 'on'> = {
+    on(name: string, handler: (event: never, ctx: never) => unknown) {
+      handlers.set(name, handler as Handler);
+    },
+  };
+  registerBridge(pi as ExtensionAPI);
+  return handlers;
+}
+
+/* A fresh session runtime. The bridge runs the real hooks/lib/dispatch.sh. */
+function loadBridge(): Map<string, Handler> {
+  releaseBridge();
+  return registerFake();
+}
+
+describe('session events through the dispatcher', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hook-bridge-session-'));
+  const log = join(dir, 'log');
+  const registry = join(dir, 'settings.json');
+  const ctx = {
+    cwd: dir,
+    hasUI: false,
+    getSystemPrompt: () => '',
+    sessionManager: { getSessionId: () => 's1' },
+  };
+  const record = `cat >> '${log}'; echo >> '${log}'`;
+  const logged = (): Record<string, string>[] =>
+    existsSync(log)
+      ? readFileSync(log, 'utf8').split('\n').filter((line) => line.trim()).map((line) => JSON.parse(line))
+      : [];
+  const savedRegistry = process.env.HOOK_REGISTRY;
+
+  before(() => {
+    writeFileSync(
+      registry,
+      JSON.stringify({
+        hooks: {
+          SessionStart: [{ matcher: 'startup', hooks: [{ type: 'command', command: record }] }],
+          SessionEnd: [{ hooks: [{ type: 'command', command: record }] }],
+        },
+      }),
+    );
+    process.env.HOOK_REGISTRY = registry;
+  });
+  after(() => {
+    if (savedRegistry === undefined) delete process.env.HOOK_REGISTRY;
+    else process.env.HOOK_REGISTRY = savedRegistry;
+    releaseBridge();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('runs SessionStart hooks matched on the startup source', async () => {
+    rmSync(log, { force: true });
+    const handlers = loadBridge();
+    await handlers.get('session_start')?.({ type: 'session_start', reason: 'startup' }, ctx);
+    assert.deepEqual(logged(), [{ hook_event_name: 'SessionStart', source: 'startup', cwd: dir, session_id: 's1' }]);
+  });
+
+  it('skips a start matcher for another source', async () => {
+    rmSync(log, { force: true });
+    const handlers = loadBridge();
+    await handlers.get('session_start')?.({ type: 'session_start', reason: 'resume' }, ctx);
+    assert.deepEqual(logged(), []);
+  });
+
+  it('runs SessionEnd hooks on quit', async () => {
+    rmSync(log, { force: true });
+    const handlers = loadBridge();
+    await handlers.get('session_shutdown')?.({ type: 'session_shutdown', reason: 'quit' }, ctx);
+    assert.deepEqual(logged(), [{ hook_event_name: 'SessionEnd', reason: 'prompt_input_exit', cwd: dir, session_id: 's1' }]);
+  });
+
+  it('finishes a slow SessionEnd hook before the handler returns', async () => {
+    const slowRegistry = join(dir, 'slow.json');
+    const marker = join(dir, 'pruned');
+    writeFileSync(
+      slowRegistry,
+      JSON.stringify({ hooks: { SessionEnd: [{ hooks: [{ type: 'command', command: `cat >/dev/null; sleep 0.5; touch '${marker}'` }] }] } }),
+    );
+    process.env.HOOK_REGISTRY = slowRegistry;
+    try {
+      const handlers = loadBridge();
+      await handlers.get('session_shutdown')?.({ type: 'session_shutdown', reason: 'quit' }, ctx);
+      assert.equal(existsSync(marker), true);
+    } finally {
+      process.env.HOOK_REGISTRY = registry;
+    }
+  });
+
+  it('fires no SessionEnd on a reload, and the reloaded runtime registers again', async () => {
+    rmSync(log, { force: true });
+    const handlers = loadBridge();
+    await handlers.get('session_shutdown')?.({ type: 'session_shutdown', reason: 'reload' }, ctx);
+    assert.deepEqual(logged(), []);
+    const next = registerFake();
+    assert.ok(next.has('session_start') && next.has('tool_call'));
+  });
+});
+
+describe('Claude-only session hooks in settings.json', () => {
+  const home = mkdtempSync(join(tmpdir(), 'hook-bridge-home-'));
+  after(() => rmSync(home, { recursive: true, force: true }));
+  const registry: { hooks: { SessionStart: { hooks: { command: string }[] }[] } } = JSON.parse(
+    readFileSync(join(REPO, 'settings.json'), 'utf8'),
+  );
+  const commands = registry.hooks.SessionStart.flatMap((group) => group.hooks.map((hook) => hook.command));
+
+  for (const name of ['herdr-agent-state.sh', 'symlink-check.sh']) {
+    it(`runs ${name} on Claude only`, () => {
+      const command = commands.find((text) => text.includes(`/${name}`));
+      assert.ok(command, `${name} is registered`);
+      const hooks = join(home, '.claude/hooks');
+      const marker = join(home, `${name}.ran`);
+      mkdirSync(hooks, { recursive: true });
+      writeFileSync(join(hooks, name), `#!/bin/bash\ntouch '${marker}'\n`);
+      chmodSync(join(hooks, name), 0o755);
+      const ran = (host: string | undefined): boolean => {
+        rmSync(marker, { force: true });
+        const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: home };
+        if (host !== undefined) env.AGENT_HOOK_HOST = host;
+        spawnSync('bash', ['-c', command], { env, input: '{}' });
+        return existsSync(marker);
+      };
+      assert.deepEqual([ran(undefined), ran('codex'), ran('pi')], [true, false, false]);
+    });
+  }
 });

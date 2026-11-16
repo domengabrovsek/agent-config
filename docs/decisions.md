@@ -109,7 +109,7 @@ The design decisions this config still runs on. Each entry states the choice and
 - Claude Code has no user-level `AGENTS.md`, so `~/.claude/CLAUDE.md` links to it.
 - Claude Code loads `rules/` natively through `~/.claude/rules`. Other hosts reach it through the `rulebook` skill.
 - Tool hooks run on every host from one registry in `settings.json`. Claude Code runs it natively. Codex (through a generated `~/.codex/hooks.json`) and Pi (through the `hook-bridge` extension) call `hooks/lib/dispatch.sh`, so each check stays one script.
-- Session hooks differ by host. Codex gets `SessionStart` and `SessionEnd` but no `Notification`. Pi runs its session work in its own extensions.
+- Session hooks differ by host. Codex and Pi get `SessionStart` and `SessionEnd` through the dispatcher, but no `Notification`. A hook that fits only Claude Code runs when `AGENT_HOOK_HOST` is unset.
 - The deny list stays in `settings.json`. Claude Code enforces it natively. Pi enforces a policy that the `permission-gate` extension derives from it for the pinned `pi-permission-system` package. `hooks/deny-gate.sh` adds it for Codex and blocks shell commands that name a denied path on every host.
 - Teammate mechanics stay host-specific.
 - Shared skills keep Claude notation, and `AGENTS.md` maps it for the other hosts.

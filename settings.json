@@ -423,7 +423,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/symlink-check.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" || true",
+            "command": "HOOK=\"$HOME/.claude/hooks/symlink-check.sh\"; [ -z \"$AGENT_HOOK_HOST\" ] && [ -x \"$HOOK\" ] && \"$HOOK\" || true",
             "timeout": 5
           },
           {
@@ -438,7 +438,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"$HOME/.claude/hooks/herdr-agent-state.sh\"; [ -x \"$HOOK\" ] && \"$HOOK\" session || true",
+            "command": "HOOK=\"$HOME/.claude/hooks/herdr-agent-state.sh\"; [ -z \"$AGENT_HOOK_HOST\" ] && [ -x \"$HOOK\" ] && \"$HOOK\" session || true",
             "timeout": 10
           },
           {

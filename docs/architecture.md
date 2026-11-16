@@ -47,7 +47,7 @@ Each script runs on its own. Hooks, skills, and CI call them, and you can run an
 | `run-shell-tests.sh` | Runs every `tests/*.sh` suite in parallel and lists the failed ones | `npm run test:shell`, CI |
 | `pr-ready.sh` | Reports whether a PR is ready to merge; `--watch` polls until it settles | `post-pr-open-watch.sh`, `/mr`, `/deliver` |
 | `notify.sh` | Shows a macOS notification unless a terminal or IDE is in front | `/ci`, `/deliver` |
-| `worktree-prune.sh` | Removes worktrees whose branch merged or lost its upstream | `worktree-cleanup.sh`, Pi `worktree-cleanup`, `/worktrees`, `/worktree-merge`, `/summarize` |
+| `worktree-prune.sh` | Removes worktrees whose branch merged or lost its upstream | `worktree-cleanup.sh`, `/worktrees`, `/worktree-merge`, `/summarize` |
 | `statusline.sh` | Draws the Claude Code status line | `statusLine` in `settings.json` |
 
 ## How each host finds the config
@@ -90,7 +90,9 @@ Every always-loaded word competes for attention in every session. `scripts/confi
 
 ## Workflow state
 
-Skills and hooks share state through files under `.claude/state/` in the project being worked on. Every host reads and writes the same paths, so work moves between sessions and hosts without conversion. This repo gitignores it, because here the files are personal notes.
+Skills and hooks share state through files under `.claude/state/` in the target repo, the repo whose code the work changes. Every host reads and writes the same paths, so work moves between sessions and hosts without conversion. This repo gitignores it, because here the files are personal notes.
+
+State lives in the target repo's main checkout, never in the session cwd. A session that starts in a home repo and changes a sibling repo through a worktree writes that work's state to the sibling's main checkout. The home repo's own `.claude/state/` holds only work on the home repo. Skills resolve the root with `git -C <path> rev-parse --path-format=absolute --git-common-dir`, as `rules/state-persistence.md` shows, and write absolute paths under it.
 
 | Path | Written by | Read by |
 | --- | --- | --- |
@@ -102,9 +104,10 @@ Skills and hooks share state through files under `.claude/state/` in the project
 | `runs/<branch>/tests.lock` | QA Expert | `pre-edit-test-lock.sh` |
 | `runs/<branch>/evidence.md`, the evidence ledger | Spec Verifier | `pre-pr-evidence-gate.sh`, before a PR opens |
 | `runs/<branch>/reply-drafts.md` | `/pr-comments` | You, before posting a reply to a human |
+| `runs/<branch>/comments-seen` | The `/pr-comments` monitor | The same monitor, when re-armed |
 | `wayfinder/<effort>.md` | `/wayfinder` | `/wayfinder` in later sessions |
 
-`<branch>` is the branch name with `/` replaced by `-`. The test lock and evidence hooks look in the current worktree first, then in the main checkout.
+`<branch>` is the branch name with `/` replaced by `-`. The test lock and evidence hooks resolve the repo from the edited file or the command, not the session cwd. They look in its main checkout first, then in the worktree.
 
 ## Where to go next
 
