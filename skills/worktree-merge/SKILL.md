@@ -35,7 +35,7 @@ If the branch is not safe to remove, stop and explain what's still pending (unpu
    1. If this session entered it, call `ExitWorktree` with `action: "keep"`.
    2. Run `~/.agents/scripts/worktree-prune.sh --apply --repo "$MAIN"`. It removes the worktree and deletes its branch when the branch is merged, squash-merged, or upstream-gone with nothing unpushed. That covers `--repo` branches, which have no upstream. It also prunes the repo's other merged worktrees.
    3. If `git -C "$MAIN" worktree list` still shows `$WORKTREE`, report the verdict the script printed for it. Stop there unless `--force` was passed.
-   4. With `--force`, ask the user before discarding uncommitted files. Then run `git -C "$MAIN" worktree remove --force "$WORKTREE"` and `git -C "$MAIN" branch -D "$BRANCH"`.
+   4. With `--force`, confirm the force with the user first, naming any uncommitted files it discards. Then run `git -C "$MAIN" worktree remove --force "$WORKTREE"` and `git -C "$MAIN" branch -D "$BRANCH"`.
    5. If the sandbox refuses to write `.git/worktrees/`, give the user the same commands to run with the `!` prefix.
 4. Report what was cleaned up.
 
