@@ -18,17 +18,11 @@
 LIVE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 [ -d "$LIVE_DIR" ] || exit 0
 
-# Without an override, audit the checkout this dir's hooks link points into,
-# read as the bootstrap wrote it. The hook's own path would name a second
-# clone whenever a session runs the copy under CLAUDE_PROJECT_DIR.
-REPO="${AGENT_CONFIG_REPO:-$CLAUDE_DOTFILES_REPO}"
-if [ -z "$REPO" ]; then
-  HOOKS_LINK=$(readlink "$LIVE_DIR/hooks" 2>/dev/null)
-  case "$HOOKS_LINK" in
-    /*) [ -f "${HOOKS_LINK%/hooks}/scripts/setup-hosts.sh" ] && REPO="${HOOKS_LINK%/hooks}" ;;
-  esac
-  REPO="${REPO:-$HOME/dev/personal/agent-config}"
-fi
+# shellcheck source=lib/config-repo.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/config-repo.sh"
+
+# The default path matches the fallback in scripts/setup-hosts.sh.
+REPO=$(config_repo_dir "$LIVE_DIR" scripts/setup-hosts.sh) || REPO="$HOME/dev/personal/agent-config"
 [ -d "$REPO" ] || exit 0
 
 SETUP="$REPO/scripts/setup-hosts.sh"
