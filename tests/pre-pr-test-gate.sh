@@ -74,6 +74,10 @@ assert_gate "a --help inside the body is not a help call" "$REPO" \
 assert_gate "--help is skipped" "$REPO" "$GH_CREATE --help" 0
 assert_gate "a create chained before a help call is still gated" "$REPO" \
   "$GH_CREATE $TITLE && gh ""pr view --help" 2 "npm run verify"
+assert_gate "another call before a create help call does not gate it" "$REPO" \
+  "git fetch -q && $GH_CREATE --help" 0
+assert_gate "a draft flag on another call is not a draft" "$REPO" \
+  "$GH_CREATE $TITLE && gh ""pr list -d" 2 "npm run verify"
 assert_gate "ready --undo is not gated" "$REPO" "$GH_READY 12 --undo" 0
 
 echo

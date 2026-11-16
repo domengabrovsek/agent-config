@@ -39,8 +39,9 @@ hook_bypass SKIP_PR_TEST_GATE && exit 0
 # A `cd <repo> &&` prefix moves the command away from the payload cwd, which
 # is where a hub or sibling session started. The parse also splits the gh
 # call into words, so a flag spelled inside a quoted body or title stays
-# part of that value.
-parse_git_command "$COMMAND" "$CWD"
+# part of that value. Only the create and ready calls count, so another git
+# or gh call in the chain neither skips the gate nor sets its flags.
+gh_runs "$COMMAND" "$CWD" "pr create|pr ready"
 git_args_ask_help && exit 0
 DIR=$GIT_REPO_DIR
 DRAFT=""
