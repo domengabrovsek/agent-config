@@ -56,14 +56,13 @@ These run before the tool call and can block it. The rows follow registry order.
 | `pre-pr-evidence-gate.sh` | `gh pr create`, when a spec names the branch | A non-manual acceptance criterion lacks a PASS row at HEAD | `SKIP_EVIDENCE_GATE` |
 | `pre-push-gate.sh` | `git push`, including `git -C <dir> push` | The branch's PR already merged, a repo check fails, the package manager or `node_modules` is missing, or `core.hooksPath` names a missing dir. See below | `SKIP_PUSH_GATE` |
 | `pre-commit-branch-gate.sh` | `git commit`, including `git -C <dir> commit` | The branch is `main` or `master` | `SKIP_COMMIT_BRANCH_GATE` |
-| `pre-commit-coauthor-gate.sh` | `git commit`, including `git -C <dir> commit` | The command contains a `Co-authored-by` trailer | `SKIP_COAUTHOR_GATE` |
-| `pre-commit-conventional-gate.sh` | `git commit`, including `git -C <dir> commit` | The subject is not a conventional commit | `SKIP_CONVENTIONAL_GATE` |
+| `pre-commit-msg-gate.sh` | `git commit`, including `git -C <dir> commit` | The command contains a `Co-authored-by` trailer, or the subject is not a conventional commit | `SKIP_COAUTHOR_GATE` for the trailer, `SKIP_CONVENTIONAL_GATE` for the subject |
 | `prose-gate.sh` | `git commit`, including `git -C <dir> commit`, `gh pr create`, `gh pr edit` | The message or body uses a blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `pre-pr-body-gate.sh` | `gh pr` and `gh issue` create or edit | The title or body has AI attribution or a `.claude/state/` path. Commands chained before or after the `gh` call are not checked, unless the body is unreadable, the call expands a variable, or the command also names the body file | `SKIP_PR_BODY_GATE` |
 | `pre-pr-reply-gate.sh` | `gh api`, `gh pr comment`, `gh pr review`, `gh issue comment` | The call replies inline to a human's comment, a comment lacks the agent footer, or a `gh api` comment is one the gate cannot read: `--input`, a GraphQL comment or reply mutation, or a variable `in_reply_to`. A `--body-file "$f"` passes when the same command sets `f`, or loops it, over literal paths whose files each end with the footer. A glob, or a body file the command also names elsewhere, blocks | `SKIP_REPLY_FOOTER`, footer check only |
 | `pre-edit-test-lock.sh` | Write, Edit | Anyone but the QA Expert edits a test listed in `tests.lock` | None |
 
-The conventional and co-author gates read the message from the command. A message passed with `-F` or written in an editor skips them.
+The commit message gate reads the message from the command. A message passed with `-F` or written in an editor skips the subject check.
 
 Two gates defer to the repo they run in:
 
@@ -137,7 +136,8 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `pr-body.sh` | The prose, body, test, and reply gates | Extracts the PR body from a `gh pr` command, and the `body=` field of a `gh api` call |
 | `find-up.sh` | `auto-format.sh`, `post-edit-typecheck.sh`, `post-verify-stamp.sh` | Finds the nearest config, `package.json`, or tool binary above a path, for monorepo workspaces |
 | `package-json.sh` | The per-edit hooks, the push, PR test, and verify stamp hooks | Finds the nearest `package.json` and checks for a declared script |
-| `commit-msg.sh` | The conventional-commit and prose gates | Extracts the message from a `git commit` command and spots a reused one |
+| `commit-msg.sh` | The commit message and prose gates | Extracts the message from a `git commit` command and spots a reused one |
+| `attribution.sh` | The commit message and PR body gates | Finds the AI attribution `rules/git-conventions.md` bans |
 | `context.sh` | The verify stamp, PR watch, and PR state hooks | Prints the JSON that adds text to the model's context |
 | `state-roots.sh` | The test lock and the evidence gate | Finds `.claude/state/` in the main checkout, then in a worktree |
 | `once.sh` | The Bash hooks registered under several `if` rules | Lets only the first run on a tool call do the work, keyed by `tool_use_id` |
@@ -150,7 +150,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/dispatch.sh` | `hooks/lib/dispatch.sh`: matching, tool aliases, exit codes, timeouts |
 | `tests/hook-bridge.test.ts`, `tests/permission-gate.test.ts` | The Pi bridge, and the policy derived from the real deny list |
 | `tests/drift-check.test.ts`, `tests/worktree-cleanup.test.ts`, `tests/statusline.test.ts` | The Pi extensions that replace session hooks, and the Pi status line usage parser |
-| `tests/commit-gates.sh` | The conventional-commit gate, the co-author gate, and the prose gate on commits |
+| `tests/commit-gates.sh` | The commit message gate and the prose gate on commits |
 | `tests/pr-gates.sh`, `tests/pre-pr-test-gate.sh`, `tests/pr-reply-gate.sh` | The PR body, prose, test, and reply gates |
 | `tests/post-verify-stamp.sh` | The `verify-passed` stamp, and the commands that leave none |
 | `tests/agent-shell.sh` | The `CLAUDE_ENV_FILE` preamble: node from `.nvmrc`, and the removed aliases, in bash and zsh |

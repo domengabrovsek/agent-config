@@ -4,7 +4,7 @@
 #
 # PreToolUse hook on Bash(gh pr create *), Bash(gh pr edit *),
 # Bash(gh issue create *), and Bash(gh issue edit *). It covers the PR and issue
-# surface; hooks/pre-commit-coauthor-gate.sh covers commits. The title and body
+# surface; hooks/pre-commit-msg-gate.sh covers commits. The title and body
 # are where a "Generated with" footer or a local state path reach a reader.
 #
 # Two checks:
@@ -16,6 +16,8 @@
 
 # shellcheck source=lib/resolve-repo.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
+# shellcheck source=lib/attribution.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/attribution.sh"
 # shellcheck source=lib/pr-body.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
 # shellcheck source=lib/once.sh
@@ -61,17 +63,9 @@ HAYSTACK=$(printf '%s\n%s' "$SCOPE" "$BODY")
 PROBLEMS=()
 report() { PROBLEMS+=("  $1"); }
 
-if printf '%s' "$HAYSTACK" | grep -qiE '\bco-authored-by:'; then
-  report "Co-Authored-By trailer. rules/git-conventions.md bans AI attribution."
-fi
-
-if printf '%s' "$HAYSTACK" | grep -qiE 'generated with.{0,40}(claude|codex|copilot|chatgpt)'; then
-  report "A \"Generated with\" footer. rules/git-conventions.md bans AI attribution."
-fi
-
-if printf '%s' "$HAYSTACK" | grep -q '🤖'; then
-  report "A robot emoji. It marks the attribution footer the same rule bans."
-fi
+while IFS= read -r problem; do
+  [ -n "$problem" ] && report "$problem"
+done <<< "$(attribution_problems "$HAYSTACK")"
 
 if printf '%s' "$HAYSTACK" | grep -q '\.claude/state/'; then
   report "A .claude/state/ path. Those artifacts are untracked, so a reviewer cannot open them."
