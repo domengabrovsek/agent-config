@@ -87,7 +87,8 @@ print("\n".join(paths))
 pr_command_segment() {
   printf '%s' "$1" | python3 -c '
 import shlex, sys
-cmd = sys.stdin.read()
+# A backslash before a newline continues the line, so it never separates commands.
+cmd = sys.stdin.read().replace("\\\n", " ")
 ops = set(";&|()\n")
 try:
     lex = shlex.shlex(cmd, posix=True, punctuation_chars="".join(ops))

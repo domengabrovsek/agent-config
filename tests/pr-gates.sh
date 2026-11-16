@@ -110,6 +110,9 @@ EOF
 $GH_CREATE --body-file $TEST_DIR/old-body.md" 2
 assert_gate "an existing body file with a state path elsewhere in the command passes" "$BODY" \
   "cat .claude/state/plans/x.md; $GH_CREATE --body-file $TEST_DIR/old-body.md" 0
+assert_gate "a line continuation does not split the call" "$BODY" \
+  "$GH_CREATE \\
+  --title \"see .claude/state/plans/x.md\" --body ok" 2
 assert_gate "a hash inside a word does not hide the rest of the call" "$BODY" \
   "$GH_CREATE --head feat#2 --title \"Follows .claude/state/plans/x.md\" --body ok" 2
 assert_gate "a state path in a quoted body with a semicolon still blocks" "$BODY" \
