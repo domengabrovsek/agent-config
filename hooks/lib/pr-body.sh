@@ -93,6 +93,7 @@ try:
     lex = shlex.shlex(cmd, posix=True, punctuation_chars="".join(ops))
     lex.whitespace = " \t\r"
     lex.whitespace_split = True
+    lex.commenters = ""
     tokens = list(lex)
 except ValueError:
     print(cmd)
