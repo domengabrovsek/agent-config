@@ -163,6 +163,12 @@ assert_hook "a create with a -d in the body is not a draft" "$GH_CREATE --title 
   "pr-ready.sh --watch $URL"
 assert_hook "other commands stay silent" "gh pr view 7" "$URL" ""
 assert_hook "help stays silent" "$GH_CREATE --help" "$URL" ""
+assert_hook "a quoted -d in the body is not a draft" "$GH_CREATE --title t --body \"pass -d for a draft run\"" \
+  "$URL" "pr-ready.sh --watch $URL"
+assert_hook "a create after a help call is watched" "$GH_CREATE --help; $GH_CREATE --title t" \
+  "$URL" "pr-ready.sh --watch $URL"
+assert_hook "a ready PR number before a chained command is watched" "$GH_READY 7 || echo failed" \
+  "$MARKED" "pr-ready.sh --watch 7"
 OUT=$(SKIP_PR_WATCH=1 bash "$HOOK" <<< '{"tool_input":{"command":"gh pr create"}}')
 if [ -z "$OUT" ]; then pass "SKIP_PR_WATCH bypasses"; else fail "SKIP_PR_WATCH bypasses"; fi
 
