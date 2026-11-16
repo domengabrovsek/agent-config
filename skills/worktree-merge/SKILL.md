@@ -7,7 +7,7 @@ Clean up a worktree: $ARGUMENTS
 
 ## Target
 
-If $ARGUMENTS holds a path, the target is the worktree at that path, in any repo. Otherwise it is the worktree holding `$PWD`. Every git command below runs with `git -C`, so it works without `cd`.
+If $ARGUMENTS holds a path, the target is the worktree at that path, in any repo. Otherwise it is the worktree holding the current directory. Every git command below runs with `git -C`, so it works without `cd`.
 
 ## Preconditions
 
