@@ -90,6 +90,7 @@ The prose gate also prints advisories that never block: words to reconsider, sen
 | Event | Hook | Does |
 | --- | --- | --- |
 | `SessionStart`, startup | `symlink-check.sh` | Warns when the Claude Code links drifted, with the fix command; `SKIP_SYMLINK_CHECK=1` turns it off |
+| `SessionStart`, startup | `config-autoupdate.sh` | Fast-forwards the config checkout to the remote default branch, so a merged PR goes live on the next session. A clean checkout on a branch that is gone from origin, as after a merge, first switches back. It skips a checkout on another branch or with local changes, and says so when merged commits are waiting. `SKIP_CONFIG_AUTOUPDATE=1` turns it off |
 | `SessionStart` | Inline `echo` into `CLAUDE_ENV_FILE` | Points `CLOUDSDK_CONFIG` at `~/.config/gcloud-agent`, so agent gcloud calls use impersonated tokens. See [the sandbox](setup.md#gcloud-for-agents) |
 | `SessionStart` | Inline `echo` into `CLAUDE_ENV_FILE` | Sources `hooks/lib/agent-shell.sh` before every Bash command. It removes the interactive `rm`, `mv`, and `cp` aliases, points `XDG_CACHE_HOME` at `~/.cache/agent`, and on each `cd` it puts the node named by the nearest `.nvmrc` first on `PATH` |
 | `SessionStart`, after compaction | Inline `echo` | Reminds the model of the workflow, `/verify-done` before a PR, and the current year |
@@ -159,6 +160,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/outbound-email-scrub.sh` | The email scrub on each tool, its allowed addresses, and the block on Codex and Pi |
 | `tests/post-edit-hooks.sh` | The three per-edit hooks |
 | `tests/symlink-check.sh` | The drift check |
+| `tests/config-autoupdate.sh` | The config fast-forward, and each case it skips |
 | `tests/worktree-prune.sh` | `scripts/worktree-prune.sh`, and the `worktree-cleanup.sh` hook that runs it |
 | `tests/once.sh` | `hooks/lib/once.sh`: claim dir mode, per-user fallback, fail-open |
 | `tests/herdr-pane-context.sh` | The herdr pane tokens in a checkout, a worktree, a submodule, and a bare repo |
