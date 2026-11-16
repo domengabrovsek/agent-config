@@ -30,7 +30,9 @@ no_rc() { if [ "$1" = zsh ]; then echo -f; else echo --norc; fi; }
 
 # node_after <shell> <dir>: the node version after sourcing the preamble and cd.
 node_after() {
-  NVM_DIR="$NVM" PATH="$NVM/versions/node/v24.22.3/bin:/usr/bin:/bin" "$1" $(no_rc "$1") -c \
+  local rc
+  rc=$(no_rc "$1")
+  NVM_DIR="$NVM" PATH="$NVM/versions/node/v24.22.3/bin:/usr/bin:/bin" "$1" "$rc" -c \
     ". '$PREAMBLE'; cd '$2' && node"
 }
 

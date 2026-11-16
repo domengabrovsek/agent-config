@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Sourced before every Claude Code Bash command through CLAUDE_ENV_FILE, in
 # zsh or bash. It fixes two things the user's interactive profile gets wrong
 # for an agent: it picks node from the nearest .nvmrc on every cd, and it drops
