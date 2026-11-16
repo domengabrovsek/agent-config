@@ -6,6 +6,8 @@ disable-model-invocation: true
 
 > Source: [mattpocock/skills - engineering/wayfinder](https://github.com/mattpocock/skills/tree/main/skills/engineering/wayfinder), re-homed onto a local file map (this repo runs no issue tracker - see `docs/decisions.md`).
 
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
+
 A loose idea has arrived - too big for one agent session, and wrapped in fog: the way from here to the **destination** isn't visible yet. Wayfinding is about finding that way, not charging at the destination. This skill charts the way as a **shared map** in a local file, then works its **decision tickets** - questions whose resolution is a decision, not slices of a build to execute - one at a time until the route is clear.
 
 The destination varies per effort, and naming it is the first act of charting - it shapes every ticket. It might be a spec to hand off and iterate on, a decision to lock before planning starts, or a change made in place like a data-structure migration. The map is domain-agnostic - engineering work, infra work, whatever fits the shape.
@@ -20,7 +22,7 @@ Every ticket has a **name** - its heading. In everything the human reads - narra
 
 ## The Map
 
-The map is a single markdown file at `.claude/state/wayfinder/<effort-slug>.md` - the single source of truth. Its tickets live inside it under `## Tickets`.
+The map is a single markdown file at `$STATE/wayfinder/<effort-slug>.md` - the single source of truth. Its tickets live inside it under `## Tickets`.
 
 The map is an **index**, not a store. Its Decisions-so-far lists the decisions made; a decision lives in exactly one place - its ticket's `Answer` - so the map never restates it, only gists it. `(review-time: single-source-of-truth discipline)`
 
@@ -115,7 +117,7 @@ User invokes with a loose idea.
 
 1. **Name the destination.** Run a `/grill-with-docs` session to pin down what this map is finding its way to - the spec, decision, or change. The destination fixes the scope, so it's settled first.
 2. **Map the frontier.** Grill again, **breadth-first** this time: fan out across the whole space rather than deep on any one thread, surfacing the open decisions and the first steps takeable now. **If this surfaces no fog** - the way to the destination is already clear, the whole journey small enough for one session - you don't need a map. Stop and ask the user how they'd like to proceed. `(review-time: no-fog exit; a well-scoped effort does not need a map)`
-3. **Create the map file** at `.claude/state/wayfinder/<slug>.md`: Destination and Notes filled in, Decisions-so-far empty, the fog sketched into **Not yet specified**.
+3. **Create the map file** at `$STATE/wayfinder/<slug>.md`: Destination and Notes filled in, Decisions-so-far empty, the fog sketched into **Not yet specified**.
 4. **Create the tickets you can specify now** under `## Tickets`, then wire `Blocked by` edges. Everything you can't yet specify stays in **Not yet specified**.
 5. **Fire the research subagents.** For each `research` ticket, spin up a `/research` subagent to resolve it in parallel, capturing findings with a context pointer from the ticket.
 6. Stop - charting is one session's work; it hand-resolves nothing.

@@ -5,13 +5,15 @@ description: "Watches an open PR for reviewer comments and addresses them: fixes
 
 # Address PR Review Comments
 
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
+
 Watch and address comments on: $ARGUMENTS (default: the current branch's PR)
 
 ## Workflow
 
 **why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
-1. **Start a Monitor** with `bash scripts/gh-comments-monitor.sh [pr-number]`, resolved inside this skill's own directory. Use `timeout_ms: 1800000` and the description "PR comments on <branch-name>" `(review-time: see section note)`
+1. **Start a Monitor** with `bash scripts/gh-comments-monitor.sh [--repo <target worktree>] [pr-number]`, resolved inside this skill's own directory. Pass `--repo` when the cwd is not the PR's repo. Use `timeout_ms: 1800000` and the description "PR comments on <branch-name>" `(review-time: see section note)`
 2. **React to each line**: `(review-time: see section note)`
    - `comment|<kind>|<id>|<author>|<bot|human>|<url>`: handle the comment as below
    - Monitor expiry: re-arm the same script. Seen IDs persist, so nothing repeats `(review-time: see section note)`
@@ -22,7 +24,7 @@ Watch and address comments on: $ARGUMENTS (default: the current branch's PR)
 5. **Fix valid points**, bot or human: make the change, run `npm run verify:fast` once per batch when package.json declares it, otherwise `/verify-done`. Commit, push. Batch comments that arrive together into one commit when they touch the same code `(review-time: see section note)`
 6. **Reply by author type**: `(review-time: see section note)`
    - **Bot**: post the reply yourself. Inline comments get a thread reply: `gh api repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -f body=...`. A review body or conversation comment gets a conversation comment that quotes the line it answers `(review-time: see section note)`
-   - **Human**: never post. Add the draft to `.claude/state/runs/<branch-slug>/reply-drafts.md` with the comment URL, and show the user the URL and the draft. `hooks/pre-pr-reply-gate.sh` blocks inline replies to humans `(hook)`
+   - **Human**: never post. Add the draft to `$STATE/runs/<branch-slug>/reply-drafts.md` with the comment URL, and show the user the URL and the draft. `hooks/pre-pr-reply-gate.sh` blocks inline replies to humans `(hook)`
 7. **Update the PR body** with `gh pr edit` when a fix changes what the PR does `(review-time: see section note)`
 
 ## Reply voice

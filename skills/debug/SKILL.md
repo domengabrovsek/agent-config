@@ -5,13 +5,15 @@ description: "Runs a structured production-incident investigation that forces ev
 
 Investigate the issue: $ARGUMENTS
 
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
+
 Hard rule: do NOT write any fix until Phase 3 is reached and the user (or the evidence in Phase 2) has confirmed the root cause.
 
 ## Phase 1 - Evidence
 
 **why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
-Gather, do not theorize. Save findings to `.claude/state/research/YYYY-MM-DD-debug-<short-slug>.md`.
+Gather, do not theorize. Save findings to `$STATE/research/YYYY-MM-DD-debug-<short-slug>.md`.
 
 - If given a Sentry issue (short ID like `PROJECT-ABC`, numeric ID, or sentry.io URL), fetch the digest first via the `sentry-issue` skill: `~/.agents/skills/sentry-issue/scripts/sentry-issue.sh <id>`. Full payloads land in `/tmp/sentry-{issue,event}-<id>.json` for deeper `jq` queries. `(review-time: see section note)`
 - Reproduce locally if feasible. Capture exact error, stack trace, request ID, timestamp. `(review-time: see section note)`

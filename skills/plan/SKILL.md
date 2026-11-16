@@ -3,7 +3,9 @@ name: plan
 description: "Turns an approved spec into an implementation plan of vertical slices, each naming the acceptance criteria it closes, its tests, and its verify command. Use after a spec is approved, when the user says 'plan' or '/plan', or when build finds no plan."
 ---
 
-Write an implementation plan for: $ARGUMENTS (default: the most recent approved spec in `.claude/state/specs/`)
+Write an implementation plan for: $ARGUMENTS (default: the most recent approved spec in `$STATE/specs/`)
+
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
 
 ## Workflow
 
@@ -18,7 +20,7 @@ Write an implementation plan for: $ARGUMENTS (default: the most recent approved 
    - Each slice fits one fresh context window and about 100 to 300 changed lines `(review-time: see section note)`
 4. **Check coverage**: every automated criterion maps to exactly one slice. A criterion with no slice, or a slice with no criterion and no prefactor reason, is a plan defect `(review-time: see section note)`
 5. **Group lanes**: slices that touch disjoint files form separate lanes for `rules/parallel-agents.md`. Slices that share a file stay in one lane, in order `(review-time: see section note)`
-6. **Save** to `.claude/state/plans/YYYY-MM-DD-<topic>.md` `(review-time: see section note)`
+6. **Save** to `$STATE/plans/YYYY-MM-DD-<topic>.md` `(review-time: see section note)`
 7. **Hand off**: an approved spec already approved the scope, so continue to `/build` without asking. Stop and ask only for an architectural choice the spec left open, one question at a time `(review-time: see section note)`
 
 ## Plan format
