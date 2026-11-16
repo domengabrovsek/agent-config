@@ -5,16 +5,18 @@ description: "Implements code incrementally with quality gates. Use when the use
 
 Implement the approved plan incrementally: $ARGUMENTS
 
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
+
 Follow these disciplines:
 
 ## Before Starting
 
 **why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
-- Verify an approved plan exists (in `.claude/state/plans/` or the current conversation) `(review-time: see section note)`
+- Verify an approved plan exists (in `$STATE/plans/` or the current conversation) `(review-time: see section note)`
 - If no plan exists, run `/plan` first. With no spec either, run `/spec` `(review-time: see section note)`
 - Read the plan and identify the task list `(review-time: see section note)`
-- Copy the task list to `.claude/state/runs/<branch-slug>/tasks.md` and tick each task as it finishes. Read that file, not memory, to resume after compaction `(review-time: see section note)`
+- Copy the task list to `$STATE/runs/<branch-slug>/tasks.md` and tick each task as it finishes. Read that file, not memory, to resume after compaction `(review-time: see section note)`
 - If a spec drives the plan, set its `branch:` frontmatter to the current branch `(review-time: see section note)`
 - Spawn the matching expert teammates for the plan's domain (see `rules/agent-routing.md`) - their guardrails apply to every increment `(review-time: see section note)`
 - If the plan has 2+ file-isolated lanes, execute it in **lane mode** - spawn one lane-mode teammate per lane (see `rules/parallel-agents.md`); single-lane plans stay in this session `(review-time: lane-vs-single judgment from the plan shape)`
@@ -37,7 +39,7 @@ For each task in the plan:
 
 When a plan slice lists **Tests first**, run it as a loop with separate roles. The agent that writes code never writes or grades its own tests.
 
-1. **Tests**: a `QA Expert` subagent writes the slice's tests at the spec's seams and runs them. Each must fail for the expected reason. It commits them as `test(...)` and appends their paths to `.claude/state/runs/<branch-slug>/tests.lock` `(review-time: see section note)`
+1. **Tests**: a `QA Expert` subagent writes the slice's tests at the spec's seams and runs them. Each must fail for the expected reason. It commits them as `test(...)` and appends their paths to `$STATE/runs/<branch-slug>/tests.lock` `(review-time: see section note)`
 2. **Implement**: the domain persona from `rules/agent-routing.md`, or this session for a single lane, makes the tests pass. `hooks/pre-edit-test-lock.sh` blocks edits to locked tests. A test it believes is wrong goes back to the `QA Expert` with the reason. Checkpoint as above `(review-time: see section note)`
 3. **Review panel**: in one message, spawn read-only reviewers on the slice diff: `PR Reviewer`, `Cybersecurity Expert`, and `Spec Verifier` for the slice's criteria. Add `GDPR Expert`, `UX Expert`, or `PostgreSQL Expert` when the diff touches their domain `(review-time: see section note)`
 4. **Verify findings**: check each blocker and issue against the code or a reproduction before accepting it. Drop a finding with no file and line or no evidence `(review-time: see section note)`

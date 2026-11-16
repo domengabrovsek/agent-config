@@ -5,6 +5,8 @@ description: "Defines requirements before planning. Use when starting a new feat
 
 Write a specification for: $ARGUMENTS
 
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
+
 Follow this workflow:
 
 1. **Discovery**: ask the user clarifying questions before writing anything. Cover:
@@ -54,7 +56,7 @@ branch: <feature branch, filled in when build starts>
 
 **why-no-hook:** skill workflow guidance; each step requires understanding the surrounding context (repo, task shape, prior state).
 
-1. **Save**: save the spec to `.claude/state/specs/YYYY-MM-DD-spec-<topic>.md` `(review-time: see section note)`
+1. **Save**: save the spec to `$STATE/specs/YYYY-MM-DD-spec-<topic>.md` `(review-time: see section note)`
 2. **Review**: present the spec to the user. Wait for approval before proceeding to /plan. `(review-time: see section note)`
 3. **Iterate**: if the user has feedback, update the spec and re-present. Repeat until approved. `(review-time: see section note)`
 

@@ -9,6 +9,8 @@ description: "Builds a throwaway prototype to answer a design question. Use when
 
 A prototype is **throwaway code that answers a question**. The question decides the shape.
 
+Resolve `$STATE` first: `.claude/state` in the main checkout of the repo being changed, per `rules/state-persistence.md`.
+
 ## Pick a branch
 
 Identify which question is being answered - from the user's prompt, the surrounding code, or by asking if the user is around:
@@ -25,4 +27,4 @@ The two branches produce very different artifacts - getting this wrong wastes th
 3. **No persistence by default.** State lives in memory. Persistence is the thing the prototype is _checking_, not something it should depend on. If the question explicitly involves a database, hit a scratch DB or a local file with a clear "PROTOTYPE - wipe me" name. `(review-time: judging when persistence is the actual question)`
 4. **Skip the polish.** No tests, no error handling beyond what makes the prototype _runnable_, no abstractions. The point is to learn something fast. `(review-time: prototype scope discipline)`
 5. **Surface the state.** After every action (logic) or on every variant switch (UI), print or render the full relevant state so the user can see what changed. `(review-time: prototype-legibility judgment)`
-6. **Capture it when done.** Fold any validated decision into the real code, then capture the prototype itself as a **primary source**: commit it to a throwaway branch, out of main, and leave a context pointer to that branch on the implementation issue or the plan in `.claude/state/`. Capture the answer too - the verdict and the question it settled - in the issue, the plan, or a commit. The main branch keeps only the validated decision. `(review-time: capture discipline; adapts to whether a tracker or a .claude/state plan is in play)`
+6. **Capture it when done.** Fold any validated decision into the real code, then capture the prototype itself as a **primary source**: commit it to a throwaway branch, out of main, and leave a context pointer to that branch on the implementation issue or the plan in `$STATE/plans/`. Capture the answer too - the verdict and the question it settled - in the issue, the plan, or a commit. The main branch keeps only the validated decision. `(review-time: capture discipline; adapts to whether a tracker or a .claude/state plan is in play)`

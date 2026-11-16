@@ -1,22 +1,14 @@
 # State Persistence
 
-**When to apply:** when saving research artifacts, specs, plans, or session diaries.
+**When to apply:** reading or writing research, specs, plans, run files, or session diaries.
 
-All work artifacts must be saved to the project-level `.claude/state/` directory so they persist across sessions and machines.
-
-## Directories
-
-- `.claude/state/research/` - research artifacts from the research phase `(review-time: descriptive, not a rule)`
-- `.claude/state/specs/` - specification documents from the /spec skill `(review-time: descriptive, not a rule)`
-- `.claude/state/plans/` - implementation plans from the grill or `/plan` `(review-time: descriptive, not a rule)`
-- `.claude/state/sessions/` - session diary entries from `/summarize` `(review-time: descriptive, not a rule)`
-- `.claude/state/runs/<branch-slug>/` - per-branch run files `(review-time: descriptive, not a rule)`
-- `.claude/state/wayfinder/` - effort maps from the wayfinder skill `(review-time: descriptive, not a rule)`
+Workflow state lives untracked under `.claude/state/`: `research/`, `specs/`, `plans/`, `sessions/`, `wayfinder/`, and `runs/<branch-slug>/`.
 
 ## Rules
 
-- Create `.claude/state/` directories if they don't exist before writing `(review-time: simple ops choice, no enforcement value-add)`
-- Use naming convention: `YYYY-MM-DD-descriptive-name.md` (e.g., `2026-03-12-research-auth-refactor.md`) `(review-time: a filename-pattern hook is possible but very high false-positive rate on existing files)`
-- Every session with real work should end with a summary saved to `.claude/state/sessions/` `(review-time: subjective threshold "real work")`
-- Plans and research are per-project, not global `(review-time: location preference)`
-- Check `.claude/state/` for relevant past work before starting new research `(review-time: workflow guidance)`
+- State lives in the target repo, not the session cwd. The target is `git -C <path> rev-parse --show-toplevel`, where `<path>` holds the code being changed. A home repo's own state holds only work on the home repo `(review-time: a skill picks its path before any hook runs)`
+- Write and read with absolute paths under the target's main checkout, which hooks search first: `STATE="$(dirname "$(git -C <path> rev-parse --path-format=absolute --git-common-dir)")/.claude/state"` `(review-time: a skill picks its path before any hook runs)`
+- Create a directory before writing to it `(review-time: simple ops choice)`
+- Name files `YYYY-MM-DD-descriptive-name.md` `(review-time: a filename hook would flag many existing files)`
+- End each session with real work with a diary in `sessions/` `(review-time: subjective threshold "real work")`
+- Check the target repo's state for past work before new research `(review-time: workflow guidance)`

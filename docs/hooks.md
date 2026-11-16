@@ -43,9 +43,11 @@ A tool hook is named `<event>-<concern>.sh`. The event part says when it runs an
 | --- | --- | --- | --- |
 | Claude Code | Native, from `settings.json` | Native: `SessionStart`, `SessionEnd`, `CwdChanged`, `Stop`, `Notification` | Native `permissions.deny`, plus `deny-gate.sh` |
 | Codex | `~/.codex/hooks.json` calls `dispatch.sh` | `SessionStart` and `SessionEnd` through `dispatch.sh`; no `Notification` | `deny-gate.sh`, including the `Bash` rules |
-| Pi | The `hook-bridge` extension calls `dispatch.sh` for `bash`, `edit`, and `write` | Extensions instead: `drift-check` at start, `worktree-cleanup` at shutdown | The `permission-gate` extension derives a policy for the pinned `pi-permission-system` package; `deny-gate.sh` runs through the bridge |
+| Pi | The `hook-bridge` extension calls `dispatch.sh` for `bash`, `edit`, and `write` | `SessionStart` and `SessionEnd` through `hook-bridge`, except on a reload or in a subagent; the `drift-check` extension at start | The `permission-gate` extension derives a policy for the pinned `pi-permission-system` package; `deny-gate.sh` runs through the bridge |
 
 `dispatch.sh` makes one registry serve three hosts. It reads `settings.json` from the checkout on every call, so a registry edit reaches Codex and Pi at once. It maps each host's tool names to Claude Code's, so Codex shell tools become `Bash` and each file in an `apply_patch` becomes an `Edit`. It runs the matching hooks in registry order, stops at the first exit 2, and merges the context the others print. Each hook runs from the dispatcher's own `hooks/`, never from the project's. A command that several matching rules name runs once per call.
+
+The dispatcher sets `AGENT_HOOK_HOST` to `codex` or `pi`, and Claude Code leaves it unset. A registry command that tests `[ -z "$AGENT_HOOK_HOST" ]` runs on Claude Code only. Pi maps a session start to the `startup`, `resume` (also a fork), or `clear` (a new session) source. On Pi, `SessionStart` output appears as a notice, not as model context. Pi awaits `SessionEnd` before it exits, and reports its failures on stderr.
 
 ## PreToolUse hooks
 
@@ -92,14 +94,14 @@ The prose gate also prints advisories that never block: words to reconsider, sen
 
 | Event | Hook | Does |
 | --- | --- | --- |
-| `SessionStart`, startup | `symlink-check.sh` | Warns when the Claude Code links drifted, with the fix command; `SKIP_SYMLINK_CHECK=1` turns it off |
+| `SessionStart`, startup | `symlink-check.sh` | Warns when the Claude Code links drifted, with the fix command; `SKIP_SYMLINK_CHECK=1` turns it off. Claude Code only, because it audits the Claude Code dir. Pi runs its `drift-check` extension instead |
 | `SessionStart`, startup | `config-autoupdate.sh` | Fast-forwards the config checkout to the remote default branch, so a merged PR goes live on the next session. A clean checkout on a branch that is gone from origin, as after a merge, first switches back. It skips a checkout on another branch or with local changes, and says so when merged commits are waiting. `SKIP_CONFIG_AUTOUPDATE=1` turns it off |
 | `SessionStart` | Inline `echo` into `CLAUDE_ENV_FILE` | Points `CLOUDSDK_CONFIG` at `~/.config/gcloud-agent`, so agent gcloud calls use impersonated tokens. See [the sandbox](setup.md#gcloud-for-agents) |
 | `SessionStart` | Inline `echo` into `CLAUDE_ENV_FILE` | Sources `hooks/lib/agent-shell.sh` before every Bash command. It removes the interactive `rm`, `mv`, and `cp` aliases, points `XDG_CACHE_HOME` at `~/.cache/agent`, and on each `cd` it puts the node named by the nearest `.nvmrc` first on `PATH` |
 | `SessionStart`, after compaction | Inline `echo` | Reminds the model of the workflow, `/verify-done` before a PR, and the current year |
-| `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1`. herdr manages this file and overwrites it on reinstall |
-| `SessionStart`, `CwdChanged`, `Stop` | `herdr-pane-context.sh` | Reports `$repo`, `$branch`, and `$wt` pane tokens to the herdr sidebar when `HERDR_ENV=1`. On `SessionStart` it also reports `$model`, because only that event carries the model. It also sets one of `$c0` to `$c13`, a color marker that the herdr config styles. Each new repo in a space takes the lowest unused color, saved in `~/.local/state/herdr/repo-colors`. `Stop` catches a branch switch inside a session. On a fresh `SessionStart` (source `startup`) it also sorts the agent panel by repo through `agent.view.set`. Codex runs only the `SessionStart` entry, through `dispatch.sh` |
-| `SessionEnd` | `worktree-cleanup.sh` | Runs the hook checkout's `scripts/worktree-prune.sh --apply --min-idle 30`, which keeps locked worktrees; `CLAUDE_DISABLE_WORKTREE_CLEANUP=1` turns it off. Pi's `worktree-cleanup` extension also reads `HARNESS_DISABLE_WORKTREE_CLEANUP=1` |
+| `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1`. herdr manages this file and overwrites it on reinstall. Claude Code only, because it reports the agent as `claude`. Pi has its own `herdr-agent-state` extension |
+| `SessionStart`, `CwdChanged`, `Stop` | `herdr-pane-context.sh` | Reports `$repo`, `$branch`, and `$wt` pane tokens to the herdr sidebar when `HERDR_ENV=1`. On `SessionStart` it also reports `$model`, because only that event carries the model. It also sets one of `$c0` to `$c13`, a color marker that the herdr config styles. Each new repo in a space takes the lowest unused color, saved in `~/.local/state/herdr/repo-colors`. `Stop` catches a branch switch inside a session. On a fresh `SessionStart` (source `startup`) it also sorts the agent panel by repo through `agent.view.set`. Codex and Pi run only the `SessionStart` entry, through `dispatch.sh` |
+| `SessionEnd` | `worktree-cleanup.sh` | Runs the hook checkout's `scripts/worktree-prune.sh --apply --min-idle 30`, which keeps locked worktrees. `HARNESS_DISABLE_WORKTREE_CLEANUP=1`, or the legacy `CLAUDE_DISABLE_WORKTREE_CLEANUP=1`, turns it off |
 | `Notification` | Inline `osascript` | Shows a macOS notification on a permission or idle prompt |
 
 ## Bypass variables
@@ -155,8 +157,8 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | --- | --- |
 | `tests/deny-gate.test.ts` | `hooks/lib/deny-gate.ts` and its wrapper, and `hooks/lib/deny-rules.ts` |
 | `tests/dispatch.sh` | `hooks/lib/dispatch.sh`: matching, tool aliases, exit codes, timeouts |
-| `tests/hook-bridge.test.ts`, `tests/permission-gate.test.ts` | The Pi bridge, and the policy derived from the real deny list through `hooks/lib/deny-rules.ts` |
-| `tests/drift-check.test.ts`, `tests/worktree-cleanup.test.ts`, `tests/checkout.test.ts`, `tests/statusline.test.ts`, `tests/statusline-format.test.ts` | The Pi extensions that replace session hooks, and the Pi status line |
+| `tests/hook-bridge.test.ts`, `tests/permission-gate.test.ts` | The Pi bridge with its session events and the Claude-only session hooks, and the policy derived from the real deny list through `hooks/lib/deny-rules.ts` |
+| `tests/drift-check.test.ts`, `tests/checkout.test.ts`, `tests/statusline.test.ts`, `tests/statusline-format.test.ts` | The Pi extensions that replace session hooks, and the Pi status line |
 | `tests/commit-gates.sh` | The commit message gate and the prose gate on commits |
 | `tests/pr-gates.sh`, `tests/pre-pr-test-gate.sh`, `tests/pr-reply-gate.sh` | The PR body, prose, test, and reply gates |
 | `tests/post-verify-stamp.sh` | The `verify-passed` stamp, and the commands that leave none |
