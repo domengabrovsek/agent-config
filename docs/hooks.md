@@ -81,7 +81,7 @@ These run after a Write or Edit, except `post-pr-open-watch.sh` and `post-verify
 | `post-edit-lint.sh` | Replaces em dashes, then checks the added lines | Tracker refs in comments, stacked `//` or `--` comments, `var`, TODO markers, `SELECT *`, `:latest` | `SKIP_POST_EDIT_LINT` |
 | `prose-gate.sh file` | Checks the added lines of a Markdown file | A blocked word, curly quotes, or an emoji heading | `SKIP_PROSE_GATE` |
 | `post-pr-open-watch.sh` | After a non-draft `gh pr create` or a `gh pr ready` succeeds, tells the agent to watch the PR with `scripts/pr-ready.sh --watch` and how to clear each blocker | Never | `SKIP_PR_WATCH` |
-| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/agent-verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code. A redirected log must go outside the repo or to an ignored path. Also skips a `VAR=value` prefix, `npm_config_*`, and `--ignore-scripts` | Never | `SKIP_VERIFY_STAMP` |
+| `post-verify-stamp.sh` | After a foreground `npm run verify` succeeds on a clean tree, writes HEAD to `<git-dir>/agent-verify-passed`. Skips a background run, and any command with a pipe, `;` or `\|\|` that could mask the exit code. A redirected log must go outside the repo or to an ignored path. Also skips a `VAR=value` prefix, `npm_config_*`, `--ignore-scripts`, and a run that moved to the background at the Bash timeout. A skipped `npm run verify` adds a note saying why | Never | `SKIP_VERIFY_STAMP` |
 
 The prose gate also prints advisories that never block: words to reconsider, sentences over 25 words, and a causal "since".
 
@@ -91,6 +91,7 @@ The prose gate also prints advisories that never block: words to reconsider, sen
 | --- | --- | --- |
 | `SessionStart`, startup | `symlink-check.sh` | Warns when the Claude Code links drifted, with the fix command; `SKIP_SYMLINK_CHECK=1` turns it off |
 | `SessionStart` | Inline `echo` into `CLAUDE_ENV_FILE` | Points `CLOUDSDK_CONFIG` at `~/.config/gcloud-agent`, so agent gcloud calls use impersonated tokens. See [the sandbox](setup.md#gcloud-for-agents) |
+| `SessionStart` | Inline `echo` into `CLAUDE_ENV_FILE` | Sources `hooks/lib/agent-shell.sh` before every Bash command. It removes the interactive `rm`, `mv`, and `cp` aliases, points `XDG_CACHE_HOME` at `~/.cache/agent`, and on each `cd` it puts the node named by the nearest `.nvmrc` first on `PATH` |
 | `SessionStart`, after compaction | Inline `echo` | Reminds the model of the workflow, `/verify-done` before a PR, and the current year |
 | `SessionStart` | `herdr-agent-state.sh` | Reports the session to herdr when `HERDR_ENV=1`. herdr manages this file and overwrites it on reinstall |
 | `SessionStart`, `CwdChanged`, `Stop` | `herdr-pane-context.sh` | Reports `$repo`, `$branch`, and `$wt` pane tokens to the herdr sidebar when `HERDR_ENV=1`. On `SessionStart` it also reports `$model`, because only that event carries the model. It also sets one of `$c0` to `$c13`, a color marker that the herdr config styles. Each new repo in a space takes the lowest unused color, saved in `~/.local/state/herdr/repo-colors`. `Stop` catches a branch switch inside a session. On a fresh `SessionStart` (source `startup`) it also sorts the agent panel by repo through `agent.view.set`. Codex runs only the `SessionStart` entry, through `dispatch.sh` |
@@ -151,6 +152,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/commit-gates.sh` | The conventional-commit gate, the co-author gate, and the prose gate on commits |
 | `tests/pr-gates.sh`, `tests/pre-pr-test-gate.sh`, `tests/pr-reply-gate.sh` | The PR body, prose, test, and reply gates |
 | `tests/post-verify-stamp.sh` | The `verify-passed` stamp, and the commands that leave none |
+| `tests/agent-shell.sh` | The `CLAUDE_ENV_FILE` preamble: node from `.nvmrc`, and the removed aliases, in bash and zsh |
 | `tests/pr-ready.sh` | `scripts/pr-ready.sh` and the PR watch hook |
 | `tests/evidence-gate.sh`, `tests/test-lock.sh` | The evidence gate and the test lock |
 | `tests/pre-push-gate.sh`, `tests/resolve-repo.sh` | The push gate, and how hooks find the target repo |

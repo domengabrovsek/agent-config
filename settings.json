@@ -5,6 +5,10 @@
     "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/session-focus:~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts",
     "NODE_USE_ENV_PROXY": "1"
   },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "permissions": {
     "allow": [
       "Read(**/.env.example)",
@@ -453,6 +457,11 @@
             "type": "command",
             "command": "[ -n \"$CLAUDE_ENV_FILE\" ] && echo 'export CLOUDSDK_CONFIG=\"$HOME/.config/gcloud-agent\"' >> \"$CLAUDE_ENV_FILE\" || true",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "mkdir -p \"$HOME/.cache/agent\"; [ -n \"$CLAUDE_ENV_FILE\" ] && echo '[ -f \"$HOME/.claude/hooks/lib/agent-shell.sh\" ] && . \"$HOME/.claude/hooks/lib/agent-shell.sh\"' >> \"$CLAUDE_ENV_FILE\" || true",
+            "timeout": 5
           }
         ]
       }
@@ -488,8 +497,7 @@
         "~/.npm",
         "~/.terraform.d/plugin-cache",
         "~/.config/gcloud-agent",
-        "~/.cache/pentla-shared.git",
-        "~/.cache/gh",
+        "~/.cache/agent",
         "~/.docker/buildx/.lock",
         "~/.docker/buildx/activity",
         "~/.docker/buildx/refs",
@@ -518,9 +526,7 @@
         "~/dev/**/.claude/skills",
         "~/dev/**/.claude/agents",
         "~/dev/**/.claude/commands",
-        "~/dev/**/.husky",
-        "~/.cache/pentla-shared.git/hooks",
-        "~/.cache/pentla-shared.git/config"
+        "~/dev/**/.husky"
       ],
       "allowRead": [
         "~/.config/gh/hosts.yml"
@@ -536,7 +542,10 @@
         "registry.terraform.io",
         "releases.hashicorp.com",
         "context7.com",
-        "*.context7.com"
+        "*.context7.com",
+        "auth.docker.io",
+        "registry-1.docker.io",
+        "production.cloudflare.docker.com"
       ],
       "allowLocalBinding": true,
       "allowAllUnixSockets": true

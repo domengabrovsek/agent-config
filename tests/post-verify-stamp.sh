@@ -23,14 +23,17 @@ probe_repo() {
 
 stamp_file() { echo "$(git -C "$1" rev-parse --path-format=absolute --git-dir)/agent-verify-passed"; }
 
-# run_hook <payload-cwd> <command> [background] [interrupted]
+# run_hook <payload-cwd> <command> [background] [interrupted] [background-task-id]
 run_hook() {
-  CWD="$1" COMMAND="$2" BG="${3:-false}" INT="${4:-false}" python3 -c '
+  CWD="$1" COMMAND="$2" BG="${3:-false}" INT="${4:-false}" TASK="${5:-}" python3 -c '
 import json, os
+response = {"stdout": "", "stderr": "", "interrupted": os.environ["INT"] == "true"}
+if os.environ["TASK"]:
+    response["backgroundTaskId"] = os.environ["TASK"]
 print(json.dumps({
   "cwd": os.environ["CWD"],
   "tool_input": {"command": os.environ["COMMAND"], "run_in_background": os.environ["BG"] == "true"},
-  "tool_response": {"stdout": "", "stderr": "", "interrupted": os.environ["INT"] == "true"},
+  "tool_response": response,
 }))' | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" SKIP_VERIFY_STAMP="" bash "$HOOK")
 }
 
@@ -92,6 +95,20 @@ assert_stamp "an npm_config setting in a cd prefix leaves no stamp" "$REPO" none
 assert_stamp "--ignore-scripts skips the script" "$REPO" none "$REPO" "npm run verify --ignore-scripts"
 assert_stamp "a background run has not finished" "$REPO" none "$REPO" "npm run verify" true
 assert_stamp "an interrupted run does not stamp" "$REPO" none "$REPO" "npm run verify" false true
+assert_stamp "a run moved to the background at the timeout does not stamp" "$REPO" none "$REPO" \
+  "npm run verify" false false bz123
+out=$(run_hook "$REPO" "PATH=/x:\$PATH npm run verify")
+if printf '%s' "$out" | grep -qF "[verify-stamp] No verify stamp: anything besides"; then
+  pass "a rejected verify run tells the agent why"
+else
+  fail "a rejected verify run tells the agent why"
+fi
+out=$(run_hook "$REPO" "npm run verify:fast")
+if [ -z "$out" ]; then
+  pass "verify:fast gets no note"
+else
+  fail "verify:fast gets no note"
+fi
 assert_stamp "an unrelated command does not stamp" "$REPO" none "$REPO" "npm test"
 touch "$REPO/dirty"
 assert_stamp "a dirty tree does not stamp" "$REPO" none "$REPO" "npm run verify"
