@@ -15,8 +15,9 @@ Hooks and deny rules back these. Know them to avoid hitting the gate.
 
 ## Sandbox limits
 
-- The sandbox makes `.git/config` read-only. Branch with `git switch --no-track -c <branch> origin/main` and push with `git push origin <branch>`, never `-u` `(review-time: the sandbox fails the command halfway, no hook rewrites it)`
-- Change a read-only checkout, such as the live agent config, only from a worktree `(review-time: the sandbox fails git halfway there)`
+- The sandbox makes `.git/config` read-only. Branch with `git switch --no-track -c <branch> origin/main` and push with `git push origin <branch>`, never `-u` `(review-time: no hook rewrites it)`
+- Edit the live agent config only from a worktree. Use `/worktree --repo` for another repo, never a sparse checkout, clone, or worktree outside `.claude/worktrees` `(review-time: hooks cannot see checkout shape)`
+- On a sandbox refusal, stop. Relay a `!` command only when a tool printed one. Never use or suggest `--no-verify` `(review-time: user shell commands skip hooks)`
 
 ## Judgment calls
 
