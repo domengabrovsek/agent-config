@@ -22,19 +22,14 @@ echo "src/date.test.ts" > "$REPO/.claude/state/runs/feat-x/tests.lock"
 git -C "$REPO" worktree add -q "$TEST_DIR/wt" feat/x
 
 # assert_gate <name> <file> <agent_type or empty> <expected-exit>
-assert_gate() {
-  local name="$1" file="$2" agent="$3" want="$4" got
-  FILE="$file" AGENT="$agent" python3 -c '
+assert_gate() { expect_exit "$1" "$4" run_gate "$2" "$3"; }
+run_gate() {
+  FILE="$1" AGENT="$2" python3 -c '
 import json, os
 p = {"tool_input": {"file_path": os.environ["FILE"]}}
 if os.environ["AGENT"]:
     p["agent_type"] = os.environ["AGENT"]
-print(json.dumps(p))' | bash "$GATE" >/dev/null 2>&1
-  got=$?
-  if [ "$got" -eq "$want" ]; then pass "$name"; else
-    echo "    want exit $want, got $got" >&2
-    fail "$name"
-  fi
+print(json.dumps(p))' | bash "$GATE"
 }
 
 WT_TEST="$TEST_DIR/wt/src/date.test.ts"

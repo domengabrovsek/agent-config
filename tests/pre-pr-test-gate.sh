@@ -31,15 +31,14 @@ stamp() { git -C "$1" rev-parse HEAD > "$(git_dir "$1")/agent-verify-passed"; }
 
 # assert_gate <name> <payload-cwd> <command> <expected-exit> [expected-output]
 assert_gate() {
-  local name="$1" cwd="$2" command="$3" want="$4" want_out="${5:-}" out got
-  out=$(payload "$command" "$cwd" | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" SKIP_PR_TEST_GATE="" bash "$HOOK" 2>&1))
-  got=$?
-  if [ "$got" -eq "$want" ] && { [ -z "$want_out" ] || printf '%s' "$out" | grep -qF -- "$want_out"; }; then
-    pass "$name"
+  if [ -n "${5:-}" ]; then
+    expect_exit --says "$5" "$1" "$4" run_gate "$2" "$3"
   else
-    echo "    want exit $want, got $got: $out" >&2
-    fail "$name"
+    expect_exit "$1" "$4" run_gate "$2" "$3"
   fi
+}
+run_gate() {
+  payload "$2" "$1" | (cd "$TEST_ROOT" && CLAUDE_PROJECT_DIR="" SKIP_PR_TEST_GATE="" bash "$HOOK")
 }
 
 REPO="$TEST_ROOT/repo"
