@@ -14,6 +14,8 @@
 # Exit 2 blocks the action and feeds the message back to Claude.
 # Bypass with SKIP_PR_BODY_GATE=1.
 
+# shellcheck source=lib/resolve-repo.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/pr-body.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/pr-body.sh"
 # shellcheck source=lib/once.sh
@@ -25,13 +27,10 @@ hook_read
 first_run_for_call "$INPUT" pre-pr-body-gate || exit 0
 
 case "$COMMAND" in
-  *"gh pr create --help"*|*"gh pr create -h"*) exit 0 ;;
-  *"gh pr edit --help"*|*"gh pr edit -h"*) exit 0 ;;
-  *"gh issue create --help"*|*"gh issue create -h"*) exit 0 ;;
-  *"gh issue edit --help"*|*"gh issue edit -h"*) exit 0 ;;
   *"gh pr create"*|*"gh pr edit"*|*"gh issue create"*|*"gh issue edit"*) ;;
   *) exit 0 ;;
 esac
+gh_runs "$COMMAND" "$CWD" "pr create|pr edit|issue create|issue edit" && git_args_ask_help && exit 0
 
 hook_bypass SKIP_PR_BODY_GATE && exit 0
 

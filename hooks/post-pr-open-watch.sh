@@ -7,6 +7,8 @@
 
 [ "${SKIP_PR_WATCH:-}" = "1" ] && exit 0
 
+# shellcheck source=lib/resolve-repo.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-repo.sh"
 # shellcheck source=lib/context.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/context.sh"
 # shellcheck source=lib/once.sh
@@ -21,9 +23,7 @@ case "$COMMAND" in
   *"gh pr create"*|*"gh pr ready"*) ;;
   *) exit 0 ;;
 esac
-case "$COMMAND" in
-  *" --help"*|*" -h"*|*"--dry-run"*|*"--undo"*) exit 0 ;;
-esac
+gh_runs "$COMMAND" "$CWD" "pr create|pr ready" && git_args_have --help -h --dry-run --undo && exit 0
 # A draft stays with the user until they run gh pr ready, which arms the watch.
 case "$COMMAND" in
   *"gh pr create"*" --draft"*|*"gh pr create"*" -d "*|*"gh pr create"*" -d") exit 0 ;;

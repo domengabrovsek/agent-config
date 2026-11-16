@@ -35,13 +35,14 @@ hook_read
 first_run_for_call "$INPUT" pre-pr-reply-gate || exit 0
 
 case "$COMMAND" in
-  *"gh pr comment --help"*|*"gh pr comment -h"*) exit 0 ;;
-  *"gh issue comment --help"*|*"gh issue comment -h"*) exit 0 ;;
-  *"gh pr review --help"*|*"gh pr review -h"*) exit 0 ;;
   *"gh pr comment"*|*"gh issue comment"*|*"gh pr review"*) KIND=cli ;;
   *"gh api"*) KIND=api ;;
   *) exit 0 ;;
 esac
+if [ "$KIND" = cli ] && gh_runs "$COMMAND" "$CWD" "pr comment|issue comment|pr review" \
+  && git_args_ask_help; then
+  exit 0
+fi
 
 # The body is free text, so a `git -C <dir>` inside it must not pick the repo.
 REPO_CMD=${COMMAND%%body=*}

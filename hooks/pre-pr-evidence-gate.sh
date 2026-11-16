@@ -25,10 +25,10 @@
 hook_read
 
 case "$COMMAND" in
-  *"gh pr create --help"*|*"gh pr create -h"*) exit 0 ;;
   *"gh pr create"*) ;;
   *) exit 0 ;;
 esac
+gh_runs "$COMMAND" "$CWD" "pr create" && git_args_ask_help && exit 0
 
 hook_bypass SKIP_EVIDENCE_GATE && exit 0
 

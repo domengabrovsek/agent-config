@@ -10,6 +10,7 @@
 # tool_input.command, cwd and tool_input.file_path with one jq call. A missing
 # field or an unreadable payload leaves the variable empty. Trailing newlines
 # are dropped, as a command substitution would.
+# shellcheck disable=SC2034  # the sourcing hook reads whichever fields it needs
 hook_read() {
   INPUT=$(cat)
   COMMAND=""

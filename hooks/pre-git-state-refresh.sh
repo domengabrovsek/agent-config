@@ -26,11 +26,6 @@ first_run_for_call "$INPUT" pre-git-state-refresh || exit 0
 
 hook_bypass SKIP_PR_STATE_REFRESH && exit 0
 
-# --help / -h variants are harmless; skip.
-case "$COMMAND" in
-  *" --help"*|*" -h"*) exit 0 ;;
-esac
-
 # Match trigger commands only. Anything else exits silently. The hook's own
 # cwd is not the tool call's, so the repo comes from the payload.
 # CLAUDE_PROJECT_DIR alone is wrong whenever the harness runs hooks from
@@ -45,8 +40,10 @@ if [ "$KIND" = git ]; then
   parse_git_command "$COMMAND" "$CWD" "push|commit" || exit 0
   KIND=$GIT_SUB
 else
-  parse_git_command "$COMMAND" "$CWD"
+  gh_runs "$COMMAND" "$CWD" "pr edit|pr comment|pr merge|pr close|pr ready|pr review"
 fi
+# A --help or -h call only prints usage.
+git_args_ask_help && exit 0
 DIR=$GIT_REPO_DIR
 
 emit() {

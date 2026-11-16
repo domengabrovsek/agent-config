@@ -128,6 +128,11 @@ echo "== plumbing =="
 assert_gate "an unrelated command is skipped" "$BODY" "npm test" 0
 assert_gate "the create help flag is skipped" "$BODY" "$GH_CREATE --help" 0
 assert_gate "the edit help flag is skipped" "$BODY" "gh ""pr edit --help" 0
+assert_gate "a --help inside the body is still checked" "$BODY" \
+  "$GH_CREATE --title \"fix: a\" --body \"Run it with --help. Generated with Claude Code\"" 2
+assert_gate "a quoted help call in an echo does not skip the gate" "$BODY" \
+  "echo \"$GH_CREATE --help\"; $GH_CREATE --body \"Generated with Claude Code\"" 2
+assert_gate "the prose gate skips a help call" "$PROSE" "$GH_CREATE --help" 0
 assert_gate "an unrelated command is skipped by the prose gate" "$PROSE" "npm test" 0
 
 finish

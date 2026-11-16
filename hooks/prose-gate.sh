@@ -95,11 +95,10 @@ case "$MODE" in
 
   pr)
     case "$COMMAND" in
-      *"gh pr create --help"*|*"gh pr create -h"*) exit 0 ;;
-      *"gh pr edit --help"*|*"gh pr edit -h"*) exit 0 ;;
       *"gh pr create"*|*"gh pr edit"*) ;;
       *) exit 0 ;;
     esac
+    gh_runs "$COMMAND" "$CWD" "pr create|pr edit" && git_args_ask_help && exit 0
 
     LABEL="PR body"
     TEXT=$(extract_pr_body "$COMMAND")
