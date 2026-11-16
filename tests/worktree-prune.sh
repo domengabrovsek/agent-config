@@ -378,6 +378,7 @@ stub "$PROJECT/scripts" worktree-prune.sh <<'STUB'
 #!/bin/bash
 : > "$(dirname "$0")/ran"
 STUB
+unset HARNESS_DISABLE_WORKTREE_CLEANUP CLAUDE_DISABLE_WORKTREE_CLEANUP
 run_hook() {
   (cd "$REPO" && CLAUDE_PROJECT_DIR="$PROJECT" bash "$PROJECT_DIR/hooks/worktree-cleanup.sh")
 }
@@ -385,6 +386,10 @@ run_hook
 check "the hook never runs the project's own prune script" absent "$PROJECT/scripts/ran"
 check "the hook keeps a merged worktree touched in the last 30 minutes" test -d "$WT/merged"
 backdate "$REPO" merged
+HARNESS_DISABLE_WORKTREE_CLEANUP=1 run_hook
+check "HARNESS_DISABLE_WORKTREE_CLEANUP=1 turns the hook off" test -d "$WT/merged"
+CLAUDE_DISABLE_WORKTREE_CLEANUP=1 run_hook
+check "the legacy CLAUDE_DISABLE_WORKTREE_CLEANUP=1 turns the hook off" test -d "$WT/merged"
 run_hook
 check "the hook removes a merged worktree idle for 30 minutes" absent "$WT/merged"
 check "the hook keeps a locked worktree" test -d "$WT/merged-locked"
