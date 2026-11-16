@@ -113,6 +113,9 @@ assert_gate "an existing body file with a state path elsewhere in the command pa
 assert_gate "a line continuation does not split the call" "$BODY" \
   "$GH_CREATE \\
   --title \"see .claude/state/plans/x.md\" --body ok" 2
+printf 'Adds one check.\n\nGenerated with Claude Code\n' > "$TEST_DIR/attr-body.md"
+assert_gate "a body file the command also reads is still checked" "$BODY" \
+  "cat $TEST_DIR/attr-body.md; $GH_CREATE --title \"fix: a\" --body-file $TEST_DIR/attr-body.md" 2
 assert_gate "a hash inside a word does not hide the rest of the call" "$BODY" \
   "$GH_CREATE --head feat#2 --title \"Follows .claude/state/plans/x.md\" --body ok" 2
 assert_gate "a state path in a quoted body with a semicolon still blocks" "$BODY" \

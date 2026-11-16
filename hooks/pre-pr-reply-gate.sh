@@ -161,13 +161,17 @@ refuse_footer() {
 
 # Relative body files resolve against the repo the command runs in.
 if [ "$KIND" = cli ]; then
-  # A loop posts one comment per file, so each file needs its own footer.
-  FILES=$(cd "$DIR" 2>/dev/null && pr_body_files "$COMMAND")
-  if [ "$(printf '%s\n' "$FILES" | grep -c .)" -gt 1 ]; then
+  # A loop posts one comment per file, so each file needs its own footer. A
+  # file the command may write first resolves to nothing and blocks.
+  FILES=$(cd "$DIR" 2>/dev/null && pr_body_files "$COMMAND" strict)
+  if [ -n "$FILES" ]; then
     while IFS= read -r f; do
       footer_ok "$(cd "$DIR" 2>/dev/null && cat -- "$f")" || refuse_footer
     done <<< "$FILES"
     exit 0
+  fi
+  if printf '%s\n' "$COMMAND" | grep -qE '(^|[[:space:]])(-F|--body-file)([= ]|$)'; then
+    refuse_footer
   fi
   BODY=$(cd "$DIR" 2>/dev/null && extract_pr_body "$COMMAND")
   # `gh pr review --approve` with no body flag posts no comment text. A body

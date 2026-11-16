@@ -35,17 +35,19 @@ def heredoc(cmd, start):
     return "\n".join(out)
 '
 
-# pr_body_files <command>
+# pr_body_files <command> [strict]
 # Prints the --body-file / -F path, one per line, or nothing when the command
 # uses no such flag. Every gh pr and gh issue subcommand spells --body-file as
 # -F. A "$f" path resolves through `f=<path>` or `for f in <paths>; do` earlier
 # in the same command, so a loop posting several bodies prints each file. A
-# path the gate cannot resolve prints nothing: a glob, or a file the command
-# also names elsewhere, since it may write that file after the hook reads it.
+# glob prints nothing, because the hook would expand it before the command
+# runs. With strict, a file the command also names elsewhere prints nothing
+# too, since the command may write it after the hook reads it.
 pr_body_files() {
-  printf '%s' "$1" | python3 -c '
+  printf '%s' "$1" | STRICT="${2:-}" python3 -c '
 import glob, os, re, shlex, sys
 cmd = sys.stdin.read()
+strict = os.environ.get("STRICT") == "strict"
 m = re.search(r"(?:^|\s)(?:--body-file|-F)[=\s]+[\x27\"]?([^\x27\"\s]+)", cmd)
 if not m:
     sys.exit(0)
@@ -53,7 +55,7 @@ path = m.group(1)
 rest = cmd[:m.start(1)] + cmd[m.end(1):]
 
 def literal(word):
-    if word in rest:
+    if strict and word in rest:
         return None
     word = os.path.expanduser(os.path.expandvars(word))
     if re.search(r"[$`]", word) or glob.has_magic(word):
