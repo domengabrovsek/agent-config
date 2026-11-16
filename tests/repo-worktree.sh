@@ -74,8 +74,9 @@ mkdir -p "$TEST_ROOT/plain"
 expect_exit --says "not inside a git work tree" "refuses a non-repo" 1 "$SCRIPT" "$TEST_ROOT/plain" slug
 expect_exit "refuses a bad slug" 2 "$SCRIPT" "$CLONE" "Bad Slug"
 printf 'dirty\n' >> "$CLONE/file.txt"
-expect_exit --says "uncommitted changes" "refuses a dirty repo" 1 "$SCRIPT" "$CLONE" dirty
-check "dirty refusal creates nothing" [ ! -e "$CLONE/.claude/worktrees/dirty" ]
+expect_exit --says "uncommitted changes" "a dirty main checkout only gets a note" 0 "$SCRIPT" "$CLONE" dirty
+check "the dirty main checkout keeps its change" grep -q dirty "$CLONE/file.txt"
+check "the new worktree starts clean" [ -z "$(git -C "$CLONE/.claude/worktrees/dirty" status --porcelain)" ]
 git -C "$CLONE" checkout -q -- file.txt
 
 # Registry: one line per main checkout, however many worktrees it has.

@@ -5,7 +5,8 @@
 # The worktree lands at <main-checkout>/.claude/worktrees/<slug> on a new
 # branch cut from the fetched base, with no upstream. The script never writes
 # .git/config, so push with `git push origin <branch>`. A linked worktree path
-# maps to its main checkout. Untracked files do not count as dirty.
+# maps to its main checkout. Changes in the main checkout stay untouched; the
+# script only notes them on stderr.
 #
 # The main checkout path is appended once to ~/.cache/agent/worktree-repos,
 # one absolute path per line. The SessionEnd cleanup hook reads that file and
@@ -78,7 +79,7 @@ MAIN=$(git -C "$TOP" worktree list --porcelain | sed -n '1s/^worktree //p')
 [ -n "$MAIN" ] && [ -d "$MAIN" ] || die "cannot find the main checkout of $TOP"
 
 if [ -n "$(git -C "$MAIN" status --porcelain --untracked-files=no)" ]; then
-  die "main checkout has uncommitted changes: $MAIN"
+  echo "repo-worktree: note: main checkout has uncommitted changes, left untouched: $MAIN" >&2
 fi
 
 WORKTREE="$MAIN/.claude/worktrees/$SLUG"

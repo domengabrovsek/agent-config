@@ -47,7 +47,7 @@ With `--repo <path>`, the worktree goes in that repo instead of the session's re
 It needs a session that is not itself worktree-isolated. A session started with `-w` or `EnterWorktree` may only touch its own worktree, so start in the home repo's main checkout. `EnterWorktree` only works in the session's launch repo, so this flow skips it.
 
 1. Run `~/.agents/scripts/repo-worktree.sh "<path>" "<slug>" --branch "<branch>"`. Add `--base <ref>` when the user names a base. The script fetches the base, creates `<main-checkout>/.claude/worktrees/<slug>` with no upstream, and prints its path as the last line.
-2. If the script exits 1, it refused a dirty repo, an existing slug, or a bad base. Report its error and stop.
+2. If the script exits 1, it refused a missing repo, an existing slug, or a bad base. Report its error and stop. Uncommitted changes in the main checkout are fine; the script leaves them alone.
 3. If it exits 3, the base tracks sandbox-protected paths, and a sandboxed checkout would fail. Never work around the deny rule, for example by placing the worktree outside `~/dev`. Give the user the `!` command the script printed, which adds `--allow-protected`, and continue once they report the path.
 4. Work in the printed path without `cd`. Use `git -C "<worktree>"` for git and absolute paths for files and other commands.
 5. Run steps 7 and 8 from the steps above in that path.
