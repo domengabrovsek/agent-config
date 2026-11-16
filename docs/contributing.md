@@ -74,6 +74,7 @@ Run `npm run verify` from the repo root before you open a pull request. It runs 
 | Shell Tests | `npm run test:shell` | Each `tests/*.sh` file: host setup, drift check, shared paths, dispatcher, status line, worktree pruning, every gate, and the prose gate fixtures plus every tracked Markdown file. `scripts/run-shell-tests.sh` runs the files in parallel, prints each log, and lists the failed ones at the end. Under GitHub Actions each log is a collapsible group |
 
 - The agent push gate runs `npm run verify:fast`, which is `npm test` plus the config budget.
+- The agent PR gate blocks `gh pr create` and `gh pr ready` until `npm run verify` has passed at HEAD on a clean tree. Run it alone, in the foreground, so `post-verify-stamp.sh` records the pass. A draft PR skips the check until `gh pr ready`.
 - The push gate blocks a push from any Node checkout without `node_modules`, even though `npm test` here needs no install. Run `npm ci` in a new worktree first.
 - `shellcheck-all.sh` installs `shellcheck` through `apt-get` or `brew` when it is missing.
 - `npm test` needs Node.js 22.19 or later and no install step.
