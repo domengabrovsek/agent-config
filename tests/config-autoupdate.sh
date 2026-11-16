@@ -71,6 +71,11 @@ run
 check "a gone branch with local changes stays put" [ "$(git -C "$TEST_ROOT/clone" branch --show-current)" = fix/dirty ]
 
 setup
+git -C "$TEST_ROOT/clone" switch -q --detach
+run
+check "a detached HEAD is named in the message" says "is on a detached HEAD"
+
+setup
 echo local > "$TEST_ROOT/clone/README"
 git -C "$TEST_ROOT/clone" add README
 run

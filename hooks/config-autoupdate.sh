@@ -35,7 +35,8 @@ DEFAULT=$(git -C "$REPO" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/nu
 DEFAULT=${DEFAULT#origin/}
 DEFAULT=${DEFAULT:-main}
 
-# A slow network must not hold up the session start.
+# A slow network or a credential prompt must not hold up the session start.
+export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=5}"
 if ! GIT_TERMINAL_PROMPT=0 git -C "$REPO" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=5 \
   fetch --quiet origin "$DEFAULT" 2>/dev/null; then
   exit 0
@@ -61,7 +62,7 @@ BEHIND=$(git -C "$REPO" rev-list --count "HEAD..origin/$DEFAULT" 2>/dev/null)
 [ "${BEHIND:-0}" -gt 0 ] || exit 0
 
 if [ "$BRANCH" != "$DEFAULT" ]; then
-  say "Agent config in $REPO is on $BRANCH, so $BEHIND merged commits on $DEFAULT are not live. Make config changes in a worktree."
+  say "Agent config in $REPO is on ${BRANCH:-a detached HEAD}, so $BEHIND merged commits on $DEFAULT are not live. Make config changes in a worktree."
   exit 0
 fi
 if [ "$CLEAN" -eq 0 ]; then
