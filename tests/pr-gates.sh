@@ -91,6 +91,37 @@ STATE_FILE="$TEST_DIR/state-body.md"
 printf '## What does this PR do?\n\n- Follows .claude/state/plans/x.md\n' > "$STATE_FILE"
 assert_gate "a state path in a --body-file blocks" "$BODY" \
   "$GH_CREATE --body-file $STATE_FILE" 2
+assert_gate "a state path in a command chained before the PR passes" "$BODY" \
+  "sed -i '' 's/x/y/' .claude/state/plans/x.md && $GH_CREATE --title \"fix: a\" --body \"Adds one check.\"" 0
+assert_gate "a state path in a command chained after the PR passes" "$BODY" \
+  "$GH_EDIT --body \"Adds one check.\" 2>&1 | tail -1; cat .claude/state/plans/x.md" 0
+assert_gate "a state path on the line before the PR passes" "$BODY" \
+  "sed -i '' 's/x/y/' .claude/state/plans/x.md
+$GH_CREATE --title \"fix: a\" --body \"Adds one check.\"" 0
+assert_gate "a state path in a body variable set before the PR blocks" "$BODY" \
+  "body=\"Follows .claude/state/plans/x.md\"; $GH_CREATE --title \"fix: a\" --body \"\$body\"" 2
+assert_gate "a state path written to a body file in the same command blocks" "$BODY" \
+  "printf 'See .claude/state/plans/x.md' > $TEST_DIR/new-body.md && $GH_CREATE --body-file $TEST_DIR/new-body.md" 2
+printf 'Adds one check.\n' > "$TEST_DIR/old-body.md"
+assert_gate "a state path written over an existing body file blocks" "$BODY" \
+  "cat > $TEST_DIR/old-body.md <<'EOF'
+See .claude/state/plans/x.md
+EOF
+$GH_CREATE --body-file $TEST_DIR/old-body.md" 2
+assert_gate "an existing body file with a state path elsewhere in the command passes" "$BODY" \
+  "cat .claude/state/plans/x.md; $GH_CREATE --body-file $TEST_DIR/old-body.md" 0
+assert_gate "a line continuation does not split the call" "$BODY" \
+  "$GH_CREATE \\
+  --title \"see .claude/state/plans/x.md\" --body ok" 2
+printf 'Adds one check.\n\nGenerated with Claude Code\n' > "$TEST_DIR/attr-body.md"
+assert_gate "a body file the command also reads is still checked" "$BODY" \
+  "cat $TEST_DIR/attr-body.md; $GH_CREATE --title \"fix: a\" --body-file $TEST_DIR/attr-body.md" 2
+assert_gate "a hash inside a word does not hide the rest of the call" "$BODY" \
+  "$GH_CREATE --head feat#2 --title \"Follows .claude/state/plans/x.md\" --body ok" 2
+assert_gate "a state path in a quoted body with a semicolon still blocks" "$BODY" \
+  "$GH_CREATE --body \"Done; see .claude/state/plans/x.md\" && echo ok" 2
+assert_gate "an attribution title after a chained command still blocks" "$BODY" \
+  "cd /tmp && $GH_CREATE --title \"fix: a (Generated with Claude)\" --body \"Adds one check.\"" 2
 
 echo
 echo "== plumbing =="

@@ -35,9 +35,28 @@ esac
 [ "$SKIP_PR_BODY_GATE" = "1" ] && exit 0
 
 # The rules cover titles as well as bodies, and a --body-file body never
-# appears in the command, so both halves go into one haystack.
+# appears in the command, so both halves go into one haystack. Only the gh call
+# counts: a state path in a command chained to it never reaches the PR. A
+# body the gate cannot read, or a call that expands a variable, may be built
+# by those other commands, so then the whole command counts.
 BODY=$(extract_pr_body "$COMMAND")
-HAYSTACK=$(printf '%s\n%s' "$COMMAND" "$BODY")
+SCOPE=$(pr_command_segment "$COMMAND")
+if { [ -z "$BODY" ] && printf '%s\n' "$SCOPE" \
+    | grep -qE '(^|[[:space:]])(-b|--body|-F|--body-file)([= ]|$)'; } \
+  || printf '%s' "$SCOPE" | sed 's/\$(cat <<//g' | grep -q '[$`]'; then
+  SCOPE=$COMMAND
+fi
+# A body file the same command writes may still hold an earlier run's text, so
+# a body-file path named outside the gh call also brings the whole command in.
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  in_cmd=${COMMAND//"$f"/}
+  in_scope=${SCOPE//"$f"/}
+  if [ $(( ${#COMMAND} - ${#in_cmd} )) -gt $(( ${#SCOPE} - ${#in_scope} )) ]; then
+    SCOPE=$COMMAND
+  fi
+done <<< "$(pr_body_files "$COMMAND")"
+HAYSTACK=$(printf '%s\n%s' "$SCOPE" "$BODY")
 
 FAILED=0
 
