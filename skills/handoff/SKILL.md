@@ -6,7 +6,7 @@ argument-hint: "What will the next session be used for?"
 
 > Source: [mattpocock/skills - productivity/handoff](https://github.com/mattpocock/skills/tree/main/skills/productivity/handoff)
 
-Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save it to a path produced by `mktemp -t handoff-XXXXXX.md` (read the file before you write to it).
+Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save it to a path produced by `f=$(mktemp "${TMPDIR:-/tmp}/handoff-XXXXXX") && mv "$f" "$f.md" && echo "$f.md"` (read the file before you write to it). The template keeps the file under `$TMPDIR`, which the sandbox allows; macOS `mktemp -t` writes elsewhere and fails there.
 
 Suggest the skills to be used, if any, by the next session.
 
