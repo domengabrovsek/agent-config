@@ -139,7 +139,6 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `deny-rules.ts` | `deny-gate.ts`, the Pi permission gate | Loads and classifies the `settings.json` deny list, shared with the Pi permission gate |
 | `hook.sh` | Every tool hook | Reads the payload's command, cwd, and file path with one `jq` call, checks a `SKIP_*` bypass, and prints a block with the hook's prefix and bypass hint |
 | `resolve-repo.sh` | The git and `gh pr` gates, `post-verify-stamp.sh` | Finds the repo a command targets, because a hook runs in its own cwd. `git_runs` and `gh_runs` match a git or `gh` subcommand by its parsed words, so a `--help` inside a quoted message is not a help call |
-| `pr-state.sh` | `pre-git-state-refresh.sh`, `pre-push-gate.sh` | Asks `gh` for the branch's PR once per push and shares the answer between both hooks |
 | `pr-body.sh` | The prose, body, test, and reply gates | Extracts the PR body from a `gh pr` command, and the `body=` field of a `gh api` call |
 | `find-up.sh` | `auto-format.sh`, `post-edit-typecheck.sh`, `post-verify-stamp.sh` | Finds the nearest config, `package.json`, or tool binary above a path, for monorepo workspaces |
 | `package-json.sh` | The per-edit hooks, the push, PR test, and verify stamp hooks | Finds the nearest `package.json` and checks for a declared script |
@@ -163,7 +162,7 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 | `tests/agent-shell.sh` | The `CLAUDE_ENV_FILE` preamble: node from `.nvmrc`, and the removed aliases, in bash and zsh |
 | `tests/pr-ready.sh` | `scripts/pr-ready.sh` and the PR watch hook |
 | `tests/evidence-gate.sh`, `tests/test-lock.sh` | The evidence gate and the test lock |
-| `tests/pre-push-gate.sh`, `tests/resolve-repo.sh` | The push gate, the PR lookup it shares with the state refresh, and how hooks find the target repo |
+| `tests/pre-push-gate.sh`, `tests/resolve-repo.sh` | The push gate, and how hooks find the target repo |
 | `tests/outbound-email-scrub.sh` | The email scrub on each tool, its allowed addresses, and the block on Codex and Pi |
 | `tests/post-edit-hooks.sh` | The three per-edit hooks |
 | `tests/symlink-check.sh` | The drift check |
