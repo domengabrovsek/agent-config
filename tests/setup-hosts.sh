@@ -83,6 +83,14 @@ assert_link() {
   [ -L "$1" ] && [ "$(readlink "$1")" = "$2" ]
 }
 
+# assert_links <live> <target> [<live> <target>...]: every pair is a link.
+assert_links() {
+  while [ "$#" -ge 2 ]; do
+    assert_link "$1" "$2" || return 1
+    shift 2
+  done
+}
+
 backup_count() {
   BACKUP_BASE="$1"
   COUNT=0
@@ -129,8 +137,8 @@ hooks|hooks
 rules|rules
 EOF
 check "Codex AGENTS.md is shared" assert_link "$TEST_HOME/.codex/AGENTS.md" "$TEST_REPO/AGENTS.md"
-check "Pi base dir receives instructions and resources" assert_link "$TEST_HOME/.pi/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" && assert_link "$TEST_HOME/.pi/agent/extensions" "$TEST_REPO/pi/extensions" && assert_link "$TEST_HOME/.pi/agent/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$TEST_HOME/.pi/agent/models.json" "$TEST_REPO/pi/models.json" && assert_link "$TEST_HOME/.pi/agent/agents" "$TEST_REPO/agents"
-check "Pi personal dir receives instructions and resources" assert_link "$TEST_HOME/.pi-personal/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" && assert_link "$TEST_HOME/.pi-personal/agent/extensions" "$TEST_REPO/pi/extensions" && assert_link "$TEST_HOME/.pi-personal/agent/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$TEST_HOME/.pi-personal/agent/models.json" "$TEST_REPO/pi/models.json" && assert_link "$TEST_HOME/.pi-personal/agent/agents" "$TEST_REPO/agents"
+check "Pi base dir receives instructions and resources" assert_links "$TEST_HOME/.pi/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" "$TEST_HOME/.pi/agent/extensions" "$TEST_REPO/pi/extensions" "$TEST_HOME/.pi/agent/settings.json" "$TEST_REPO/pi/settings.json" "$TEST_HOME/.pi/agent/models.json" "$TEST_REPO/pi/models.json" "$TEST_HOME/.pi/agent/agents" "$TEST_REPO/agents"
+check "Pi personal dir receives instructions and resources" assert_links "$TEST_HOME/.pi-personal/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" "$TEST_HOME/.pi-personal/agent/extensions" "$TEST_REPO/pi/extensions" "$TEST_HOME/.pi-personal/agent/settings.json" "$TEST_REPO/pi/settings.json" "$TEST_HOME/.pi-personal/agent/models.json" "$TEST_REPO/pi/models.json" "$TEST_HOME/.pi-personal/agent/agents" "$TEST_REPO/agents"
 while IFS='|' read -r NAME RELATIVE; do
   check "shared root exposes $NAME" assert_link "$TEST_HOME/.agents/$NAME" "$TEST_REPO/$RELATIVE"
 done <<'EOF'
@@ -152,7 +160,7 @@ check "clean check exits zero" quiet run_setup --check
 new_case pi_only
 check "Pi-only apply succeeds" quiet run_setup --apply --host pi
 check "Pi-only apply links instructions" assert_link "$TEST_HOME/.pi/agent/AGENTS.md" "$TEST_REPO/AGENTS.md"
-check "Pi-only apply links the personal dir too" assert_link "$TEST_HOME/.pi-personal/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" && assert_link "$TEST_HOME/.pi-personal/agent/extensions" "$TEST_REPO/pi/extensions" && assert_link "$TEST_HOME/.pi-personal/agent/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$TEST_HOME/.pi-personal/agent/models.json" "$TEST_REPO/pi/models.json" && assert_link "$TEST_HOME/.pi-personal/agent/agents" "$TEST_REPO/agents"
+check "Pi-only apply links the personal dir too" assert_links "$TEST_HOME/.pi-personal/agent/AGENTS.md" "$TEST_REPO/AGENTS.md" "$TEST_HOME/.pi-personal/agent/extensions" "$TEST_REPO/pi/extensions" "$TEST_HOME/.pi-personal/agent/settings.json" "$TEST_REPO/pi/settings.json" "$TEST_HOME/.pi-personal/agent/models.json" "$TEST_REPO/pi/models.json" "$TEST_HOME/.pi-personal/agent/agents" "$TEST_REPO/agents"
 check "Pi base directory receives MCP config" assert_link "$TEST_HOME/.pi/agent/mcp.json" "$TEST_REPO/pi/mcp.json"
 check "Pi personal directory receives MCP config" assert_link "$TEST_HOME/.pi-personal/agent/mcp.json" "$TEST_REPO/pi/mcp.json"
 check "Pi-only apply links shared skills" assert_link "$TEST_HOME/.agents/skills" "$TEST_REPO/skills"
@@ -171,7 +179,7 @@ new_case pi_custom_dir
 CUSTOM_PI_DIR="$CASE_DIR/custom-pi"
 check "Pi custom directory apply succeeds" quiet run_setup_with_pi_dir "$CUSTOM_PI_DIR" --apply --host pi
 check "Pi custom directory receives instructions" assert_link "$CUSTOM_PI_DIR/AGENTS.md" "$TEST_REPO/AGENTS.md"
-check "Pi custom directory receives extension and settings links" assert_link "$CUSTOM_PI_DIR/extensions" "$TEST_REPO/pi/extensions" && assert_link "$CUSTOM_PI_DIR/settings.json" "$TEST_REPO/pi/settings.json" && assert_link "$CUSTOM_PI_DIR/models.json" "$TEST_REPO/pi/models.json"
+check "Pi custom directory receives extension and settings links" assert_links "$CUSTOM_PI_DIR/extensions" "$TEST_REPO/pi/extensions" "$CUSTOM_PI_DIR/settings.json" "$TEST_REPO/pi/settings.json" "$CUSTOM_PI_DIR/models.json" "$TEST_REPO/pi/models.json"
 check "Pi custom directory receives MCP config" assert_link "$CUSTOM_PI_DIR/mcp.json" "$TEST_REPO/pi/mcp.json"
 check "Pi default directory stays absent" test ! -e "$TEST_HOME/.pi"
 check "Pi custom directory still gets shared skills" assert_link "$TEST_HOME/.agents/skills" "$TEST_REPO/skills"
