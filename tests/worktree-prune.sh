@@ -368,6 +368,102 @@ check "its state is copied into the main checkout around it" \
   grep -qx plan "$REPO/.claude/state/plans/plan.md"
 check "a fresh worktree under .claude/worktrees survives" test -d "$NESTED/fresh"
 
+# build_small <repo>: a merged worktree and an unmerged one whose commit is on
+# no remote.
+build_small() {
+  git init -q -b main "$1"
+  git -C "$1" commit -q --allow-empty -m "initial"
+  add_worktree "$1" merged
+  commit_on "$1" merged
+  merge_no_ff "$1" merged
+  add_worktree "$1" unpushed
+  commit_on "$1" unpushed
+}
+
+FAKE_HOME="$TEST_ROOT/home"
+REGISTRY="$FAKE_HOME/.cache/agent/worktree-repos"
+mkdir -p "$FAKE_HOME/.cache/agent"
+
+# run_registry [arg...]: run from outside any repo with the fake HOME; sets OUT
+# and RC.
+run_registry() {
+  RC=0
+  OUT=$(cd "$TEST_ROOT" && HOME="$FAKE_HOME" bash "$SCRIPT" --registry "$@") || RC=$?
+}
+
+echo
+echo "== --registry =="
+REPO="$TEST_ROOT/sibling"
+WT="$REPO.wt"
+build_small "$REPO"
+mkdir -p "$REPO/sub" "$TEST_ROOT/plain-dir"
+printf '%s\n' "$REPO" "$TEST_ROOT/gone" "" "$REPO" "$REPO/sub" "$TEST_ROOT/plain-dir" > "$REGISTRY"
+cp "$REGISTRY" "$TEST_ROOT/registry.before"
+run_registry
+assert_verdict "a registry repo's merged worktree is safe" "$WT/merged" "SAFE merged-into-main"
+assert_verdict "a registry repo's unpushed worktree is kept" "$WT/unpushed" "KEEP unmerged-or-active"
+check "each registry repo is reported once" [ "$(grep -c "== $REPO ==" <<< "$OUT")" -eq 1 ]
+check "a gone entry is reported stale" says "== $TEST_ROOT/gone ==" says "STALE"
+check "a directory inside another repo is reported stale" says "== $REPO/sub =="
+check "a dry run leaves the registry unchanged" cmp -s "$REGISTRY" "$TEST_ROOT/registry.before"
+check "a dry run removes nothing" test -d "$WT/merged"
+
+run_registry --apply
+check "a registry repo's merged worktree is removed" absent "$WT/merged"
+check "its branch is deleted" no_branch "$REPO" merged
+check "a registry repo's unpushed worktree survives" test -d "$WT/unpushed"
+check "its branch is kept" has_branch "$REPO" unpushed
+check "--apply drops stale, blank, and repeated entries" \
+  [ "$(cat "$REGISTRY")" = "$REPO" ]
+
+ALT="$TEST_ROOT/alt-registry"
+build_small "$TEST_ROOT/alt"
+printf '%s\n' "$TEST_ROOT/alt" > "$ALT"
+run_registry "$ALT" --apply
+check "--registry takes an explicit file" absent "$TEST_ROOT/alt.wt/merged"
+
+REPO="$TEST_ROOT/self"
+build_small "$REPO"
+printf '%s\n' "$REPO" > "$REGISTRY"
+OUT=$(cd "$REPO.wt/merged" && HOME="$FAKE_HOME" bash "$SCRIPT" --registry --apply)
+check "a registry pass keeps the worktree it starts in" test -d "$REPO.wt/merged"
+
+rm -f "$REGISTRY"
+run_registry --apply
+check "a missing registry is not an error" [ "$RC" -eq 0 ]
+check "a missing registry is reported" says "registry empty or missing"
+check "a missing registry is not created" absent "$REGISTRY"
+: > "$REGISTRY"
+run_registry --apply
+check "an empty registry is not an error" [ "$RC" -eq 0 ]
+check "an empty registry is reported" says "registry empty or missing"
+run_registry audit-all 2>/dev/null
+check "--registry with audit-all is a usage error" [ "$RC" -eq 2 ]
+
+echo
+echo "== --apply lock =="
+REPO="$TEST_ROOT/locked-repo"
+build_small "$REPO"
+LOCK="$REPO/.git/worktree-prune.lock"
+mkdir "$LOCK"
+printf '%s\n' "$$" > "$LOCK/pid"
+run_prune "$REPO" --apply
+check "a live pass's lock makes another --apply skip the repo" test -d "$REPO.wt/merged"
+check "the skip is reported" says "another prune pass holds this repo"
+check "a skipped pass leaves the other pass's lock" test -f "$LOCK/pid"
+DEAD_PID=$(bash -c 'echo $$')
+printf '%s\n' "$DEAD_PID" > "$LOCK/pid"
+run_prune "$REPO" --apply
+check "a fresh lock whose owner looks gone is still skipped" test -d "$REPO.wt/merged"
+touch -t 202001010000 "$LOCK"
+run_prune "$REPO" --apply
+check "an old lock whose owner is gone is taken over" absent "$REPO.wt/merged"
+check "the pass releases its lock" absent "$LOCK"
+mkdir "$LOCK"
+run_prune "$REPO"
+check "a dry run ignores the lock" says "branch=unpushed  reason=unmerged-or-active"
+rmdir "$LOCK"
+
 echo
 echo "== SessionEnd hook =="
 REPO="$TEST_ROOT/hook"
@@ -379,19 +475,49 @@ stub "$PROJECT/scripts" worktree-prune.sh <<'STUB'
 : > "$(dirname "$0")/ran"
 STUB
 unset HARNESS_DISABLE_WORKTREE_CLEANUP CLAUDE_DISABLE_WORKTREE_CLEANUP
+HOOK_REPO="$REPO"
 run_hook() {
-  (cd "$REPO" && CLAUDE_PROJECT_DIR="$PROJECT" bash "$PROJECT_DIR/hooks/worktree-cleanup.sh")
+  (cd "$HOOK_REPO" && HOME="$FAKE_HOME" CLAUDE_PROJECT_DIR="$PROJECT" bash "$PROJECT_DIR/hooks/worktree-cleanup.sh")
 }
+# registry_settled: the detached registry pass compacts the file last, so the
+# stale entry going away means the pass finished.
+registry_settled() {
+  local tries=100
+  while [ "$tries" -gt 0 ]; do
+    grep -qxF "$TEST_ROOT/gone" "$REGISTRY" || return 0
+    sleep 0.1
+    tries=$((tries - 1))
+  done
+  return 1
+}
+SIBLING="$TEST_ROOT/hook-sibling"
+build_small "$SIBLING"
+printf '%s\n' "$SIBLING" "$TEST_ROOT/gone" > "$REGISTRY"
 run_hook
 check "the hook never runs the project's own prune script" absent "$PROJECT/scripts/ran"
+check "the hook's registry pass finishes" registry_settled
 check "the hook keeps a merged worktree touched in the last 30 minutes" test -d "$WT/merged"
+check "the hook keeps a registry repo's worktree touched in the last 30 minutes" \
+  test -d "$SIBLING.wt/merged"
 backdate "$REPO" merged
+backdate "$SIBLING" merged
+backdate "$SIBLING" unpushed
 HARNESS_DISABLE_WORKTREE_CLEANUP=1 run_hook
 check "HARNESS_DISABLE_WORKTREE_CLEANUP=1 turns the hook off" test -d "$WT/merged"
 CLAUDE_DISABLE_WORKTREE_CLEANUP=1 run_hook
 check "the legacy CLAUDE_DISABLE_WORKTREE_CLEANUP=1 turns the hook off" test -d "$WT/merged"
+check "a disabled hook skips the registry pass too" test -d "$SIBLING.wt/merged"
+printf '%s\n' "$TEST_ROOT/gone" >> "$REGISTRY"
 run_hook
+check "the hook's second registry pass finishes" registry_settled
 check "the hook removes a merged worktree idle for 30 minutes" absent "$WT/merged"
 check "the hook keeps a locked worktree" test -d "$WT/merged-locked"
+check "the hook removes a registry repo's idle merged worktree" absent "$SIBLING.wt/merged"
+check "the hook keeps a registry repo's unpushed worktree" test -d "$SIBLING.wt/unpushed"
+check "the hook drops a stale registry entry" [ "$(cat "$REGISTRY")" = "$SIBLING" ]
+printf '%s\n' "$TEST_ROOT/gone" >> "$REGISTRY"
+HOOK_REPO="$TEST_ROOT"
+run_hook
+check "the hook runs the registry pass outside any repo" registry_settled
 
 finish
