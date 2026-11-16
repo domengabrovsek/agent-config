@@ -20,7 +20,7 @@ import {
   pathGlobToRegex,
   stripHeredocs,
 } from '../hooks/lib/deny-gate.ts';
-import { type DenyRule, loadGateConfig } from '../pi/extensions/permission-gate.ts';
+import { type DenyRule, loadGateConfig } from '../hooks/lib/deny-rules.ts';
 
 const HOME = '/home/u';
 const CWD = '/work/app';

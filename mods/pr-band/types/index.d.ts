@@ -1,6 +1,6 @@
 export type Overall = 'pass' | 'fail' | 'waiting' | 'pending' | 'none'
 
-export type Ci = {
+export type CiSummary = {
   overall: Overall
   passed: number
   failed: string[]
@@ -14,7 +14,7 @@ export type Pr = {
   state: string
   isDraft: boolean
   title: string
-  ci: Ci
+  ci: CiSummary
   attention: string[]
 }
 

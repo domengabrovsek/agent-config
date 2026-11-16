@@ -1,7 +1,7 @@
 #!/bin/bash
 # Deny gate: enforces the settings.json deny list for every host that runs the
-# hook registry. The logic lives in lib/deny-gate.ts, which shares the Pi
-# permission gate's rule loader.
+# hook registry. The logic lives in lib/deny-gate.ts, which shares the rule
+# loader in lib/deny-rules.ts with the Pi permission gate.
 #
 # PreToolUse hook on Bash, Write|Edit, and mcp__ tools. Exit 2 blocks the call.
 # Node 22.18 or newer runs the TypeScript directly.
