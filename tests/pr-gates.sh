@@ -102,6 +102,14 @@ assert_gate "a state path in a body variable set before the PR blocks" "$BODY" \
   "body=\"Follows .claude/state/plans/x.md\"; $GH_CREATE --title \"fix: a\" --body \"\$body\"" 2
 assert_gate "a state path written to a body file in the same command blocks" "$BODY" \
   "printf 'See .claude/state/plans/x.md' > $TEST_DIR/new-body.md && $GH_CREATE --body-file $TEST_DIR/new-body.md" 2
+printf 'Adds one check.\n' > "$TEST_DIR/old-body.md"
+assert_gate "a state path written over an existing body file blocks" "$BODY" \
+  "cat > $TEST_DIR/old-body.md <<'EOF'
+See .claude/state/plans/x.md
+EOF
+$GH_CREATE --body-file $TEST_DIR/old-body.md" 2
+assert_gate "an existing body file with a state path elsewhere in the command passes" "$BODY" \
+  "cat .claude/state/plans/x.md; $GH_CREATE --body-file $TEST_DIR/old-body.md" 0
 assert_gate "a state path in a quoted body with a semicolon still blocks" "$BODY" \
   "$GH_CREATE --body \"Done; see .claude/state/plans/x.md\" && echo ok" 2
 assert_gate "an attribution title after a chained command still blocks" "$BODY" \

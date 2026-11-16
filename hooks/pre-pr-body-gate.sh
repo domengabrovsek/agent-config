@@ -46,6 +46,16 @@ if { [ -z "$BODY" ] && printf '%s\n' "$SCOPE" \
   || printf '%s' "$SCOPE" | sed 's/\$(cat <<//g' | grep -q '[$`]'; then
   SCOPE=$COMMAND
 fi
+# A body file the same command writes may still hold an earlier run's text, so
+# a body-file path named outside the gh call also brings the whole command in.
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  in_cmd=${COMMAND//"$f"/}
+  in_scope=${SCOPE//"$f"/}
+  if [ $(( ${#COMMAND} - ${#in_cmd} )) -gt $(( ${#SCOPE} - ${#in_scope} )) ]; then
+    SCOPE=$COMMAND
+  fi
+done <<< "$(pr_body_files "$COMMAND")"
 HAYSTACK=$(printf '%s\n%s' "$SCOPE" "$BODY")
 
 FAILED=0
