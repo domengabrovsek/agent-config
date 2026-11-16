@@ -16,6 +16,7 @@ Hooks and deny rules back these. Know them to avoid hitting the gate.
 ## Sandbox limits
 
 - The sandbox makes `.git/config` read-only. Branch with `git switch --no-track -c <branch> origin/main` and push with `git push origin <branch>`, never `-u` `(review-time: the sandbox fails the command halfway, no hook rewrites it)`
+- Change a read-only checkout, such as the live agent config, only from a worktree `(review-time: the sandbox fails git halfway there)`
 
 ## Judgment calls
 
