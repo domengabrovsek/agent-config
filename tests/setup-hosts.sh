@@ -68,6 +68,11 @@ run_setup() {
     bash "$SETUP" "$@"
 }
 
+run_setup_at() {
+  HOME="$TEST_HOME" CODEX_HOME="$TEST_HOME/.codex" AGENT_CONFIG_REPO="$TEST_REPO" \
+    bash "$@"
+}
+
 run_setup_with_pi_dir() {
   PI_CONFIG_DIRS="" \
   PI_CODING_AGENT_DIR="$1" \
@@ -484,5 +489,17 @@ assert_true "setup run from a worktree says it links the main checkout" \
 assert_failure "an override naming a worktree is refused" env HOME="$TEST_HOME" AGENT_CONFIG_REPO="$CASE_DIR/wt" \
   CLAUDE_CONFIG_DIRS="$TEST_HOME/.claude" bash "$SETUP" --check --host claude
 assert_true "the refusal names the main checkout" grep -q "main checkout: $MAIN_REAL" "$CASE_DIR/output"
+
+# The Codex editing lives in scripts/lib, found beside the script's real path.
+new_case codex_lib_via_link
+mkdir -p "$CASE_DIR/bin"
+ln -s "$SETUP" "$CASE_DIR/bin/setup"
+assert_success "a linked script finds its Codex library" run_setup_at "$CASE_DIR/bin/setup" --apply --host codex
+assert_true "the linked run writes the Codex config" test -f "$TEST_HOME/.codex/config.toml"
+
+new_case codex_lib_missing
+cp "$SETUP" "$CASE_DIR/setup-hosts.sh"
+assert_failure "a missing Codex library is an issue" run_setup_at "$CASE_DIR/setup-hosts.sh" --check --host codex
+assert_true "the missing library is reported" grep -q "codex/config.toml *MISSING-SRC" "$CASE_DIR/output"
 
 finish
