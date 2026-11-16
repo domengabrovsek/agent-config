@@ -26,6 +26,8 @@ if git -C "$PWD" rev-parse --show-toplevel >/dev/null 2>&1; then
 fi
 
 # The registry can list many repos and SessionEnd has a timeout, so that pass
-# runs detached with every stream closed and the hook returns at once.
-( "$SCRIPT" --apply --min-idle 30 --registry </dev/null >/dev/null 2>&1 & )
+# runs detached with every stream closed and the hook returns at once. HUP is
+# ignored before exec, and a shell cannot re-trap a signal ignored at startup,
+# so closing the terminal cannot cut a repo short.
+( trap '' HUP; exec "$SCRIPT" --apply --min-idle 30 --registry ) </dev/null >/dev/null 2>&1 &
 exit 0
