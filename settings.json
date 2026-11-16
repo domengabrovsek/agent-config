@@ -545,7 +545,8 @@
         "*.context7.com",
         "auth.docker.io",
         "registry-1.docker.io",
-        "production.cloudflare.docker.com"
+        "production.cloudflare.docker.com",
+        "*.blob.core.windows.net"
       ],
       "allowLocalBinding": true,
       "allowAllUnixSockets": true
