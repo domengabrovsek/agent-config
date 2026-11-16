@@ -71,7 +71,7 @@ CORE=$(printf '%s\n' "$CORE" | sed -E \
   -e 's/^[[:space:]]+//' \
   -e ':redir' -e 's/[[:space:]]+[0-9]?(>>?|>&)[[:space:]]*[^[:space:]&|;]+[[:space:]]*$//' -e 't redir' \
   -e 's/[[:space:]]+$//')
-[ "$CORE" = "npm run verify" ] || no_stamp "a VAR=value prefix, pipe, \`;\` or \`||\` can hide or fake the exit code"
+[ "$CORE" = "npm run verify" ] || no_stamp "anything besides \`npm run verify\` and a trailing redirect can hide or fake the exit code"
 
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 DIR=$(resolve_repo_dir "$COMMAND" "$CWD")

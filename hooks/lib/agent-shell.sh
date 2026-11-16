@@ -31,7 +31,7 @@ _agent_nvmrc_node() {
     fi
   done
   [ -n "$match" ] || return 0
-  rest=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v "/.nvm/versions/node/" | paste -sd: -)
+  rest=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vF "${NVM_DIR:-$HOME/.nvm}/versions/node/" | paste -sd: -)
   export PATH="$match/bin${rest:+:$rest}"
 }
 

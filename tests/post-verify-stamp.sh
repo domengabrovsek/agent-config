@@ -98,7 +98,7 @@ assert_stamp "an interrupted run does not stamp" "$REPO" none "$REPO" "npm run v
 assert_stamp "a run moved to the background at the timeout does not stamp" "$REPO" none "$REPO" \
   "npm run verify" false false bz123
 out=$(run_hook "$REPO" "PATH=/x:\$PATH npm run verify")
-if printf '%s' "$out" | grep -qF "[verify-stamp] No verify stamp: a VAR=value prefix"; then
+if printf '%s' "$out" | grep -qF "[verify-stamp] No verify stamp: anything besides"; then
   pass "a rejected verify run tells the agent why"
 else
   fail "a rejected verify run tells the agent why"
