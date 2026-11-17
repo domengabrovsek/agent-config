@@ -3,7 +3,8 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/session-focus:~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts",
-    "NODE_USE_ENV_PROXY": "1"
+    "NODE_USE_ENV_PROXY": "1",
+    "CHECKPOINT_DISABLE": "1"
   },
   "attribution": {
     "commit": "",
@@ -489,6 +490,7 @@
       "allowWrite": [
         "~/.npm",
         "~/.terraform.d/plugin-cache",
+        "~/.config/tfenv",
         "~/.config/gcloud-agent",
         "~/.cache/agent",
         "~/.docker/buildx/.lock",
