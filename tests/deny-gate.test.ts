@@ -197,6 +197,38 @@ describe('Bash rule bypasses', () => {
     assert.equal(denied('gh  pr merge 1'), 'Bash(gh pr merge *)');
   });
 
+  it('blocks glab and REST API merges', () => {
+    for (const command of [
+      'glab mr merge 58 --yes',
+      'glab mr merge',
+      'glab mr accept 58',
+      'glab mr accept 58 --yes',
+      'glab api -X PUT projects/1/merge_requests/58/merge',
+      'glab api --method PUT "projects/g%2Fx/merge_requests/58/merge"',
+      'gh api -X PUT repos/o/r/pulls/7/merge',
+    ]) {
+      assert.notEqual(denied(command), undefined, command);
+    }
+  });
+
+  it('blocks destructive SQL in common cases', () => {
+    for (const command of [
+      'psql -c "DROP TABLE x"',
+      'psql -c "drop table x"',
+      'psql -c "Drop Table x"',
+      'psql -c "DROP DATABASE x"',
+      'psql -c "drop database x"',
+      'psql -c "Drop Database x"',
+      'psql -c "TRUNCATE TABLE x"',
+      'mysql -e "TRUNCATE TABLE x"',
+      'mysql -e "truncate table x"',
+      'psql -c "TRUNCATE x"',
+      'docker exec db psql -U u -c "truncate member_preferences cascade"',
+    ]) {
+      assert.notEqual(denied(command), undefined, command);
+    }
+  });
+
   it('still allows the forms the rules do not cover', () => {
     for (const command of [
       'git push -u origin feat/x',
@@ -208,6 +240,15 @@ describe('Bash rule bypasses', () => {
       'rm -f file',
       'gh pr view 1',
       'git commit -m "explain rm -rf and git push -f"',
+      'glab mr view 58',
+      'glab mr list',
+      'glab api projects/1/merge_requests/58/notes',
+      'gh api repos/o/r/pulls/7/comments',
+      'git merge --ff-only origin/main',
+      'git log --merges',
+      'truncate -s 0 file.log',
+      'grep -rn "TRUNCATE " migrations/',
+      'git commit -m "docs: explain TRUNCATE usage"',
     ]) {
       assert.equal(denied(command), undefined, command);
     }
