@@ -58,7 +58,10 @@ made"
   mkdir -p "$tmp" "$TEST_ROOT/cwd-$sh"
   got=$(TMPDIR="$tmp" "$sh" "$rc" -c ". '$PREAMBLE'; command -v mktemp")
   check_eq "the mktemp shim is first on PATH" "$got" "$PROJECT_DIR/hooks/lib/bin/mktemp"
-  for args in "-d" "" "-t pfx" "-dt pfx"; do
+  cases=("-d" "")
+  # GNU mktemp reads -t as a flag, so the -t prefix form exists only on macOS.
+  [ "$(uname -s)" = Darwin ] && cases+=("-t pfx" "-dt pfx")
+  for args in "${cases[@]}"; do
     # shellcheck disable=SC2086
     got=$(TMPDIR="$tmp" "$sh" "$rc" -c ". '$PREAMBLE'; mktemp $args")
     check_eq "mktemp $args lands in TMPDIR" "${got%/*}" "$tmp"

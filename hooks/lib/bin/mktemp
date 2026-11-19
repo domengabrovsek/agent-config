@@ -2,9 +2,11 @@
 # Agent-shell mktemp: macOS /usr/bin/mktemp ignores TMPDIR and falls back to the
 # per-user /var/folders temp dir, which the sandbox blocks. With no template,
 # or only a -t prefix, this passes -p "$TMPDIR" so the file lands in TMPDIR.
-# An explicit template or -p keeps the system behavior unchanged.
+# An explicit template or -p keeps the system behavior unchanged. GNU mktemp
+# honors TMPDIR and reads -t as a flag, so other systems get it untouched.
 
 REAL=/usr/bin/mktemp
+[ "$(uname -s)" = Darwin ] || exec "$REAL" "$@"
 [ -n "${TMPDIR:-}" ] || exec "$REAL" "$@"
 
 has_template=0
