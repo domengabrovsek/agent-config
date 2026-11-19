@@ -3,7 +3,8 @@
 #
 # After a cd, node comes from the nearest .nvmrc, a partial version picks the
 # newest installed match, and an alias or a missing version leaves PATH alone.
-# The rm/mv/cp aliases are gone in both zsh and bash.
+# The rm/mv/cp aliases are gone in both zsh and bash. The mktemp shim puts
+# untemplated files in TMPDIR and leaves explicit templates alone.
 
 set -u
 
@@ -52,6 +53,27 @@ for sh in bash zsh; do
   got=$(HOME="$TEST_ROOT/home-$sh" "$sh" -c ". '$PREAMBLE'; echo \"\$XDG_CACHE_HOME\"; [ -d \"\$XDG_CACHE_HOME\" ] && echo made")
   check_eq "the agent cache root is set and created" "$got" "$TEST_ROOT/home-$sh/.cache/agent
 made"
+  rc=$(no_rc "$sh")
+  tmp="$TEST_ROOT/tmp-$sh"
+  mkdir -p "$tmp" "$TEST_ROOT/cwd-$sh"
+  got=$(TMPDIR="$tmp" "$sh" "$rc" -c ". '$PREAMBLE'; command -v mktemp")
+  cases=("-d" "")
+  if [ "$(uname -s)" = Darwin ]; then
+    check_eq "the mktemp shim is first on PATH" "$got" "$PROJECT_DIR/hooks/lib/bin/mktemp"
+    # GNU mktemp reads -t as a flag, so the -t prefix form exists only on macOS.
+    cases+=("-t pfx" "-dt pfx" "-tupload" "-dtapp")
+  else
+    check_eq "the mktemp shim stays off PATH" "${got#"$PROJECT_DIR"/hooks/lib/bin/}" "$got"
+  fi
+  for args in "${cases[@]}"; do
+    # shellcheck disable=SC2086
+    got=$(TMPDIR="$tmp" "$sh" "$rc" -c ". '$PREAMBLE'; mktemp $args")
+    check_eq "mktemp $args lands in TMPDIR" "${got%/*}" "$tmp"
+  done
+  got=$(cd "$TEST_ROOT/cwd-$sh" && TMPDIR="$tmp" "$sh" "$rc" -c ". '$PREAMBLE'; mktemp rel.XXXX")
+  check_eq "a relative template stays relative to the cwd" "${got%.*}" rel
+  got=$(TMPDIR="$tmp" "$sh" "$rc" -c ". '$PREAMBLE'; mktemp '$TEST_ROOT/abs.XXXX'")
+  check_eq "an absolute template is kept" "${got%.*}" "$TEST_ROOT/abs"
 done
 
 finish

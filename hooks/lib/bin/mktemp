@@ -1,0 +1,41 @@
+#!/bin/bash
+# Agent-shell mktemp, on PATH only on macOS: /usr/bin/mktemp there ignores
+# TMPDIR and falls back to the per-user /var/folders temp dir, which the
+# sandbox blocks. With no template, or only a -t prefix, this passes
+# -p "$TMPDIR" so the file lands in TMPDIR. An explicit template or -p keeps
+# the system behavior unchanged.
+
+REAL=/usr/bin/mktemp
+[ -n "${TMPDIR:-}" ] || exec "$REAL" "$@"
+
+has_template=0
+skip_next=0
+for arg in "$@"; do
+  if [ "$skip_next" = 1 ]; then
+    skip_next=0
+    continue
+  fi
+  case "$arg" in
+    --tmpdir*) exec "$REAL" "$@" ;;
+    --*) continue ;;
+    -*) ;;
+    *)
+      has_template=1
+      continue
+      ;;
+  esac
+  # A short-option cluster: d, q, and u take no value; -t and -p take the rest
+  # of the cluster, or the next argument when nothing is attached.
+  rest=${arg#-}
+  while [ -n "$rest" ]; do
+    case "$rest" in
+      [dqu]*) rest=${rest#?} ;;
+      p*) exec "$REAL" "$@" ;;
+      t) skip_next=1; break ;;
+      *) break ;;
+    esac
+  done
+done
+
+[ "$has_template" = 1 ] && exec "$REAL" "$@"
+exec "$REAL" -p "$TMPDIR" "$@"
