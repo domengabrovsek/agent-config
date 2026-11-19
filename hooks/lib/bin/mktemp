@@ -1,0 +1,28 @@
+#!/bin/bash
+# Agent-shell mktemp: macOS /usr/bin/mktemp ignores TMPDIR and falls back to the
+# per-user /var/folders temp dir, which the sandbox blocks. With no template,
+# or only a -t prefix, this passes -p "$TMPDIR" so the file lands in TMPDIR.
+# An explicit template or -p keeps the system behavior unchanged.
+
+REAL=/usr/bin/mktemp
+[ -n "${TMPDIR:-}" ] || exec "$REAL" "$@"
+
+has_template=0
+skip_next=0
+for arg in "$@"; do
+  if [ "$skip_next" = 1 ]; then
+    skip_next=0
+    continue
+  fi
+  case "$arg" in
+    --tmpdir*) exec "$REAL" "$@" ;;
+    --*) ;;
+    -*p*) exec "$REAL" "$@" ;;
+    -*t) skip_next=1 ;;
+    -*) ;;
+    *) has_template=1 ;;
+  esac
+done
+
+[ "$has_template" = 1 ] && exec "$REAL" "$@"
+exec "$REAL" -p "$TMPDIR" "$@"

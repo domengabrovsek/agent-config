@@ -1,10 +1,20 @@
 # shellcheck shell=bash
 # Sourced before every Claude Code Bash command through CLAUDE_ENV_FILE, in
-# zsh or bash. It fixes two things the user's interactive profile gets wrong
-# for an agent: it picks node from the nearest .nvmrc on every cd, and it drops
-# the interactive rm/mv/cp aliases whose prompts hang a non-interactive shell.
+# zsh or bash. It fixes what the user's interactive profile gets wrong for an
+# agent: it picks node from the nearest .nvmrc on every cd, drops the
+# interactive rm/mv/cp aliases whose prompts hang a non-interactive shell, and
+# puts sandbox-safe tool shims first on PATH.
 
 unalias rm mv cp 2>/dev/null
+
+# bin/ holds shims for system tools that misbehave under the sandbox. zsh sets
+# $0 to the sourced file; bash needs BASH_SOURCE.
+_agent_bin="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/bin"
+case ":$PATH:" in
+  *":$_agent_bin:"*) ;;
+  *) export PATH="$_agent_bin:$PATH" ;;
+esac
+unset _agent_bin
 
 # Agents get their own cache root, the only writable dir under ~/.cache. Your
 # own tools never read it, so a poisoned cache entry or a hook planted in a
