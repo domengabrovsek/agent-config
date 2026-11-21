@@ -101,7 +101,7 @@ Agents never use your gcloud login. A `SessionStart` hook sets `CLOUDSDK_CONFIG`
 2. In your own terminal, run `scripts/gcloud-agent-login.sh`. It mints a one-hour token per target.
 3. Agents pick a target with `gcloud --configuration=<name>`. Run the script again when the tokens expire.
 
-Agents refresh the `nonprod` target themselves. `settings.json` excludes the exact command `~/.agents/scripts/gcloud-agent-login.sh nonprod` from the sandbox, so it can read your login. A named refresh only rewrites that target's token file and keeps the active configuration. Every other form, including production, stays sandboxed and fails. The sandbox write-denies the script, `targets`, and `tokens/`, so agents cannot change what the excluded command does. The script also fixes its config dirs and its gcloud path, and resets `PATH`.
+Agents refresh the `nonprod` target themselves. `settings.json` excludes the exact command `~/.agents/scripts/gcloud-agent-login.sh nonprod` from the sandbox, so it can read your login. A named refresh only rewrites that target's token file and keeps the active configuration. Every other form, including production, stays sandboxed and fails. The sandbox write-denies the script, `targets`, and `tokens/`. The script fixes its config dirs, gcloud, and Python, and resets `PATH`. It refuses to run while the agent config holds a symlink, because unsandboxed gcloud would follow it.
 
 Anything that needs your own rights, such as a PAM grant or a write, you run yourself outside the agent session.
 

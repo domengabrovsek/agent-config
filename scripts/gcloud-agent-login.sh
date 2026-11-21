@@ -14,13 +14,17 @@
 # unknown name or one with no configuration yet.
 # Tokens last about one hour; run the script again to refresh them.
 #
-# The config dirs and the gcloud binary are fixed, and PATH is reset, because
-# agents can run this outside the sandbox and control their environment.
+# The config dirs, gcloud, and its Python are fixed, and PATH is reset,
+# because agents can run this outside the sandbox and set their environment.
+# It refuses to run while the agent config holds a symlink.
 
 set -euo pipefail
+PATH=/usr/bin:/bin
+export PATH
 
-# The test suite rewrites this line to point at a stub.
+# The test suite rewrites these two lines to point at stubs.
 GCLOUD_CANDIDATES="/opt/homebrew/bin/gcloud /usr/local/bin/gcloud /usr/bin/gcloud"
+PYTHON_CANDIDATES="/opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/python3"
 
 USER_CONFIG="$HOME/.config/gcloud"
 AGENT_CONFIG="$HOME/.config/gcloud-agent"
@@ -33,24 +37,39 @@ for arg in "$@"; do
   esac
 done
 
-GCLOUD=""
-for candidate in $GCLOUD_CANDIDATES; do
-  if [ -x "$candidate" ]; then GCLOUD="$candidate"; break; fi
-done
-if [ -z "$GCLOUD" ]; then
+# first_executable <candidates>: prints the first executable path in the list.
+first_executable() {
+  local candidate
+  for candidate in $1; do
+    if [ -x "$candidate" ]; then printf '%s\n' "$candidate"; return 0; fi
+  done
+  return 1
+}
+
+if ! GCLOUD=$(first_executable "$GCLOUD_CANDIDATES"); then
   echo "No gcloud found at: $GCLOUD_CANDIDATES" >&2
   exit 1
 fi
-
-# gcloud finds its Python through PATH and CLOUDSDK_PYTHON, so neither may come
-# from the caller.
-PATH="$(dirname "$GCLOUD"):/usr/bin:/bin"
-export PATH
-unset CLOUDSDK_PYTHON CLOUDSDK_PYTHON_ARGS
+# A set CLOUDSDK_PYTHON stops the gcloud wrapper from sourcing
+# <config>/virtenv/bin/activate, which agents can write in the agent config.
+if ! CLOUDSDK_PYTHON=$(first_executable "$PYTHON_CANDIDATES"); then
+  echo "No python3 found at: $PYTHON_CANDIDATES" >&2
+  exit 1
+fi
+export CLOUDSDK_PYTHON
+unset CLOUDSDK_PYTHON_ARGS
+PATH="${GCLOUD%/*}:$PATH"
 
 if [ ! -f "$TARGETS" ]; then
   echo "No targets file at $TARGETS. Add one line per target:" >&2
   echo "  <configuration-name> <service-account-email> <project-id>" >&2
+  exit 1
+fi
+
+# Unsandboxed gcloud follows symlinks when it writes its config, so a link an
+# agent planted in the agent config could overwrite any of your files.
+if [ -n "$(find "$AGENT_CONFIG" -type l -print -quit)" ]; then
+  echo "Refusing to run: $AGENT_CONFIG holds a symlink. Inspect it with: find $AGENT_CONFIG -type l" >&2
   exit 1
 fi
 

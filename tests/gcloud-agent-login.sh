@@ -18,10 +18,11 @@ export HOME="$TEST_ROOT/home"
 USER_CONFIG="$HOME/.config/gcloud"
 AGENT_CONFIG="$HOME/.config/gcloud-agent"
 
-# The script fixes its gcloud path, so the suite runs a copy whose candidate
-# list points at the stub.
+# The script fixes its gcloud and python paths, so the suite runs a copy whose
+# candidate lists point at stubs.
 SCRIPT="$TEST_ROOT/gcloud-agent-login.sh"
-sed "s|^GCLOUD_CANDIDATES=.*|GCLOUD_CANDIDATES=\"$BIN/gcloud\"|" \
+sed -e "s|^GCLOUD_CANDIDATES=.*|GCLOUD_CANDIDATES=\"$BIN/gcloud\"|" \
+  -e "s|^PYTHON_CANDIDATES=.*|PYTHON_CANDIDATES=\"$TEST_ROOT/missing/python3 $BIN/python3\"|" \
   "$PROJECT_DIR/scripts/gcloud-agent-login.sh" > "$SCRIPT"
 chmod +x "$SCRIPT"
 
@@ -40,6 +41,10 @@ case "$*" in
   *"configurations describe"*) exit 1 ;;
   *"core/project"*) [ -z "${STUB_SET_FAIL:-}" ] || { echo "bad project" >&2; exit 1; } ;;
 esac
+exit 0
+EOF
+stub "$BIN" python3 <<'EOF'
+#!/bin/bash
 exit 0
 EOF
 stub "$DECOY" gcloud <<'EOF'
@@ -120,6 +125,13 @@ check "never writes an overridden agent dir" not test -e "$TEST_ROOT/other-agent
 CLOUDSDK_PYTHON="$DECOY/python3" run nonprod
 check "never runs a gcloud found on PATH" not logged "decoy gcloud ran"
 check "resets PATH for gcloud" not logged "$DECOY"
-check "drops CLOUDSDK_PYTHON" not logged "py="
+check "pins CLOUDSDK_PYTHON to the first fixed python" logged "|py=$BIN/python3"
+check "ignores a caller's CLOUDSDK_PYTHON" not logged "py=$DECOY"
+
+ln -s "$TEST_ROOT/victim" "$AGENT_CONFIG/active_config"
+run nonprod
+check "refuses to run while the agent config holds a symlink" exited 1 says "holds a symlink"
+check "a planted symlink stops every gcloud call" not logged "|"
+rm "$AGENT_CONFIG/active_config"
 
 finish
