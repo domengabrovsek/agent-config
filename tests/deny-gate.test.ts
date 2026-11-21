@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
@@ -226,6 +226,32 @@ describe('Bash rule bypasses', () => {
       'docker exec db psql -U u -c "truncate member_preferences cascade"',
     ]) {
       assert.notEqual(denied(command), undefined, command);
+    }
+  });
+
+  it('guards the live gcloud login script but lets the excluded command and worktrees through', () => {
+    const edit = (file_path: string) => evaluate({ tool_name: 'Edit', tool_input: { file_path }, cwd: CWD }, realRules, { home: HOME })?.rule;
+    const rule = 'Edit(**/agent-config/scripts/gcloud-agent-login.sh)';
+    assert.equal(edit(`${HOME}/dev/agent-config/scripts/gcloud-agent-login.sh`), rule);
+    assert.equal(denied(`echo x > ${HOME}/dev/agent-config/scripts/gcloud-agent-login.sh`), rule);
+    assert.equal(edit(`${HOME}/dev/agent-config/.claude/worktrees/x/scripts/gcloud-agent-login.sh`), undefined);
+    assert.equal(denied('~/.agents/scripts/gcloud-agent-login.sh nonprod'), undefined);
+  });
+
+  it('matches a file tool target through a symlinked directory', () => {
+    const home = mkdtempSync(join(tmpdir(), 'deny-gate-home-'));
+    try {
+      mkdirSync(join(home, 'dev', 'agent-config', 'scripts'), { recursive: true });
+      writeFileSync(join(home, 'dev', 'agent-config', 'scripts', 'gcloud-agent-login.sh'), '');
+      mkdirSync(join(home, '.agents'));
+      symlinkSync(join(home, 'dev', 'agent-config', 'scripts'), join(home, '.agents', 'scripts'));
+      const write = (file_path: string) => evaluate({ tool_name: 'Write', tool_input: { file_path }, cwd: home }, realRules, { home })?.rule;
+      const rule = 'Edit(**/agent-config/scripts/gcloud-agent-login.sh)';
+      assert.equal(write(join(home, '.agents', 'scripts', 'gcloud-agent-login.sh')), rule);
+      assert.equal(write(join(home, '.agents', 'scripts', 'new', '..', 'gcloud-agent-login.sh')), rule);
+      assert.equal(write(join(home, '.agents', 'scripts', 'other.sh')), undefined);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
     }
   });
 

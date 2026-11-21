@@ -93,6 +93,7 @@
       "Edit(~/.kube/**)",
       "Edit(~/.config/gcloud/**)",
       "Edit(~/.config/gcloud-agent/targets)",
+      "Edit(**/agent-config/scripts/gcloud-agent-login.sh)",
       "Edit(~/.azure/**)",
       "Edit(**/*.pem)",
       "Edit(**/*.key)",
@@ -497,6 +498,9 @@
   "sandbox": {
     "enabled": true,
     "allowUnsandboxedCommands": false,
+    "excludedCommands": [
+      "~/.agents/scripts/gcloud-agent-login.sh nonprod"
+    ],
     "filesystem": {
       "allowWrite": [
         "~/.npm",
@@ -524,6 +528,8 @@
         "~/.claude/statusline.sh",
         "~/.claude/pull_request_template.md",
         "~/.agents",
+        "~/.config/gcloud-agent/targets",
+        "~/.config/gcloud-agent/tokens",
         "~/.pi/agent",
         "~/**/.git/hooks",
         "~/dev/**/.claude/settings.json",

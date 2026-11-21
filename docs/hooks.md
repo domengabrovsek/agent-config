@@ -112,18 +112,19 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 
 ## The deny list
 
-`permissions.deny` in `settings.json` holds 127 rules:
+`permissions.deny` in `settings.json` holds 128 rules:
 
 | Kind | Count | Examples |
 | --- | --- | --- |
 | `Read(...)` | 46 | `Read(**/.env)`, `Read(~/.ssh/**)`, `Read(**/*.pem)` |
-| `Edit(...)` | 47 | `Edit(**/.env.production)`, `Edit(~/.aws/**)`, `Edit(**/.git/agent-verify-passed)` |
+| `Edit(...)` | 48 | `Edit(**/.env.production)`, `Edit(~/.aws/**)`, `Edit(**/.git/agent-verify-passed)` |
 | `Bash(...)` | 33 | `Bash(rm -rf *)`, `Bash(git push --force *)`, `Bash(git push * main)`, `Bash(gh pr merge *)` |
 | MCP | 1 | `mcp__claude_ai_Atlassian__*` |
 
 - Deny wins over allow on every host.
 - An `Edit` rule also blocks writes: natively on Pi, and through `deny-gate.sh` on every host.
 - `deny-gate.sh` also blocks a shell command that names a denied path, so `cat .env` fails like a `Read` of `.env` on every host.
+- For a file tool, `deny-gate.sh` matches the target's resolved path too, so a symlinked directory such as `~/.agents/scripts` does not bypass a rule.
 - The `agent-verify-passed` rules keep the agent from forging the stamp that `pre-pr-test-gate.sh` reads. The sandbox turns them into write denies too, so only `post-verify-stamp.sh`, which runs outside the sandbox, writes it. A repo's own verify script may still write `<git-dir>/verify-passed`, which the gate ignores.
 - `deny-gate.sh` applies `Bash` rules on every host, because native matching reads a command literally. It first normalizes each segment: it drops leading `VAR=value` assignments, the wrappers `env`, `command`, `builtin`, `exec`, `time`, `nice`, `nohup`, and `timeout`, a directory on the program name, and git global options such as `-C <dir>` and `-c k=v`, then collapses whitespace.
 - It also catches `rm` with recursive and force flags in any order, every force push (`-f`, `--force-with-lease`, `+<refspec>`, `--mirror`), and a push whose destination is `main` or `master`, such as `HEAD:main`.

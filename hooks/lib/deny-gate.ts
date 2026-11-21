@@ -18,7 +18,7 @@
 
 import { readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type DenyRule, loadGateConfig } from './deny-rules.ts';
 
@@ -347,6 +347,24 @@ export function matchBashRule(command: string, rules: DenyRule[]): DenyRule | un
 /* Existence and listing checks name a file without reading it. */
 const NON_READING = [/^test\s/, /^\[\s/, /^ls(\s|$)/, /^stat\s/, /^git check-ignore\s/];
 
+/* A file tool follows symlinks, so a denied file reached through a linked
+   directory must match too. A path that does not exist yet resolves through
+   its nearest existing parent. */
+export function physicalPath(path: string): string {
+  let head = path;
+  let tail = '';
+  for (;;) {
+    try {
+      return join(realpathSync(head), tail);
+    } catch {
+      const parent = dirname(head);
+      if (parent === head) return path;
+      tail = join(basename(head), tail);
+      head = parent;
+    }
+  }
+}
+
 export interface EvaluateOptions {
   home?: string;
 }
@@ -380,7 +398,8 @@ export function evaluate(payload: HookPayload, rules: DenyRule[], options: Evalu
   if (tool === 'Edit' || tool === 'Write' || tool === 'Read') {
     const file = payload.tool_input?.file_path;
     if (typeof file !== 'string' || file.length === 0) return undefined;
-    return matchPath(isAbsolute(file) ? resolve(file) : resolve(cwd, file));
+    const lexical = isAbsolute(file) ? resolve(file) : resolve(cwd, file);
+    return matchPath(lexical) ?? matchPath(physicalPath(lexical));
   }
   if (tool.startsWith('mcp__')) {
     const hit = rules.find((r) => r.family === 'mcp' && commandGlobMatches(r.pattern, tool));

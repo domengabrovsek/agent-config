@@ -13,7 +13,7 @@ esac
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-MAX_WORDS=4070
+MAX_WORDS=4100
 MAX_REVIEW_TIME=100
 
 # Claude Code loads a rule at launch unless its frontmatter scopes it with paths:.
