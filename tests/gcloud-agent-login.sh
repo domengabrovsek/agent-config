@@ -121,7 +121,8 @@ check "skips minting other targets" not logged "impersonate-service-account=agen
 check "a named refresh runs no gcloud on the agent config" not logged "$AGENT_CONFIG|"
 
 run nonprod production
-check "refreshes several named targets" exited 0 says "nonprod:" says "production:"
+check "rejects more than one target" exited 2 says "one target at most"
+check "more than one target mints nothing" not logged "print-access-token"
 
 run staging
 check "an unknown target fails" exited 2 says "Unknown target: staging"

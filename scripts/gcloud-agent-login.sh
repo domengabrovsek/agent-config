@@ -4,14 +4,15 @@
 # the exact sandbox-excluded form, `~/.agents/scripts/gcloud-agent-login.sh
 # nonprod`, because the sandbox blocks reads of your gcloud login.
 #
-# Usage: scripts/gcloud-agent-login.sh [--help] [<target>...]
+# Usage: scripts/gcloud-agent-login.sh [--help] [<target>]
 #
 # Targets come from ~/.config/gcloud-agent/targets, one per line:
 #   <configuration-name> <service-account-email> <project-id>
 # Lines starting with # are skipped. With no argument, it refreshes every
-# target and activates the first line. With target names, it only rewrites
-# their token files, leaves the active configuration alone, and fails on an
-# unknown name or one with no configuration yet.
+# target and activates the first line. With one target name, it only rewrites
+# that token file and leaves the active configuration alone. It fails on more
+# than one name, so trailing arguments after an excluded command fail closed,
+# and on an unknown name or one with no configuration yet.
 # Tokens last about one hour; run the script again to refresh them.
 #
 # HOME, the config dirs, gcloud, and its Python are fixed, and PATH is reset,
@@ -101,6 +102,10 @@ wanted() {
   return 1
 }
 
+if [ "$#" -gt 1 ]; then
+  echo "Name one target at most; got $#." >&2
+  exit 2
+fi
 for want in "$@"; do
   if ! awk -v n="$want" '$1 == n && $2 != "" && $3 != "" { found = 1 } END { exit !found }' "$TARGETS"; then
     echo "Unknown target: $want (not in $TARGETS)" >&2
