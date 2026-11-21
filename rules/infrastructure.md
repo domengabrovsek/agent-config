@@ -32,6 +32,7 @@ paths:
 - CI/CD pipelines must run lint, typecheck, and tests before deploy `(CI)`
 - Always tag cloud resources with project, environment, and owner `(review-time: tag presence varies per Terraform resource type)`
 - GCP is primary cloud, AWS is secondary `(review-time: provider preference, not a code pattern)`
+
 ## Destructive and privileged operations
 
 **why-no-hook:** each rule needs knowledge external to the command text - who consumes a resource, whether a role is valid at a given scope, what a deploy pipeline actually does. A hook sees only the argv, not the blast radius.
