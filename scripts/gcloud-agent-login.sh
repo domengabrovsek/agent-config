@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -p
 # Mint short-lived impersonated tokens for AI agents into a gcloud config that
 # holds no user credential. Run it in your own terminal. Agents may run only
 # the exact sandbox-excluded form, `~/.agents/scripts/gcloud-agent-login.sh
@@ -16,6 +16,7 @@
 #
 # HOME, the config dirs, gcloud, and its Python are fixed, and PATH is reset,
 # because agents can run this outside the sandbox and set their environment.
+# bash -p skips BASH_ENV and imported functions, and gcloud gets an empty env.
 # It refuses to run while the agent config holds a symlink.
 
 set -euo pipefail
@@ -66,9 +67,17 @@ if ! CLOUDSDK_PYTHON=$(first_executable "$PYTHON_CANDIDATES"); then
   echo "No python3 found at: $PYTHON_CANDIDATES" >&2
   exit 1
 fi
-export CLOUDSDK_PYTHON
-unset CLOUDSDK_PYTHON_ARGS
 PATH="${GCLOUD%/*}:$PATH"
+
+# run_gcloud <config dir> <gcloud args...>: runs gcloud with an empty
+# environment, so caller variables such as endpoint overrides, proxies, CA
+# files, or PYTHONPATH cannot redirect the user's token or run code.
+run_gcloud() {
+  local config="$1"
+  shift
+  /usr/bin/env -i HOME="$HOME" PATH="$PATH" CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" \
+    CLOUDSDK_CONFIG="$config" "$GCLOUD" "$@"
+}
 
 if [ ! -f "$TARGETS" ]; then
   echo "No targets file at $TARGETS. Add one line per target:" >&2
@@ -102,7 +111,7 @@ done
 umask 077
 mkdir -p "$AGENT_CONFIG/tokens"
 
-agent_gcloud() { CLOUDSDK_CONFIG="$AGENT_CONFIG" "$GCLOUD" --quiet "$@"; }
+agent_gcloud() { run_gcloud "$AGENT_CONFIG" --quiet "$@"; }
 
 # step <target> <what> <gcloud args...>: runs one agent-config call and names
 # the target and step when it fails, with gcloud's own error.
@@ -130,7 +139,7 @@ while read -r name sa project _ <&3; do
   fi
 
   token_file="$AGENT_CONFIG/tokens/$name"
-  if ! token=$(CLOUDSDK_CONFIG="$USER_CONFIG" "$GCLOUD" auth print-access-token \
+  if ! token=$(run_gcloud "$USER_CONFIG" auth print-access-token \
       --impersonate-service-account="$sa" 2>"$token_file.err"); then
     cat "$token_file.err" >&2
     rm -f "$token_file.err"

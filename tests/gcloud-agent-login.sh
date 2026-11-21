@@ -29,20 +29,22 @@ sed -e "s|^GCLOUD_CANDIDATES=.*|GCLOUD_CANDIDATES=\"$BIN/gcloud\"|" \
   "$PROJECT_DIR/scripts/gcloud-agent-login.sh" > "$SCRIPT"
 chmod +x "$SCRIPT"
 
-# The stub prints a token named after the impersonated SA, fails minting when
-# STUB_MINT_FAIL is set, and logs the config dir, arguments, PATH, and any
-# CLOUDSDK_PYTHON of each call. Minting drains stdin, as a reauth prompt can,
-# so a loop sharing stdin with the targets file loses a target.
+# The script runs gcloud with an empty environment, so the stub finds its log
+# and failure flags next to its own dir. It prints a token named after the
+# impersonated SA, and logs the config dir, arguments, PATH, CLOUDSDK_PYTHON,
+# and any leaked variable of each call. Minting drains stdin, as a reauth
+# prompt can, so a loop sharing stdin with the targets file loses a target.
 stub "$BIN" gcloud <<'EOF'
 #!/bin/bash
-printf '%s|%s|%s\n' "$CLOUDSDK_CONFIG" "$*" "$PATH${CLOUDSDK_PYTHON:+|py=$CLOUDSDK_PYTHON}" >> "$STUB_LOG"
+root=$(cd "$(dirname "$0")/.." && pwd)
+printf '%s|%s|%s\n' "$CLOUDSDK_CONFIG" "$*" "$PATH${CLOUDSDK_PYTHON:+|py=$CLOUDSDK_PYTHON}${CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE:+|leak=ca}${PYTHONPATH:+|leak=pythonpath}" >> "$root/calls.log"
 case "$*" in
   *print-access-token*)
     cat >/dev/null
-    [ -z "${STUB_MINT_FAIL:-}" ] || { echo "denied" >&2; exit 1; }
+    [ ! -e "$root/mint-fail" ] || { echo "denied" >&2; exit 1; }
     for a in "$@"; do case "$a" in --impersonate-service-account=*) echo "token-for-${a#*=}" ;; esac; done ;;
   *"configurations describe"*) exit 1 ;;
-  *"core/project"*) [ -z "${STUB_SET_FAIL:-}" ] || { echo "bad project" >&2; exit 1; } ;;
+  *"core/project"*) [ ! -e "$root/set-fail" ] || { echo "bad project" >&2; exit 1; } ;;
 esac
 exit 0
 EOF
@@ -52,9 +54,9 @@ exit 0
 EOF
 stub "$DECOY" gcloud <<'EOF'
 #!/bin/bash
-echo "decoy gcloud ran" >> "$STUB_LOG"
+echo "decoy gcloud ran" >> "$(cd "$(dirname "$0")/.." && pwd)/calls.log"
 EOF
-export PATH="$DECOY:$PATH" STUB_LOG="$LOG"
+export PATH="$DECOY:$PATH"
 
 # run [arg...]: sets OUT and STATUS, which the harness predicates read.
 # shellcheck disable=SC2034
@@ -89,10 +91,14 @@ check "sets the project" logged "--quiet config set core/project staging-project
 check "activates the first target" logged "--quiet config configurations activate nonprod"
 check "agent config never mints" not grep -q "^$AGENT_CONFIG|auth print-access-token" "$LOG"
 
-STUB_MINT_FAIL=1 run
+touch "$TEST_ROOT/mint-fail"
+run
+rm "$TEST_ROOT/mint-fail"
 check "a failed mint stops with a hint" exited 1 says "own terminal" says "denied"
 
-STUB_SET_FAIL=1 run
+touch "$TEST_ROOT/set-fail"
+run
+rm "$TEST_ROOT/set-fail"
 check "a failed config step names the target and step" exited 1 says "bad project" says "set the project for target 'nonprod'"
 
 run --bogus
@@ -135,6 +141,11 @@ check "never runs a gcloud found on PATH" not logged "decoy gcloud ran"
 check "resets PATH for gcloud" not logged "$DECOY"
 check "pins CLOUDSDK_PYTHON to the first fixed python" logged "|py=$BIN/python3"
 check "ignores a caller's CLOUDSDK_PYTHON" not logged "py=$DECOY"
+
+echo 'echo bash-env-ran >> "$LOG_PATH"' > "$TEST_ROOT/bash-env"
+LOG_PATH="$LOG" BASH_ENV="$TEST_ROOT/bash-env" CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE=/x PYTHONPATH=/x run nonprod
+check "drops caller variables before gcloud" exited 0 not logged "leak="
+check "never reads BASH_ENV" not logged "bash-env-ran"
 
 ln -s "$TEST_ROOT/victim" "$AGENT_CONFIG/active_config"
 run nonprod

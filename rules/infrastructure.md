@@ -32,8 +32,6 @@ paths:
 - CI/CD pipelines must run lint, typecheck, and tests before deploy `(CI)`
 - Always tag cloud resources with project, environment, and owner `(review-time: tag presence varies per Terraform resource type)`
 - GCP is primary cloud, AWS is secondary `(review-time: provider preference, not a code pattern)`
-- On `ACCESS_TOKEN_EXPIRED` for nonprod, run `~/.agents/scripts/gcloud-agent-login.sh nonprod` exactly once, then retry. Never refresh production; ask the user `(review-time: reacting to an error in tool output)`
-
 ## Destructive and privileged operations
 
 **why-no-hook:** each rule needs knowledge external to the command text - who consumes a resource, whether a role is valid at a given scope, what a deploy pipeline actually does. A hook sees only the argv, not the blast radius.
