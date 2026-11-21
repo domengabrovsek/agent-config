@@ -14,7 +14,7 @@
 # unknown name or one with no configuration yet.
 # Tokens last about one hour; run the script again to refresh them.
 #
-# The config dirs, gcloud, and its Python are fixed, and PATH is reset,
+# HOME, the config dirs, gcloud, and its Python are fixed, and PATH is reset,
 # because agents can run this outside the sandbox and set their environment.
 # It refuses to run while the agent config holds a symlink.
 
@@ -22,9 +22,19 @@ set -euo pipefail
 PATH=/usr/bin:/bin
 export PATH
 
-# The test suite rewrites these two lines to point at stubs.
+# passwd_home: prints the account's home from the user database, not $HOME.
+passwd_home() {
+  local user
+  user=$(id -un)
+  case "$user" in ''|*[!A-Za-z0-9._-]*) echo "Unexpected user name: $user" >&2; return 1 ;; esac
+  eval "printf '%s\n' ~$user"
+}
+
+# The test suite rewrites these three lines to point at stubs.
 GCLOUD_CANDIDATES="/opt/homebrew/bin/gcloud /usr/local/bin/gcloud /usr/bin/gcloud"
 PYTHON_CANDIDATES="/opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/python3"
+HOME=$(passwd_home)
+export HOME
 
 USER_CONFIG="$HOME/.config/gcloud"
 AGENT_CONFIG="$HOME/.config/gcloud-agent"

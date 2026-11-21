@@ -14,15 +14,18 @@ STATUS=0
 BIN="$TEST_ROOT/bin"
 DECOY="$TEST_ROOT/decoy"
 LOG="$TEST_ROOT/calls.log"
-export HOME="$TEST_ROOT/home"
-USER_CONFIG="$HOME/.config/gcloud"
-AGENT_CONFIG="$HOME/.config/gcloud-agent"
+REAL_HOME="$TEST_ROOT/home"
+USER_CONFIG="$REAL_HOME/.config/gcloud"
+AGENT_CONFIG="$REAL_HOME/.config/gcloud-agent"
+# A caller's HOME must not matter, so the suite runs with a different one.
+export HOME="$TEST_ROOT/caller-home"
 
-# The script fixes its gcloud and python paths, so the suite runs a copy whose
-# candidate lists point at stubs.
+# The script fixes HOME and its gcloud and python paths, so the suite runs a
+# copy whose lines point at stubs.
 SCRIPT="$TEST_ROOT/gcloud-agent-login.sh"
 sed -e "s|^GCLOUD_CANDIDATES=.*|GCLOUD_CANDIDATES=\"$BIN/gcloud\"|" \
   -e "s|^PYTHON_CANDIDATES=.*|PYTHON_CANDIDATES=\"$TEST_ROOT/missing/python3 $BIN/python3\"|" \
+  -e "s|^HOME=\$(passwd_home)\$|HOME=\"$REAL_HOME\"|" \
   "$PROJECT_DIR/scripts/gcloud-agent-login.sh" > "$SCRIPT"
 chmod +x "$SCRIPT"
 
@@ -121,6 +124,11 @@ check "an unknown target mints nothing" not logged "print-access-token"
 GCLOUD_USER_CONFIG="$TEST_ROOT/other-user" GCLOUD_AGENT_CONFIG="$TEST_ROOT/other-agent" run nonprod
 check "ignores config dir overrides" logged "$USER_CONFIG|auth print-access-token"
 check "never writes an overridden agent dir" not test -e "$TEST_ROOT/other-agent"
+check "ignores the caller's HOME" not logged "$TEST_ROOT/caller-home"
+check "the rewritten copy replaced the HOME lookup" not grep -q 'passwd_home)$' "$SCRIPT"
+PASSWD_HOME_FN=$(sed -n '/^passwd_home()/,/^}/p' "$PROJECT_DIR/scripts/gcloud-agent-login.sh")
+check "passwd_home ignores HOME" test "$(HOME=/nowhere bash -c "$PASSWD_HOME_FN"'
+passwd_home')" = "$(eval "printf '%s' ~$(id -un)")"
 
 CLOUDSDK_PYTHON="$DECOY/python3" run nonprod
 check "never runs a gcloud found on PATH" not logged "decoy gcloud ran"
