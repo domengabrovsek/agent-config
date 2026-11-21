@@ -229,6 +229,15 @@ describe('Bash rule bypasses', () => {
     }
   });
 
+  it('guards the live gcloud login script but lets the excluded command and worktrees through', () => {
+    const edit = (file_path: string) => evaluate({ tool_name: 'Edit', tool_input: { file_path }, cwd: CWD }, realRules, { home: HOME })?.rule;
+    const rule = 'Edit(**/agent-config/scripts/gcloud-agent-login.sh)';
+    assert.equal(edit(`${HOME}/dev/agent-config/scripts/gcloud-agent-login.sh`), rule);
+    assert.equal(denied(`echo x > ${HOME}/dev/agent-config/scripts/gcloud-agent-login.sh`), rule);
+    assert.equal(edit(`${HOME}/dev/agent-config/.claude/worktrees/x/scripts/gcloud-agent-login.sh`), undefined);
+    assert.equal(denied('~/.agents/scripts/gcloud-agent-login.sh nonprod'), undefined);
+  });
+
   it('still allows the forms the rules do not cover', () => {
     for (const command of [
       'git push -u origin feat/x',

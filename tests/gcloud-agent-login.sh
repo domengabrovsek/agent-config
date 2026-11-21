@@ -91,9 +91,20 @@ run --bogus
 check "rejects unknown options" exited 2
 
 run nonprod
+check "a named refresh needs an existing configuration" exited 1 says "no argument in your own terminal"
+check "a named refresh without a configuration mints nothing" not logged "print-access-token"
+
+# The stub creates no configuration files, so the suite adds the ones a full
+# run leaves behind.
+mkdir -p "$AGENT_CONFIG/configurations"
+touch "$AGENT_CONFIG/configurations/config_nonprod" "$AGENT_CONFIG/configurations/config_production"
+rm -f "$AGENT_CONFIG/tokens/nonprod"
+
+run nonprod
 check "refreshes only the named target" exited 0 says "nonprod: agent@staging" not says "production:"
+check "a named refresh rewrites the token" grep -qx "token-for-agent@staging.iam.gserviceaccount.com" "$AGENT_CONFIG/tokens/nonprod"
 check "skips minting other targets" not logged "impersonate-service-account=agent@prod"
-check "a named refresh keeps the active configuration" not logged "configurations activate"
+check "a named refresh runs no gcloud on the agent config" not logged "$AGENT_CONFIG|"
 
 run nonprod production
 check "refreshes several named targets" exited 0 says "nonprod:" says "production:"

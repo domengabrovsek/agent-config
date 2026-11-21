@@ -9,8 +9,9 @@
 # Targets come from ~/.config/gcloud-agent/targets, one per line:
 #   <configuration-name> <service-account-email> <project-id>
 # Lines starting with # are skipped. With no argument, it refreshes every
-# target and activates the first line. With target names, it refreshes only
-# those and leaves the active configuration alone; an unknown name fails.
+# target and activates the first line. With target names, it only rewrites
+# their token files, leaves the active configuration alone, and fails on an
+# unknown name or one with no configuration yet.
 # Tokens last about one hour; run the script again to refresh them.
 #
 # The config dirs and the gcloud binary are fixed, and PATH is reset, because
@@ -94,6 +95,10 @@ while read -r name sa project _ <&3; do
     continue
   fi
   wanted "$name" "$@" || continue
+  if [ "$#" -gt 0 ] && [ ! -f "$AGENT_CONFIG/configurations/config_$name" ]; then
+    echo "No configuration '$name' yet. Run this with no argument in your own terminal first." >&2
+    exit 1
+  fi
 
   token_file="$AGENT_CONFIG/tokens/$name"
   if ! token=$(CLOUDSDK_CONFIG="$USER_CONFIG" "$GCLOUD" auth print-access-token \
@@ -106,10 +111,14 @@ while read -r name sa project _ <&3; do
   rm -f "$token_file.err"
   printf '%s\n' "$token" > "$token_file"
 
-  agent_gcloud config configurations describe "$name" >/dev/null 2>&1 \
-    || step "$name" "create the configuration" config configurations create "$name" --no-activate
-  step "$name" "set the token file" config set auth/access_token_file "$token_file" --configuration="$name"
-  step "$name" "set the project" config set core/project "$project" --configuration="$name"
+  # A named refresh runs no gcloud against the agent config: agents can write
+  # that dir, so gcloud there could follow a planted symlink outside the sandbox.
+  if [ "$#" -eq 0 ]; then
+    agent_gcloud config configurations describe "$name" >/dev/null 2>&1 \
+      || step "$name" "create the configuration" config configurations create "$name" --no-activate
+    step "$name" "set the token file" config set auth/access_token_file "$token_file" --configuration="$name"
+    step "$name" "set the project" config set core/project "$project" --configuration="$name"
+  fi
 
   [ -n "$FIRST" ] || FIRST="$name"
   echo "$name: $sa on $project"
