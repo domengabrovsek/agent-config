@@ -49,10 +49,10 @@ It needs a session that is not itself worktree-isolated. A session started with 
 1. Check isolation before creating anything. If `git rev-parse --path-format=absolute --git-dir` and `git rev-parse --path-format=absolute --git-common-dir` differ, the session is in a worktree and cannot edit the new one. Do not run the script, and do not try other edit routes. Give the user one command for their own terminal, then stop:
 
    ```bash
-   wt="$(~/.agents/scripts/repo-worktree.sh "<path>" "<slug>" --branch "<branch>" --allow-protected)" && cd "$wt" && claude "<task prompt>"
+   wt="$(~/.agents/scripts/repo-worktree.sh "<path>" "<slug>" --branch "<branch>" --allow-protected)" && cd "$wt" && claude '<task prompt>'
    ```
 
-   Write `<path>` as an absolute path, because the user's terminal has its own cwd. Add `--base <ref>` when the user names a base. Write the task prompt so a fresh session can start without this conversation. Use a terminal, not the `!` prefix, because `claude` needs its own terminal.
+   Write `<path>` as an absolute path, because the user's terminal has its own cwd. Add `--base <ref>` when the user names a base. Write the task prompt so a fresh session can start without this conversation. Open it by asking that session to install dependencies as in steps 7 and 8 above, because the new worktree has no `node_modules`. Single-quote it and write each `'` inside as `'\''`, so the shell expands nothing. Use a terminal, not the `!` prefix, because `claude` needs its own terminal.
 2. Run `~/.agents/scripts/repo-worktree.sh "<path>" "<slug>" --branch "<branch>"`. Add `--base <ref>` when the user names a base. The script fetches the base, creates `<main-checkout>/.claude/worktrees/<slug>` with no upstream, and prints its path as the last line.
 3. If the script exits 1, it refused a missing repo, an existing slug, or a bad base. Report its error and stop. Uncommitted changes in the main checkout are fine; the script leaves them alone.
 4. If it exits 3, the base tracks sandbox-protected paths, and a sandboxed checkout would fail. Never work around the deny rule. Do not leave the protected paths out with a sparse checkout, clone the repo, or place the worktree outside `~/dev`. Give the user the `!` command the script printed, which adds `--allow-protected`, and continue once they report the path.
