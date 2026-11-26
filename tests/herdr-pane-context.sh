@@ -130,10 +130,10 @@ wait "${pids[@]}"
 expect "gives parallel new repos distinct colors" \
   "$(awk '$1 == "space-p" { print $3 }' "$TEST_ROOT/state/herdr/repo-colors" | sort -u | wc -l | tr -d ' ')" "6"
 
-mkdir "$TEST_ROOT/state/herdr/repo-colors.lock"
+: >"$TEST_ROOT/state/herdr/repo-colors.lock"
 git init -q -b main "$TEST_ROOT/stale-lock"
 expect "breaks a stale lock and releases it afterwards" \
-  "$(FAKE_SPACE=space-s run_hook 1 "{\"cwd\":\"$TEST_ROOT/stale-lock\"}" | grep -o 'c[0-9]*=●') $([ -d "$TEST_ROOT/state/herdr/repo-colors.lock" ] && echo held || echo free)" \
+  "$(FAKE_SPACE=space-s run_hook 1 "{\"cwd\":\"$TEST_ROOT/stale-lock\"}" | grep -o 'c[0-9]*=●') $([ -e "$TEST_ROOT/state/herdr/repo-colors.lock" ] && echo held || echo free)" \
   "c0=● free"
 
 expect "starts each space at the first color" \
