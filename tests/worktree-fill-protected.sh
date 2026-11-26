@@ -68,6 +68,11 @@ check "no temp file is left" [ -z "$(find "$WT" -name '.fill-protected.*')" ]
 check "runs no git" [ ! -e "$DECOY/git-ran" ]
 expect_exit --says "no file list" "a second run finds no list" 1 fill "$WT"
 
+# A relative gitdir, as worktree.useRelativePaths writes it, still resolves.
+new_worktree "$REPO" relative
+printf 'gitdir: ../../../.git/worktrees/relative\n' > "$WT/.git"
+expect_exit --says "copied 3" "accepts a relative gitdir" 0 fill "$WT"
+
 # A symlinked destination directory cannot carry a write outside the worktree.
 VICTIM="$TEST_ROOT/victim"
 mkdir -p "$VICTIM"

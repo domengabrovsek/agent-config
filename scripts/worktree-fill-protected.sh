@@ -70,6 +70,11 @@ case "$MAIN/" in "$DEV_REAL"/*) ;; *) die "main checkout is outside $DEV_REAL: $
 
 [ -f "$WT/.git" ] && [ ! -L "$WT/.git" ] || die "not a linked worktree: $WT"
 ADMIN=$(sed -n '1s/^gitdir: //p' "$WT/.git")
+# worktree.useRelativePaths writes the gitdir relative to the worktree.
+case "$ADMIN" in
+  /*) ;;
+  ?*) ADMIN=$(cd -P -- "$WT/$ADMIN" 2>/dev/null && pwd -P) || die "cannot resolve the worktree's gitdir" ;;
+esac
 NAME="${ADMIN##*/}"
 case "$NAME" in ''|*[!A-Za-z0-9._-]*|.|..) die "bad worktree admin dir: $ADMIN" ;; esac
 [ "$ADMIN" = "$MAIN/.git/worktrees/$NAME" ] || die "worktree belongs to another repo: $ADMIN"
