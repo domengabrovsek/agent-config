@@ -30,7 +30,8 @@ INVOKE_RE="(^|[;&|({]|\\\$\\(|\`)[[:space:]]*((bash|sh|exec|command|env)[[:space
 printf '%s\n' "$COMMAND" | grep -Eq "$INVOKE_RE" || exit 0
 
 EXACT_GCLOUD='~/.agents/scripts/gcloud-agent-login.sh nonprod'
-FILL_RE='^~/\.agents/scripts/worktree-fill-protected\.sh [A-Za-z0-9._/@+-]+$'
+# One word: plain path characters or backslash escapes, as printf %q prints a path.
+FILL_RE='^~/\.agents/scripts/worktree-fill-protected\.sh ([A-Za-z0-9._/@+-]|\\.)+$'
 [ "$COMMAND" = "$EXACT_GCLOUD" ] && exit 0
 printf '%s' "$COMMAND" | grep -Eq "$FILL_RE" && [ "$(printf '%s' "$COMMAND" | wc -l | tr -d ' ')" = 0 ] && exit 0
 

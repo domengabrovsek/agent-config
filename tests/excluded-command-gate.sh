@@ -36,6 +36,7 @@ WT=/Users/u/dev/repo/.claude/worktrees/slug
 
 passes "the exact gcloud refresh passes" '~/.agents/scripts/gcloud-agent-login.sh nonprod'
 passes "the fill script with one plain path passes" "~/.agents/scripts/worktree-fill-protected.sh $WT"
+passes "the fill script with an escaped path passes" '~/.agents/scripts/worktree-fill-protected.sh /Users/u/dev/my\ repo/.claude/worktrees/slug'
 passes "reading the script passes" 'sed -n 1,40p ~/.agents/scripts/gcloud-agent-login.sh'
 passes "the test suite passes" 'bash tests/gcloud-agent-login.sh 2>&1 | tail -3'
 passes "git add of the script passes" 'git add scripts/worktree-fill-protected.sh'
