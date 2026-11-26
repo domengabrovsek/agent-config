@@ -9,6 +9,9 @@
 # back to Claude as a tool result.
 # Bypass with SKIP_EXCLUDED_COMMAND_GATE=1 in the environment.
 
+# The tildes below are literal command text, never expanded.
+# shellcheck disable=SC2088
+
 # shellcheck source=lib/hook.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/hook.sh"
 

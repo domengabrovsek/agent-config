@@ -3,6 +3,9 @@
 # of the two sandbox-excluded scripts pass. Every other call to them blocks,
 # and unrelated commands or reads of the scripts pass.
 
+# The commands under test are literal text, so their tildes stay quoted.
+# shellcheck disable=SC2088
+
 set -uo pipefail
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
@@ -13,6 +16,7 @@ HOOK="$PROJECT_DIR/hooks/pre-excluded-command-gate.sh"
 OUT=""
 STATUS=0
 
+# shellcheck disable=SC2034  # the harness's says reads OUT
 run_gate() {
   OUT=$(payload "$1" | bash "$HOOK" 2>&1)
   STATUS=$?
@@ -52,7 +56,7 @@ blocks "a fill with a substitution blocks" '~/.agents/scripts/worktree-fill-prot
 blocks "a fill with two arguments blocks" "~/.agents/scripts/worktree-fill-protected.sh $WT extra"
 blocks "a fill with a trailing newline command blocks" "$(printf '%s\n%s' "~/.agents/scripts/worktree-fill-protected.sh $WT" 'touch ~/x')"
 
-OUT=$(payload '~/.agents/scripts/gcloud-agent-login.sh nonprod | tail' | SKIP_EXCLUDED_COMMAND_GATE=1 bash "$HOOK" 2>&1)
+payload '~/.agents/scripts/gcloud-agent-login.sh nonprod | tail' | SKIP_EXCLUDED_COMMAND_GATE=1 bash "$HOOK" >/dev/null 2>&1
 STATUS=$?
 check "the bypass lets the call through" [ "$STATUS" -eq 0 ]
 
