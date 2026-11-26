@@ -116,6 +116,13 @@ check "the drifted file stays off the fill list" \
   [ "$(cat "$HUSKY/.git/worktrees/drifted/fill-protected")" = ".claude/skills/x/SKILL.md" ]
 git -C "$HUSKY" checkout -q -- .husky/pre-commit
 
+ONLY="$TEST_ROOT/only-protected"
+mkdir -p "$ONLY/.claude/skills/y"
+printf 'y\n' > "$ONLY/.claude/skills/y/SKILL.md"
+make_repo "$ONLY"
+expect_exit "a base with only protected files still exits 4" 4 "$SCRIPT" "$ONLY" only --base main
+check "its fill list names the skill" [ "$(cat "$ONLY/.git/worktrees/only/fill-protected")" = ".claude/skills/y/SKILL.md" ]
+
 expect_exit "--allow-protected creates it in full" 0 "$SCRIPT" "$HUSKY" full --base main --allow-protected
 check "the protected file is checked out" [ -f "$HUSKY/.claude/worktrees/full/.husky/pre-commit" ]
 

@@ -133,7 +133,7 @@ else
   git -C "$MAIN" worktree add --quiet --no-checkout --no-track -b "$BRANCH" "$WORKTREE" "$START" >&2 \
     || die "git worktree add failed for $WORKTREE"
   git -C "$WORKTREE" read-tree HEAD || die "git read-tree failed in $WORKTREE"
-  git -C "$WORKTREE" ls-files -z | grep -zvE "$PROTECTED_RE" | git -C "$WORKTREE" checkout-index -z --stdin \
+  git -C "$WORKTREE" ls-files -z | { grep -zvE "$PROTECTED_RE" || [ $? -eq 1 ]; } | git -C "$WORKTREE" checkout-index -z --stdin \
     || die "checkout of the unprotected files failed in $WORKTREE"
   ADMIN=$(git -C "$WORKTREE" rev-parse --path-format=absolute --git-dir)
   FILL="$ADMIN/fill-protected"
