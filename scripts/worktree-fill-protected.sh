@@ -96,7 +96,8 @@ enter_dest() {
   done
 }
 
-link_count() { stat -f %l -- "$1" 2>/dev/null || stat -c %h -- "$1"; }
+# GNU stat first: its -f prints file system status instead of failing.
+link_count() { stat -c %h -- "$1" 2>/dev/null || stat -f %l -- "$1"; }
 
 # copy_one <relative path>: copies MAIN/<path> to WT/<path>. It writes a temp
 # file, renames it into place, then checks the result is a lone regular file
