@@ -80,26 +80,37 @@ repo_key=${repo// /_}
 color_file="${XDG_STATE_HOME:-$HOME/.local/state}/herdr/repo-colors"
 mkdir -p "$(dirname "$color_file")"
 touch "$color_file"
-# Panes run this hook in parallel, so the lookup and append hold a lock. After
-# one second the lock counts as stale: break it once and take it.
+# Panes run this hook in parallel, so the lookup and append hold a lock. The
+# critical section is a few milliseconds, so a lock still there after three
+# seconds belongs to a hook that died: break it once and take it. A one-second
+# window breaks a live lock on a loaded CI runner, and two repos then get the
+# same colour.
+# The lock is a noclobber file because bash creates it with O_EXCL. uutils mkdir,
+# the default on Ubuntu 25.10 and later, lets parallel callers all succeed.
 lock="$color_file.lock"
 locked=0
-for _ in $(seq 20); do
-  mkdir "$lock" 2>/dev/null && { locked=1; break; }
+take_lock() { (set -C; : >"$lock") 2>/dev/null; }
+for _ in $(seq 60); do
+  take_lock && { locked=1; break; }
   sleep 0.05
 done
 if [ "$locked" = 0 ]; then
-  rmdir "$lock" 2>/dev/null
-  mkdir "$lock" 2>/dev/null && locked=1
+  rm -f "$lock"
+  # Another pane may break the same lock at the same moment, so wait again
+  # instead of continuing without it.
+  for _ in $(seq 20); do
+    take_lock && { locked=1; break; }
+    sleep 0.05
+  done
 fi
-[ "$locked" = 1 ] && trap 'rmdir "$lock" 2>/dev/null' EXIT
+[ "$locked" = 1 ] && trap 'rm -f "$lock"' EXIT
 color=$(awk -v s="${space:-_}" -v r="$repo_key" '$1 == s && $2 == r { print $3; exit }' "$color_file")
 if [ -z "$color" ]; then
   color=$(awk -v s="${space:-_}" -v n="$colors" '$1 == s { used[$3] = 1; count++ } END { for (i = 0; i < n; i++) if (!(i in used)) { print i; exit } print count % n }' "$color_file")
   printf '%s %s %s\n' "${space:-_}" "$repo_key" "$color" >>"$color_file"
 fi
 if [ "$locked" = 1 ]; then
-  rmdir "$lock" 2>/dev/null
+  rm -f "$lock"
   trap - EXIT
 fi
 # Color i owns the flag and value at 2i and 2i+1. A corrupt entry clears them all.
