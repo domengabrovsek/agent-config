@@ -95,6 +95,7 @@
       "Edit(~/.config/gcloud/**)",
       "Edit(~/.config/gcloud-agent/targets)",
       "Edit(**/agent-config/scripts/gcloud-agent-login.sh)",
+      "Edit(**/agent-config/scripts/worktree-fill-protected.sh)",
       "Edit(~/.azure/**)",
       "Edit(**/*.pem)",
       "Edit(**/*.key)",
@@ -500,7 +501,8 @@
     "enabled": true,
     "allowUnsandboxedCommands": false,
     "excludedCommands": [
-      "~/.agents/scripts/gcloud-agent-login.sh nonprod"
+      "~/.agents/scripts/gcloud-agent-login.sh nonprod",
+      "~/.agents/scripts/worktree-fill-protected.sh *"
     ],
     "filesystem": {
       "allowWrite": [

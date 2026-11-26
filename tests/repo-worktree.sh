@@ -90,20 +90,34 @@ for b in feat/first fix/second feat/third; do
 done
 check ".git/config unchanged" [ "$(cat "$CLONE/.git/config")" = "$CONFIG_BEFORE" ]
 
-# A base that tracks a sandbox-protected path is refused before any checkout.
+# A base that tracks a sandbox-protected path gets every other file, and the
+# matching protected files are listed for worktree-fill-protected.sh.
 HUSKY="$TEST_ROOT/husky"
 mkdir -p "$HUSKY/.husky" "$HUSKY/.claude/skills/x" "$HUSKY/src/.husky-notes"
 printf 'npm test\n' > "$HUSKY/.husky/pre-commit"
 printf 'x\n' > "$HUSKY/.claude/skills/x/SKILL.md"
 printf 'x\n' > "$HUSKY/src/.husky-notes/readme"
 make_repo "$HUSKY"
-expect_exit --says ".husky/pre-commit" "refuses a base tracking .husky" 3 "$SCRIPT" "$HUSKY" guarded --base main
-check "the refusal names .claude/skills too" says ".claude/skills/x/SKILL.md"
-check "the refusal skips look-alike paths" omits "src/.husky-notes"
-check "the refusal prints the ! command" says "--allow-protected"
-check "the refusal creates nothing" [ ! -e "$HUSKY/.claude/worktrees/guarded" ]
-expect_exit "--allow-protected creates it" 0 "$SCRIPT" "$HUSKY" guarded --base main --allow-protected
-check "the protected file is checked out" [ -f "$HUSKY/.claude/worktrees/guarded/.husky/pre-commit" ]
+GUARDED="$HUSKY/.claude/worktrees/guarded"
+expect_exit --says "worktree-fill-protected.sh" "a protected base exits 4" 4 "$SCRIPT" "$HUSKY" guarded --base main
+check "a protected base still prints the path last" [ "$(last_line)" = "$GUARDED" ]
+check "the unprotected look-alike is checked out" [ -f "$GUARDED/src/.husky-notes/readme" ]
+check "the protected files are left out" [ ! -e "$GUARDED/.husky/pre-commit" ] && [ ! -e "$GUARDED/.claude/skills/x/SKILL.md" ]
+FILL_LIST="$HUSKY/.git/worktrees/guarded/fill-protected"
+check "the fill list names the matching protected files" \
+  [ "$(sort "$FILL_LIST" | tr '\n' ' ')" = ".claude/skills/x/SKILL.md .husky/pre-commit " ]
+check "no ! command when nothing drifted" omits "checkout HEAD --"
+
+# A protected file the main checkout changed is left for the user.
+printf 'changed\n' > "$HUSKY/.husky/pre-commit"
+expect_exit --says "checkout HEAD -- .husky/pre-commit" "a drifted protected file gets a ! command" 4 \
+  "$SCRIPT" "$HUSKY" drifted --base main
+check "the drifted file stays off the fill list" \
+  [ "$(cat "$HUSKY/.git/worktrees/drifted/fill-protected")" = ".claude/skills/x/SKILL.md" ]
+git -C "$HUSKY" checkout -q -- .husky/pre-commit
+
+expect_exit "--allow-protected creates it in full" 0 "$SCRIPT" "$HUSKY" full --base main --allow-protected
+check "the protected file is checked out" [ -f "$HUSKY/.claude/worktrees/full/.husky/pre-commit" ]
 
 expect_exit --says "Usage:" "--help prints the header" 0 "$SCRIPT" --help
 

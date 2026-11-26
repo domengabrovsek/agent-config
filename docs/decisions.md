@@ -79,7 +79,9 @@ The design decisions this config still runs on. Each entry states the choice and
 
 - One literal list in `settings.json` blocks the same commands and paths on every host, such as `rm -rf`, force-pushes, and reads of secrets.
 - Literal patterns miss variants such as `rm -fr`, and a `Read` deny never stopped a CLI from reading its own credentials. Claude Code runs Bash in its OS sandbox, which enforces the `Read` denies for every subprocess. See [the sandbox](setup.md#claude-code-sandbox).
-- `allowUnsandboxedCommands` is `false`, because under auto mode an escape request may not reach a human. `excludedCommands` holds one exact command, `~/.agents/scripts/gcloud-agent-login.sh nonprod`, so agents can refresh their own nonprod token. It is narrow because it takes no arguments from the agent and ignores the caller's environment. It also refuses symlinks, and agents cannot write the script. A broad entry such as `docker` stays out, because it could mount any host path and read what the denies protect.
+- `allowUnsandboxedCommands` is `false`, because under auto mode an escape request may not reach a human. `excludedCommands` holds two entries, and agents cannot write either script. Both ignore the caller's environment and refuse symlinks.
+  - `~/.agents/scripts/gcloud-agent-login.sh nonprod` lets agents refresh their own nonprod token. It takes no arguments from the agent.
+  - `~/.agents/scripts/worktree-fill-protected.sh *` takes a worktree path from the agent. It only copies protected files from the main checkout, which agents cannot write, so the content stays the user's. A broad entry such as `docker` stays out, because it could mount any host path and read what the denies protect.
 - The boundary has [known gaps](setup.md#known-gaps), chiefly a writable `.git/config`.
 - Codex and Pi have no such boundary, so unattended work there still needs an external one, as [setup](setup.md#pi) notes for Pi.
 

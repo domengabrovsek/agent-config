@@ -238,6 +238,15 @@ describe('Bash rule bypasses', () => {
     assert.equal(denied('~/.agents/scripts/gcloud-agent-login.sh nonprod'), undefined);
   });
 
+  it('guards the live worktree fill script but lets the excluded command and worktrees through', () => {
+    const edit = (file_path: string) => evaluate({ tool_name: 'Edit', tool_input: { file_path }, cwd: CWD }, realRules, { home: HOME })?.rule;
+    const rule = 'Edit(**/agent-config/scripts/worktree-fill-protected.sh)';
+    assert.equal(edit(`${HOME}/dev/agent-config/scripts/worktree-fill-protected.sh`), rule);
+    assert.equal(denied(`echo x > ${HOME}/dev/agent-config/scripts/worktree-fill-protected.sh`), rule);
+    assert.equal(edit(`${HOME}/dev/agent-config/.claude/worktrees/x/scripts/worktree-fill-protected.sh`), undefined);
+    assert.equal(denied(`~/.agents/scripts/worktree-fill-protected.sh ${HOME}/dev/r/.claude/worktrees/x`), undefined);
+  });
+
   it('matches a file tool target through a symlinked directory', () => {
     const home = mkdtempSync(join(tmpdir(), 'deny-gate-home-'));
     try {
