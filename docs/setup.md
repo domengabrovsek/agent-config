@@ -57,11 +57,12 @@ Claude Code gets `CLAUDE.md` because it reads `AGENTS.md` only at project level.
 
 ## Claude Code environment
 
-The `env` block in `settings.json` sets three variables for every Claude Code session:
+The `env` block in `settings.json` sets these variables for every Claude Code session:
 
 | Variable | Value | Enables |
 | --- | --- | --- |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Claude Code's experimental agent teams feature, for the teammates that lane and panel mode spawn |
+| `CLAUDE_CODE_EXPERIMENTAL_CODE_MODE` | `1` | [Code Mode](https://code.claude.com/docs/en/code-mode): Claude runs tool calls from JavaScript in the `REPL` tool. Deny rules and `PreToolUse` hooks still see each call under its usual name. Needs v2.1.327 or later with mods loaded; an older version starts without it. Code Mode sessions resume only with the variable still set |
 | `CLAUDE_CODE_PLUGIN_DIRS` | `~/.claude/mods/pr-band:~/.claude/mods/pr-fleet:~/.claude/mods/alerts` | Loads the [pr-band](../mods/pr-band/README.md), [pr-fleet](../mods/pr-fleet/README.md), and [alerts](../mods/alerts/README.md) mods from the linked `mods/` dir |
 | `NODE_USE_ENV_PROXY` | `1` | Node's built-in `fetch` through the sandbox proxy. See [the sandbox](#claude-code-sandbox) |
 
@@ -92,6 +93,7 @@ The `env` block in `settings.json` sets three variables for every Claude Code se
 - `~/.npm` stays writable, because npm needs it. A command can change a cached package under `~/.npm/_npx`, and your next `npx` outside the sandbox runs it. The rest of `~/.cache`, such as `~/.cache/pre-commit`, stays read-only for the same reason. The `CLAUDE_ENV_FILE` preamble points `XDG_CACHE_HOME` at `~/.cache/agent`, the only writable cache dir. Your own tools never read it, so a poisoned entry or a hook planted in a cached clone there reaches only agent commands. A `!` command you type in a session may source the same preamble and use that cache too.
 - On Linux, a tool that keeps downloads under `XDG_CACHE_HOME`, such as test browsers, no longer finds your copy in an agent session. Its first agent run downloads again into `~/.cache/agent`, and the download host may need the network allowlist. macOS tools use `~/Library/Caches` and are unaffected.
 - A worktree outside both the working directory and `~/dev` is not writable.
+- Code Mode's JavaScript and its file, web, and MCP tool calls run outside the sandbox. Shell commands it starts stay sandboxed, and deny rules and hooks still apply to every call. In auto mode, the classifier reviews the code as a whole, not each call.
 
 ### gcloud for agents
 
