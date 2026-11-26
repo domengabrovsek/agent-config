@@ -13,9 +13,12 @@
 # prunes merged worktrees in each listed repo.
 #
 # The sandbox denies writes to .husky and to .claude settings, hooks, skills,
-# agents, and commands under ~/dev. A base that tracks any of them cannot be
-# checked out there, so the script refuses it, names the paths, and prints the
-# command to run outside the sandbox with --allow-protected.
+# agents, and commands under ~/dev. For a base that tracks any of them, the
+# script checks out every other file, lists the protected files that match the
+# main checkout's copies, and exits 4. The caller then runs
+# worktree-fill-protected.sh <worktree>, which copies them outside the sandbox.
+# Protected files that differ from the main checkout get a ! command for the
+# user. --allow-protected does a plain checkout, for a run outside the sandbox.
 #
 # Usage:
 #   repo-worktree.sh <repo-path> <slug> [--base <ref>] [--branch <name>] [--allow-protected]
@@ -26,7 +29,7 @@
 #
 # Prints the worktree path as the last stdout line.
 # Exit codes: 0 created, 1 refused or git failed, 2 usage error,
-# 3 the base tracks sandbox-protected paths.
+# 4 created without its protected files; run worktree-fill-protected.sh next.
 
 set -euo pipefail
 
@@ -41,7 +44,6 @@ die() {
   exit 1
 }
 
-ORIG_ARGS=("$@")
 REPO_ARG=""
 SLUG=""
 ALLOW_PROTECTED=0
@@ -110,22 +112,11 @@ else
 fi
 git -C "$MAIN" rev-parse --verify --quiet "$START^{commit}" >/dev/null || die "base is not a commit: $START"
 
-# Mirrors the ~/dev write denies in settings.json.
+# Mirrors the ~/dev write denies in settings.json and worktree-fill-protected.sh.
 PROTECTED_RE='(^|/)\.husky(/|$)|(^|/)\.claude/(settings\.json|settings\.local\.json)$|(^|/)\.claude/(hooks|skills|agents|commands)/'
+PROTECTED=""
 if [ "$ALLOW_PROTECTED" -eq 0 ]; then
   PROTECTED=$(git -C "$MAIN" ls-tree -r --name-only "$START" | grep -E "$PROTECTED_RE" || true)
-  if [ -n "$PROTECTED" ]; then
-    {
-      echo "repo-worktree: $START tracks paths the sandbox keeps read-only:"
-      printf '%s\n' "$PROTECTED" | sed -n '1,10s/^/  /p'
-      [ "$(printf '%s\n' "$PROTECTED" | wc -l)" -le 10 ] || echo "  ..."
-      echo "Run it yourself outside the sandbox, with the ! prefix in a session:"
-      printf '  ! %q' "$0"
-      printf ' %q' "${ORIG_ARGS[@]}"
-      printf ' --allow-protected\n'
-    } >&2
-    exit 3
-  fi
 fi
 
 if ! git -C "$MAIN" check-ignore -q .claude/worktrees/x; then
@@ -135,8 +126,29 @@ if ! git -C "$MAIN" check-ignore -q .claude/worktrees/x; then
 fi
 
 # --no-track keeps branch.<name>.* out of .git/config, which the sandbox guards.
-git -C "$MAIN" worktree add --quiet --no-track -b "$BRANCH" "$WORKTREE" "$START" >&2 \
-  || die "git worktree add failed for $WORKTREE"
+if [ -z "$PROTECTED" ]; then
+  git -C "$MAIN" worktree add --quiet --no-track -b "$BRANCH" "$WORKTREE" "$START" >&2 \
+    || die "git worktree add failed for $WORKTREE"
+else
+  git -C "$MAIN" worktree add --quiet --no-checkout --no-track -b "$BRANCH" "$WORKTREE" "$START" >&2 \
+    || die "git worktree add failed for $WORKTREE"
+  git -C "$WORKTREE" read-tree HEAD || die "git read-tree failed in $WORKTREE"
+  git -C "$WORKTREE" ls-files -z | { grep -zvE "$PROTECTED_RE" || [ $? -eq 1 ]; } | git -C "$WORKTREE" checkout-index -z --stdin \
+    || die "checkout of the unprotected files failed in $WORKTREE"
+  ADMIN=$(git -C "$WORKTREE" rev-parse --path-format=absolute --git-dir)
+  FILL="$ADMIN/fill-protected"
+  DRIFTED=()
+  : > "$FILL"
+  while IFS= read -r path; do
+    want=$(git -C "$WORKTREE" rev-parse "HEAD:$path")
+    if [ -f "$MAIN/$path" ] && [ ! -L "$MAIN/$path" ] \
+      && [ "$(git -C "$MAIN" hash-object --no-filters -- "$path")" = "$want" ]; then
+      printf '%s\n' "$path" >> "$FILL"
+    else
+      DRIFTED+=("$path")
+    fi
+  done <<< "$PROTECTED"
+fi
 
 REGISTRY="$HOME/.cache/agent/worktree-repos"
 mkdir -p "$(dirname "$REGISTRY")"
@@ -144,4 +156,18 @@ touch "$REGISTRY"
 grep -Fxq -- "$MAIN" "$REGISTRY" || printf '%s\n' "$MAIN" >> "$REGISTRY"
 
 echo "repo-worktree: created $BRANCH from $START" >&2
+if [ -n "$PROTECTED" ]; then
+  {
+    echo "repo-worktree: the protected files are not checked out yet. Run this next:"
+    printf '  ~/.agents/scripts/worktree-fill-protected.sh %q\n' "$WORKTREE"
+    if [ ${#DRIFTED[@]} -gt 0 ]; then
+      echo "These differ from the main checkout, so the user checks them out with the ! prefix:"
+      printf '  ! git -C %q checkout HEAD --' "$WORKTREE"
+      printf ' %q' "${DRIFTED[@]}"
+      printf '\n'
+    fi
+  } >&2
+  printf '%s\n' "$WORKTREE"
+  exit 4
+fi
 printf '%s\n' "$WORKTREE"

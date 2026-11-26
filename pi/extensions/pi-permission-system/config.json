@@ -73,6 +73,7 @@
       "*/.terraform.tfstate*": "deny",
       "*/.vault-token": "deny",
       "*/agent-config/scripts/gcloud-agent-login.sh": "deny",
+      "*/agent-config/scripts/worktree-fill-protected.sh": "deny",
       "*/credentials.json": "deny",
       "*/service-account*.json": "deny",
       "~/.aws/*": "deny",

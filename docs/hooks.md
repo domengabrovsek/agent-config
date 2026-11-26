@@ -112,12 +112,12 @@ A bypass is a deliberate human override, not a tool for the agent. A pull reques
 
 ## The deny list
 
-`permissions.deny` in `settings.json` holds 128 rules:
+`permissions.deny` in `settings.json` holds 129 rules:
 
 | Kind | Count | Examples |
 | --- | --- | --- |
 | `Read(...)` | 46 | `Read(**/.env)`, `Read(~/.ssh/**)`, `Read(**/*.pem)` |
-| `Edit(...)` | 48 | `Edit(**/.env.production)`, `Edit(~/.aws/**)`, `Edit(**/.git/agent-verify-passed)` |
+| `Edit(...)` | 49 | `Edit(**/.env.production)`, `Edit(~/.aws/**)`, `Edit(**/.git/agent-verify-passed)` |
 | `Bash(...)` | 33 | `Bash(rm -rf *)`, `Bash(git push --force *)`, `Bash(git push * main)`, `Bash(gh pr merge *)` |
 | MCP | 1 | `mcp__claude_ai_Atlassian__*` |
 
