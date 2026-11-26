@@ -175,6 +175,16 @@
         ]
       },
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HOOK=\"$HOME/.claude/hooks/pre-excluded-command-gate.sh\"; [ -x \"$HOOK\" ] && exec \"$HOOK\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Bash|WebFetch|WebSearch",
         "hooks": [
           {
