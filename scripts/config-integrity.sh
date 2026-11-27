@@ -1,10 +1,11 @@
 #!/bin/bash
 # Integrity gate for the tracked configuration files.
 #
-# Three checks, all cheap enough to run on every PR:
+# Four checks, all cheap enough to run on every PR:
 #   1. every tracked JSON file parses
 #   2. no runtime-written ephemeral state reached a committed settings file
 #   3. .gitattributes still declares the filter that strips it
+#   4. a configured strip filter matches the current one
 #
 # Check 2 matters because the strip filter is per-clone: `git config
 # filter.strip-ephemeral-state.clean` has to be set in each checkout, and a
