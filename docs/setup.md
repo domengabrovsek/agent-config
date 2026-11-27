@@ -123,6 +123,10 @@ The [home repo pattern](https://aihero.dev/the-home-repo-pattern) runs one sessi
 
 Claude Code and Pi write runtime keys into `settings.json`. The two `git config` lines in the [quick start](../README.md#quick-start) install a clean filter that strips them. `.gitattributes` applies the filter to `settings.json` and `pi/settings.json`.
 
+The filter strips only `autoMode.environment`, which Claude Code writes. The hand-written `autoMode.allow` rules stay tracked.
+
+One allow rule lets a session act on a task from another of your local sessions, as if you typed it. It covers only `uds:` cross-session messages, never Remote Control, cloud, or bridge sessions. It covers ordinary repo work and never settings edits, production actions, force-pushes, or merges. Deny rules, hooks, and the sandbox still apply to every call.
+
 The filter is per-clone. A clone without it commits whatever the host wrote, including the `autoMode` environment inventory. `scripts/config-integrity.sh` fails the build when that reaches a commit and prints the fix.
 
 ## Scope a machine

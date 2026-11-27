@@ -1,10 +1,11 @@
 #!/bin/bash
 # Integrity gate for the tracked configuration files.
 #
-# Three checks, all cheap enough to run on every PR:
+# Four checks, all cheap enough to run on every PR:
 #   1. every tracked JSON file parses
 #   2. no runtime-written ephemeral state reached a committed settings file
 #   3. .gitattributes still declares the filter that strips it
+#   4. a configured strip filter matches the current one
 #
 # Check 2 matters because the strip filter is per-clone: `git config
 # filter.strip-ephemeral-state.clean` has to be set in each checkout, and a
@@ -19,9 +20,11 @@ esac
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# Keys the strip filter deletes. Keep in step with the filter command in
-# README.md; this check is what catches a clone that never configured it.
-EPHEMERAL_KEYS=(feedbackSurveyState lastChangelogVersion autoMode)
+# Dotted key paths the strip filter deletes. Keep in step with the filter
+# command in README.md; this check is what catches a clone that never
+# configured it. Hand-written autoMode rules outside environment are tracked.
+EPHEMERAL_KEYS=(feedbackSurveyState lastChangelogVersion autoMode.environment)
+STRIP_FILTER='jq "del(.feedbackSurveyState, .lastChangelogVersion, .autoMode.environment) | if .autoMode == {} then del(.autoMode) else . end" 2>/dev/null || cat'
 FILTERED_FILES=(settings.json pi/settings.json)
 
 fail=0
@@ -51,12 +54,12 @@ echo "== no ephemeral state committed =="
 for f in "${FILTERED_FILES[@]}"; do
   git cat-file -e "HEAD:$f" 2>/dev/null || continue
   found=$(git cat-file blob "HEAD:$f" |
-    jq -r '[$ARGS.positional[] as $k | select(has($k)) | $k] | join(" ")' --args "${EPHEMERAL_KEYS[@]}")
+    jq -r '[$ARGS.positional[] as $k | select(getpath($k | split(".")) != null) | $k] | join(" ")' --args "${EPHEMERAL_KEYS[@]}")
   if [ -n "$found" ]; then
     printf '  BAD  %s carries %s\n' "$f" "$found"
     note_fail "$f carries ephemeral key(s): $found."
     echo "      Configure the strip filter in this clone, then re-stage the file:" >&2
-    echo "      git config filter.strip-ephemeral-state.clean 'jq \"del(.feedbackSurveyState, .lastChangelogVersion, .autoMode)\" 2>/dev/null || cat'" >&2
+    echo "      git config filter.strip-ephemeral-state.clean '$STRIP_FILTER'" >&2
     echo "      git config filter.strip-ephemeral-state.smudge cat" >&2
   else
     printf '  ok   %s\n' "$f"
@@ -73,6 +76,21 @@ for f in "${FILTERED_FILES[@]}"; do
     note_fail "$f lost its filter=strip-ephemeral-state declaration in .gitattributes."
   fi
 done
+
+echo
+echo "== configured strip filter is current =="
+# A stale filter silently strips tracked keys on commit, so a clone that set
+# one must match. CI configures none and skips this.
+configured=$(git config --get filter.strip-ephemeral-state.clean || true)
+if [ -z "$configured" ]; then
+  echo "  skip none configured"
+elif [ "$configured" = "$STRIP_FILTER" ]; then
+  echo "  ok   filter.strip-ephemeral-state.clean"
+else
+  echo "  BAD  filter.strip-ephemeral-state.clean"
+  note_fail "this clone's strip filter is stale."
+  echo "      git config filter.strip-ephemeral-state.clean '$STRIP_FILTER'" >&2
+fi
 
 echo
 if [ "$fail" -eq 0 ]; then

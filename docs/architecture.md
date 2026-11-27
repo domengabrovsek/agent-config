@@ -42,7 +42,7 @@ Each script runs on its own. Hooks, skills, and CI call them, and you can run an
 | `setup-hosts.sh` | Links each host to the checkout; `--check` reports drift | You, `symlink-check.sh`, Pi `drift-check` |
 | `setup-symlinks.sh` | Claude Code-only wrapper around `setup-hosts.sh` | You |
 | `config-budget.sh` | Caps the words in the always-loaded text | CI |
-| `config-integrity.sh` | Checks that JSON parses, no runtime keys are committed, and the git filter is declared | CI |
+| `config-integrity.sh` | Checks that JSON parses, no runtime keys are committed, the git filter is declared, and a configured filter is current | CI |
 | `shellcheck-all.sh` | Lints every tracked shell script at warning level | CI |
 | `run-shell-tests.sh` | Runs every `tests/*.sh` suite in parallel and lists the failed ones | `npm run test:shell`, CI |
 | `pr-ready.sh` | Reports whether a PR is ready to merge; `--watch` polls until it settles | `post-pr-open-watch.sh`, `/mr`, `/deliver` |
