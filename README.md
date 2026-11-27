@@ -35,7 +35,7 @@ You can also open an agent in the checkout and ask it to run the setup. Tell it 
 To commit to this repo, first add the filter that keeps runtime state out of `settings.json`:
 
 ```bash
-git config filter.strip-ephemeral-state.clean 'jq "del(.feedbackSurveyState, .lastChangelogVersion, .autoMode)" 2>/dev/null || cat'
+git config filter.strip-ephemeral-state.clean 'jq "del(.feedbackSurveyState, .lastChangelogVersion, .autoMode.environment) | if .autoMode == {} then del(.autoMode) else . end" 2>/dev/null || cat'
 git config filter.strip-ephemeral-state.smudge cat
 ```
 
