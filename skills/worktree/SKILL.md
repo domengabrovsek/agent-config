@@ -46,17 +46,18 @@ With `--repo <path>`, the worktree goes in that repo instead of the session's re
 
 The sandbox lets a session write only its own worktree's `.git/worktrees/<name>`. A session cannot create, commit in, or switch a worktree of another repo, so it hands the task off.
 
-1. Give the user one command for their own terminal, then stop:
+Build this command for the user's own terminal:
 
-   ```bash
-   wt="$(~/.agents/scripts/repo-worktree.sh "<path>" "<slug>" --branch "<branch>" --allow-protected)" && cd "$wt" && claude '<task prompt>'
-   ```
+```bash
+wt="$(~/.agents/scripts/repo-worktree.sh "<path>" "<slug>" --branch "<branch>" --allow-protected)" && cd "$wt" && claude '<task prompt>'
+```
 
-2. Write `<path>` as an absolute path, because the user's terminal has its own cwd.
-3. Add `--base <ref>` when the user names a base.
-4. Write the task prompt so a fresh session can start without this conversation. Open it by asking that session to install dependencies as in steps 7 and 8 above, because the new worktree has no `node_modules`.
-5. Single-quote the prompt and write each `'` inside as `'\''`, so the shell expands nothing.
-6. Tell the user to use a terminal, not the `!` prefix, because `claude` needs its own terminal. The command runs outside the sandbox, so it also checks out `.husky` and the `.claude` settings, `hooks`, `skills`, `agents`, and `commands`.
+- Write `<path>` as an absolute path, because the user's terminal has its own cwd.
+- Add `--base <ref>` when the user names a base.
+- Write the task prompt so a fresh session can start without this conversation. Open it by asking that session to install dependencies as in steps 7 and 8 above, because the new worktree has no `node_modules`.
+- Single-quote the prompt and write each `'` inside as `'\''`, so the shell expands nothing.
+
+Give the user the command and tell them to run it in a terminal, not with the `!` prefix, because `claude` needs its own terminal. Then stop. The command runs outside the sandbox, so it also checks out `.husky` and the `.claude` settings, `hooks`, `skills`, `agents`, and `commands`.
 
 Never work around the sandbox for a sibling worktree. Do not run the script, clone the repo, use a sparse checkout, or commit there from this session.
 
