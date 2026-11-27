@@ -109,11 +109,13 @@ Anything that needs your own rights, such as a PAM grant or a write, you run you
 
 ## Run from a home repo
 
-The [home repo pattern](https://aihero.dev/the-home-repo-pattern) runs one session from a single repo, the home repo. Each task goes to a sibling repo under `~/dev` and gets its own worktree and PR there.
+The [home repo pattern](https://aihero.dev/the-home-repo-pattern) runs one session from a single repo, the home repo. Each task goes to a sibling repo under `~/dev` and gets its own worktree, session, and PR there.
 
-- Start the session in the home repo's main checkout with `claude`, not `claude -w`. A worktree-isolated session may only touch its own worktree, so it cannot reach a sibling repo.
-- Reach a child repo with `/worktree --repo <path> <slug>`. It runs `~/.agents/scripts/repo-worktree.sh`, which creates `<repo>/.claude/worktrees/<slug>` and lists the repo in `~/.cache/agent/worktree-repos`. The SessionEnd cleanup hook reads that file and prunes merged worktrees in each listed repo. The session then works there with `git -C` and absolute paths. The sandbox lets a session write every repo under `~/dev`, except `.husky` and the `.claude` settings, `hooks`, `skills`, `agents`, and `commands`. For a base that tracks those paths, the script checks out every other file and exits 4. The agent then runs `~/.agents/scripts/worktree-fill-protected.sh <worktree>`, which `settings.json` excludes from the sandbox. It copies each protected file from the main checkout, which agents cannot write, so the agent never chooses the content. It runs no git, refuses symlinks on both sides, and only accepts worktrees of repos under `~/dev`. A protected file that differs from the main checkout still needs a `!` command from you.
-- Subagent `isolation: "worktree"` and `EnterWorktree` create worktrees only in the launch repo. For a child repo, create the worktree first and brief the subagent to work in its path, as `/drive-fleet` does.
+- The sandbox lets a session write only its own worktree's `.git/worktrees/<name>`. A session cannot create, commit in, or switch a worktree of another repo.
+- Hand a child repo's task off with `/worktree --repo <path> <slug>`. It prints one command for your terminal. That command runs `~/.agents/scripts/repo-worktree.sh`, then starts `claude` in the new worktree with the task prompt.
+- The script creates `<repo>/.claude/worktrees/<slug>` and lists the repo in `~/.cache/agent/worktree-repos`. The SessionEnd cleanup hook reads that file and prunes merged worktrees in each listed repo.
+- The command runs outside the sandbox, so it checks out `.husky` and the `.claude` settings, `hooks`, `skills`, `agents`, and `commands` too.
+- Subagent `isolation: "worktree"` and `EnterWorktree` create worktrees only in the launch repo. A child repo's work runs in its own session.
 - Push with `git push origin <branch>`. The new branch has no upstream, and `-u` would write `.git/config`.
 - Clean up a merged child worktree with `/worktree-merge <worktree-path>`.
 - To load a child repo's `CLAUDE.md`, add the repo with `--add-dir <path>` and set `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`. The variable applies only to directories added with `--add-dir`.
