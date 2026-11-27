@@ -117,8 +117,7 @@ The [home repo pattern](https://aihero.dev/the-home-repo-pattern) runs one sessi
 - The command runs outside the sandbox, so it checks out `.husky` and the `.claude` settings, `hooks`, `skills`, `agents`, and `commands` too.
 - Subagent `isolation: "worktree"` and `EnterWorktree` create worktrees only in the launch repo. A child repo's work runs in its own session.
 - Push with `git push origin <branch>`. The new branch has no upstream, and `-u` would write `.git/config`.
-- Clean up a merged child worktree with `/worktree-merge <worktree-path>`.
-- To load a child repo's `CLAUDE.md`, add the repo with `--add-dir <path>` and set `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`. The variable applies only to directories added with `--add-dir`.
+- After merge, the SessionEnd cleanup hook prunes the child worktree. Hooks run outside the sandbox, so it can write the child's `.git/worktrees`.
 
 ## Keep runtime state out of commits
 

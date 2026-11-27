@@ -68,4 +68,4 @@ The worktree is its own working tree, so the session can change files without co
 When work is done:
 
 - Open a PR from the worktree's branch as normal.
-- After merge, run `/worktree-merge` to clean up the worktree and remove the local branch. For a `--repo` worktree, pass its path: `/worktree-merge <worktree-path>`.
+- After merge, run `/worktree-merge` to clean up the worktree and remove the local branch. A `--repo` worktree needs nothing: the SessionEnd cleanup hook prunes it after merge, outside the sandbox.

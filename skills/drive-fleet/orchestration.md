@@ -30,7 +30,7 @@ Setting the `/goal` is a one-time human decision. It pre-authorizes the in-scope
 - **CI polling is backgrounded.** Pollers run as Monitors (per `/ci`), not in the manager turn. React on agent-completion and pipeline-terminal events.
 - **Surface genuine conflicts.** If `main` diverges mid-session and invalidates the plan, stop and re-plan the affected MRs with the user. Do not plow ahead.
 - **Hold the post-action.** Trigger `post_completion_action` only when the full condition holds across the whole fleet.
-- **Cross-repo lanes become their own sessions.** Agent `isolation: "worktree"` only covers the session's launch repo. The sandbox lets a session write only its own worktree's `.git/worktrees/<name>`, so neither the manager nor a lane agent can commit in a sibling repo's worktree. For each sibling-repo lane, give the user the `/worktree --repo` handoff command, then track that lane's PR with `gh` like any other lane. After merge, clean up with `/worktree-merge <worktree-path>`.
+- **Cross-repo lanes become their own sessions.** Agent `isolation: "worktree"` only covers the session's launch repo. The sandbox lets a session write only its own worktree's `.git/worktrees/<name>`, so neither the manager nor a lane agent can commit in a sibling repo's worktree. For each sibling-repo lane, give the user the `/worktree --repo` handoff command, then track that lane's PR with `gh` like any other lane. After merge, the SessionEnd cleanup hook prunes the worktree. It runs outside the sandbox.
 
 ## Per-repo block (fill in before running)
 
