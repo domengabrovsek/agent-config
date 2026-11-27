@@ -34,6 +34,14 @@ state_repo=$(repo_with state '{"lastChangelogVersion":"1.0.0"}')
 expect_exit --says "carries lastChangelogVersion" \
   "a committed top-level runtime key fails" 1 bash "$state_repo/scripts/config-integrity.sh"
 
+git -C "$allow_repo" config filter.strip-ephemeral-state.clean 'jq "del(.autoMode)" 2>/dev/null || cat'
+expect_exit --says "strip filter is stale" \
+  "a stale configured filter fails" 1 bash "$allow_repo/scripts/config-integrity.sh"
+
+current=$(sed -n "s/^STRIP_FILTER='\(.*\)'$/\1/p" "$PROJECT_DIR/scripts/config-integrity.sh")
+git -C "$allow_repo" config filter.strip-ephemeral-state.clean "$current"
+expect_exit "the current configured filter passes" 0 bash "$allow_repo/scripts/config-integrity.sh"
+
 # The filter the script prints, minus its `|| cat` fallback, run as git would.
 filter_program() {
   sed -n "s/^STRIP_FILTER='jq \"\(.*\)\" 2>.*/\1/p" "$PROJECT_DIR/scripts/config-integrity.sh"

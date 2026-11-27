@@ -77,6 +77,21 @@ for f in "${FILTERED_FILES[@]}"; do
 done
 
 echo
+echo "== configured strip filter is current =="
+# A stale filter silently strips tracked keys on commit, so a clone that set
+# one must match. CI configures none and skips this.
+configured=$(git config --get filter.strip-ephemeral-state.clean || true)
+if [ -z "$configured" ]; then
+  echo "  skip none configured"
+elif [ "$configured" = "$STRIP_FILTER" ]; then
+  echo "  ok   filter.strip-ephemeral-state.clean"
+else
+  echo "  BAD  filter.strip-ephemeral-state.clean"
+  note_fail "this clone's strip filter is stale."
+  echo "      git config filter.strip-ephemeral-state.clean '$STRIP_FILTER'" >&2
+fi
+
+echo
 if [ "$fail" -eq 0 ]; then
   echo "OK: configuration is intact."
 else
